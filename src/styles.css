@@ -316,3 +316,33 @@ textarea { resize: vertical; }
 .community-grind strong { font-size: 1.6rem; color: var(--accent-strong); }
 .community .btn { margin-top: 4px; }
 p.community { padding: 2px 0; }
+.community-row { display: flex; flex-direction: column; gap: 1px; }
+.community-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+/* Dial-In-Assistent -------------------------------------------------------- */
+.guide summary {
+  display: flex; flex-direction: column; gap: 2px; cursor: pointer; list-style: none; font-weight: 700; font-size: 1.05rem;
+}
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary::after { content: '▾ aufklappen'; font-size: 0.75rem; font-weight: 400; color: var(--accent-strong); }
+.guide[open] summary::after { content: '▴ zuklappen'; }
+.guide[open] { gap: 14px; }
+.guide-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.guide-step { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; }
+.guide-check {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent); background: transparent;
+  color: var(--accent-strong); font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+.guide-step.done .guide-check { background: var(--good); border-color: var(--good); color: #1c1310; }
+.guide-step.done .guide-body > strong { text-decoration: line-through; color: var(--muted); }
+.guide-body { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }
+.guide-value {
+  display: inline-block; font-weight: 800; color: var(--accent-strong); background: var(--surface-2);
+  padding: 0 8px; border-radius: 8px; font-variant-numeric: tabular-nums;
+}
+.correction { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border-left: 4px solid var(--border); }
+.correction ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.correction.sour { border-left-color: var(--sour); }
+.correction.bitter { border-left-color: var(--bitter); }
+.correction.good { border-left-color: var(--good); }
+.correction .btn { align-self: flex-start; }

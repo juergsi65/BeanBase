@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, useLookup } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
+import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
+import { availableSources, buildPlan } from '../lib/dialin'
 import { ratio, fmtRatio, recipesForBean, SCALE_TYPES } from '../lib/coffee'
 import { findMachinePreset } from '../data/presets'
 
@@ -47,6 +49,8 @@ export default function BrewPage({ data, go, preset }) {
     return base
   })
   const [saving, setSaving] = useState(false)
+  const [community, setCommunity] = useState(null)
+  const [guideSource, setGuideSource] = useState(null)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v?.target ? v.target.value : v }))
 
   const r = ratio(form.dose, form.yield)
@@ -68,12 +72,19 @@ export default function BrewPage({ data, go, preset }) {
     })
   }
 
-  const applyCommunity = (v) =>
+  // Werte (Community, Assistent) ins Formular übernehmen – nur bekannte Felder, nur gesetzte Werte
+  const applyValues = (v) =>
     setForm((f) => {
       const next = { ...f }
-      for (const [k, val] of Object.entries(v)) if (val != null) next[k] = val
+      for (const k of ['dose', 'yield', 'temperature', 'grind_setting']) if (v[k] != null && v[k] !== '') next[k] = v[k]
       return next
     })
+
+  // Dial-In-Assistent: Quelle wählen (eigener Bezug > Community > Basiswert) und Plan berechnen
+  const sources = availableSources({ own: prev, community })
+  const source = sources.includes(guideSource) ? guideSource : sources[0]
+  const plan = bean ? buildPlan({ source, bean, machine, grinder, own: prev, community }) : null
+  const addNote = (text) => setForm((f) => ({ ...f, notes: f.notes?.trim() ? `${f.notes.trim()}\n${text}` : text }))
 
   const save = async (e) => {
     e.preventDefault()
@@ -147,7 +158,9 @@ export default function BrewPage({ data, go, preset }) {
             name={bean.name}
             grinder={grinder}
             machineType={machine?.type}
-            onApply={applyCommunity}
+            onApply={applyValues}
+            onData={setCommunity}
+            machine={machine}
           />
         )}
         {!editing && prev.last && (
@@ -160,6 +173,21 @@ export default function BrewPage({ data, go, preset }) {
           </details>
         )}
       </section>
+
+      {!editing && plan && (
+        <DialInGuide
+          key={form.bean_id}
+          plan={plan}
+          sources={sources}
+          source={source}
+          onSource={setGuideSource}
+          form={form}
+          grinder={grinder}
+          machine={machine}
+          onApply={applyValues}
+          defaultOpen={!prev.count}
+        />
+      )}
 
       <section className="card">
         <h3 className="section-title">Rezept</h3>
@@ -212,6 +240,7 @@ export default function BrewPage({ data, go, preset }) {
         <Field label="Extraktion">
           <ExtractionSlider value={form.extraction} onChange={set('extraction')} />
         </Field>
+        <CorrectionHint form={form} grinder={grinder} machine={machine} targetTime={plan?.time} onNote={addNote} />
         <Field label="Notiz für den nächsten Versuch">
           <textarea rows={3} value={form.notes} onChange={set('notes')} placeholder="z. B. Nächstes Mal 2 Klicks feiner mahlen" />
         </Field>

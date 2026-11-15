@@ -1,27 +1,33 @@
 import { useEffect, useState } from 'react'
-import { communityAvailable, fetchCommunity, roundGrind } from '../lib/community'
+import { communityAvailable, fetchCommunity, bestScope, communityValues } from '../lib/community'
 import { MACHINE_TYPES } from '../lib/coffee'
-import { findGrinderPreset } from '../data/presets'
+import { findGrinderPreset, findMachinePreset } from '../data/presets'
 
 /**
  * "Sofort-Check": zeigt anonymisierte Werte anderer Nutzer für diese Bohne.
  * onApply(values) – optional, übernimmt Werte in den Bezug.
+ * onData(result)  – optional, meldet das Ergebnis an die Elternkomponente.
  */
-export default function CommunityTip({ roaster, name, grinder, machineType, onApply }) {
+export default function CommunityTip({ roaster, name, grinder, machine, machineType, onApply, onData }) {
   const [state, setState] = useState({ status: 'idle' })
   const grinderPreset = grinder?.preset_id ?? null
+  const machinePreset = machine?.preset_id ?? null
+  const type = machineType ?? machine?.type ?? null
 
   useEffect(() => {
     if (!communityAvailable || !roaster?.trim() || (name?.trim().length ?? 0) < 3) {
       setState({ status: 'idle' })
+      onData?.(null)
       return
     }
     let cancelled = false
     setState((s) => ({ ...s, status: 'loading' }))
     const t = setTimeout(async () => {
       try {
-        const result = await fetchCommunity({ roaster, name, grinderPreset, machineType })
-        if (!cancelled) setState({ status: 'done', result })
+        const result = await fetchCommunity({ roaster, name, grinderPreset, machineType: type, machinePreset })
+        if (cancelled) return
+        setState({ status: 'done', result })
+        onData?.(result)
       } catch (e) {
         if (!cancelled) setState({ status: 'error', error: e.message })
       }
@@ -30,7 +36,9 @@ export default function CommunityTip({ roaster, name, grinder, machineType, onAp
       cancelled = true
       clearTimeout(t)
     }
-  }, [roaster, name, grinderPreset, machineType])
+    // onData bewusst nicht in den Abhängigkeiten (Callback-Identität ändert sich je Render)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roaster, name, grinderPreset, machinePreset, type])
 
   if (!communityAvailable)
     return <p className="community muted small">🌍 Community-Check: verfügbar, sobald die App mit Supabase verbunden ist.</p>
@@ -38,45 +46,59 @@ export default function CommunityTip({ roaster, name, grinder, machineType, onAp
   if (state.status === 'loading') return <p className="community muted small">🌍 Suche Community-Werte …</p>
   if (state.status === 'error') return <p className="community muted small">🌍 Community-Check nicht verfügbar ({state.error})</p>
 
-  const { all, grinder: g } = state.result ?? {}
-  const methodLabel = machineType ? ` (${MACHINE_TYPES[machineType]})` : ''
-  if (!all)
+  const row = bestScope(state.result)
+  const methodLabel = type ? ` (${MACHINE_TYPES[type]})` : ''
+  if (!row)
     return <p className="community muted small">🌍 Noch keine Community-Daten für diese Bohne{methodLabel} – du bist der/die Erste!</p>
 
-  const row = g ?? all
-  const grind = g ? roundGrind(g.avg_grind, grinder?.scale_type) : null
-  const apply = () =>
-    onApply({
-      dose: row.avg_dose != null ? Number(row.avg_dose) : null,
-      yield: row.avg_yield != null ? Number(row.avg_yield) : null,
-      temperature: row.avg_temp != null ? Number(row.avg_temp) : null,
-      grind_setting: grind,
-    })
+  const grinderName = findGrinderPreset(grinderPreset)?.name ?? grinder?.name
+  const machineName = findMachinePreset(machinePreset)?.name ?? machine?.name
+  const avg = communityValues(row, 'avg', grinder?.scale_type)
+  const best = communityValues(row, 'best', grinder?.scale_type)
+  const head =
+    row.scope === 'setup' ? (
+      <>
+        für deine <strong>{grinderName}</strong> + <strong>{machineName}</strong>
+      </>
+    ) : row.scope === 'grinder' ? (
+      <>
+        für diese Bohne auf deiner <strong>{grinderName}</strong>
+      </>
+    ) : (
+      <>für diese Bohne{methodLabel}</>
+    )
+  const line = (v) => (
+    <>
+      {v.grind_setting != null && (
+        <>
+          Mahlgrad <strong>{v.grind_setting}</strong> ·{' '}
+        </>
+      )}
+      {v.dose ?? '–'} g → {v.yield ?? '–'} g{v.time != null && <> in {v.time} s</>}
+      {v.temperature != null && <> · {v.temperature} °C</>}
+    </>
+  )
 
   return (
     <div className="community card-inner">
-      <div className="community-head">
-        🌍 {g ? <>Community-Tipp für deine <strong>{findGrinderPreset(grinderPreset)?.name ?? grinder.name}</strong></> : <>Community-Tipp{methodLabel}</>}
+      <div className="community-head">🌍 Community {head}</div>
+      <div className="community-row">
+        <span className="community-label">Ø Durchschnitt</span>
+        <span>{line(avg)}</span>
       </div>
-      {g && grind != null && (
-        <div className="community-grind">
-          Mahlgrad <strong>{grind}</strong>
-          {g.min_grind != null && g.min_grind !== g.max_grind && (
-            <span className="muted small">
-              {' '}
-              (Spanne {Number(g.min_grind)}–{Number(g.max_grind)})
-            </span>
-          )}
-        </div>
+      <div className="community-row">
+        <span className="community-label">★ Bestes Rezept ({row.best_rating}★)</span>
+        <span>{line(best)}</span>
+      </div>
+      {row.min_grind != null && row.min_grind !== row.max_grind && (
+        <p className="muted small">
+          Mahlgrad-Spanne {Number(row.min_grind)}–{Number(row.max_grind)}
+        </p>
       )}
-      <p>
-        {row.avg_dose ?? '–'} g → {row.avg_yield ?? '–'} g{row.avg_time != null && <> in {row.avg_time} s</>}
-        {row.avg_temp != null && <> · {row.avg_temp} °C</>}
-      </p>
       <p className="muted small">
         Ø {row.avg_rating} ★ aus {row.brew_count} gut bewerteten Bezügen von {row.user_count} Nutzern
       </p>
-      {!g && (
+      {row.scope === 'all' && (
         <p className="muted small">
           {grinderPreset
             ? 'Mahlgrad: noch zu wenige Daten für deine Mühle.'
@@ -84,9 +106,14 @@ export default function CommunityTip({ roaster, name, grinder, machineType, onAp
         </p>
       )}
       {onApply && (
-        <button type="button" className="btn primary block" onClick={apply}>
-          Werte in meinen Bezug übernehmen
-        </button>
+        <div className="row-actions">
+          <button type="button" className="btn primary grow" onClick={() => onApply(best)}>
+            Rezept übernehmen
+          </button>
+          <button type="button" className="btn ghost" onClick={() => onApply(avg)}>
+            Ø übernehmen
+          </button>
+        </div>
       )}
     </div>
   )
