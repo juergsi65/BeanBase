@@ -13,8 +13,10 @@ export default function AuthPage() {
     e.preventDefault()
     setBusy(true)
     setMsg(null)
-    const fn = mode === 'login' ? supabase.auth.signInWithPassword : supabase.auth.signUp
-    const { data, error } = await fn.call(supabase.auth, { email, password })
+    const { data, error } =
+      mode === 'login'
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })
     setBusy(false)
     if (error) setMsg({ tone: 'error', text: error.message })
     else if (mode === 'signup' && !data.session)

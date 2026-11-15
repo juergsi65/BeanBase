@@ -95,7 +95,7 @@ Netlify funktioniert identisch: Build-Befehl `npm run build`, Output-Verzeichnis
 | Deploy command | `npx wrangler deploy` |
 | Build variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
 
-Die `VITE_*`-Variablen müssen als **Build**-Variablen gesetzt sein (nicht als Runtime-Variablen), da Vite sie beim Build einbettet. Danach die `*.workers.dev`-URL in Supabase unter *Authentication → URL Configuration* eintragen.
+Für dieses Repo sind URL und Publishable-Key bereits in `.env.production` hinterlegt (beide sind öffentlich und landen ohnehin im Browser-JavaScript) – Cloudflare braucht dann keine eigenen Variablen. Wer andere Werte nutzen will, setzt sie in Cloudflare; die `VITE_*`-Variablen müssen dort als **Build**-Variablen gesetzt sein (nicht als Runtime-Variablen), da Vite sie beim Build einbettet. Danach die `*.workers.dev`-URL in Supabase unter *Authentication → URL Configuration* eintragen.
 
 Lokal: `npm run build && npx wrangler deploy`.
 
