@@ -73,6 +73,9 @@ export default function DialInGuide({ plan, sources, source, onSource, form, gri
         />
       )}
       {plan.note && <p className="muted small">{plan.note}</p>}
+      <p className="tba-note">
+        <span className="tba">KI-Coach · TBA</span> Persönliche KI-Empfehlungen auf Basis deiner Bezüge folgen in einem kommenden Update.
+      </p>
 
       <ol className="guide-steps">
         <Step n={1} title="Mühle einstellen" done={done.grind} onToggle={() => toggle('grind')}>

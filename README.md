@@ -14,8 +14,11 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 - **Suche & Filter** nach Bohne, Röstgrad, Bewertung und Freitext
 - **JSON-Export** als Backup
 - **Hardware-Presets**: ~25 Maschinen/Brühmethoden und ~22 Mühlen zum Auswählen (Suche tolerant gegenüber Tippfehlern). Füllt Typ, Skala und Notizen vor; Maschinen liefern passende Startwerte (z. B. Dedica 14 g → 28 g, V60 15 g → 250 g). Eigene Geräte bleiben möglich, umbenennen ist erlaubt – die Modell-Verknüpfung (`preset_id`) bleibt.
-- **Bohnen-Foto & KI-Etikett-Scan**: Tüte direkt mit der Handykamera fotografieren. Das Foto wird verkleinert und im Supabase Storage gespeichert; eine Edge Function liest per Gemini Vision Name, Rösterei, Herkunft, Varietät, Aufbereitung, Röstgrad, Röstdatum und Geschmacksnoten aus und füllt **nur leere** Felder. Im Demo-Modus wird das Foto lokal gespeichert (ohne KI).
-- **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung in drei Stufen: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** (v. a. Supermarkt-Kaffee). Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
+- **Bohnen-Foto**: Tüte mit der Handykamera fotografieren oder hochladen; das Foto wird verkleinert im Supabase Storage gespeichert (Demo-Modus: lokal).
+- **KI-Funktionen · TBA**: Etiketten-Erkennung per Gemini (Edge Function `analyze-bean-label`) und ein KI-Dial-In-Coach sind vorbereitet, aber noch nicht freigeschaltet (`AI_LABEL_ENABLED` in `src/lib/images.js`). In der App sind sie als „TBA“ gekennzeichnet.
+- **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung kaskadierend: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** → **UPCitemdb** (Trial-API, ~100 Abfragen/Tag/IP). **Strikter Kaffee-Filter**: Ist das Produkt laut Kategorien/Name kein Kaffee (Milch, Schokolade, Kaffeesahne, Filter …), wird nichts übernommen und „Kein Kaffee erkannt“ angezeigt. Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
+- **Social Barista**: Profil mit Username, Anzeigename, Bio und Profilbild (Bucket `avatars`), automatisch beim Registrieren angelegt (`barista_xxxxxx`, ohne Bezug zur E-Mail). Freunde per Username suchen, Anfragen senden/annehmen/ablehnen. **Community-Tab** mit Feed („Nur Freunde“ / „Alle Baristas“): Bezüge mit Bohne, Setup, Parametern, Bewertung und Notiz, ☕-Likes, Kommentare und „Rezept übernehmen“ (Mahlgrad nur, wenn man dieselbe Mühle besitzt). **Barista-Profile** zeigen Setup, aktuelle Bohnen und letzte Bezüge.
+  - **Privat per Default**: Bohnen, Equipment und Bezüge sehen nur akzeptierte Freunde. Wer „Profil öffentlich“ einschaltet, erscheint für alle eingeloggten Nutzer (Feed „Alle Baristas“). Schreiben darf immer nur der Besitzer (RLS).
 - **Community-Sofort-Check**: Beim Anlegen einer Bohne und beim Bezug zeigt BeanBase anonymisierte Durchschnittswerte **und das bestbewertete Rezept** anderer Nutzer für dieselbe Bohne (Rösterei + Name, Schreibweise egal), getrennt nach Brühmethode – mit Mahlgrad, wenn die eigene Mühle mit demselben Modell verknüpft ist, und noch genauer bei gleicher Mühle **und** Maschine. „Rezept übernehmen“ bzw. „Ø übernehmen“ füllt den Bezug aus.
 - **Dial-In-Assistent** auf der Bezug-Seite: Checkliste in 4 Schritten (Mühle einstellen inkl. Purge-Hinweis → Maschine vorbereiten → Zielwerte Output/Zeit → Geschmack korrigieren). Zielwerte wahlweise aus dem **eigenen** besten/letzten Bezug (automatisch korrigiert, wenn er zu sauer/bitter war), der **Community** oder **Basiswerten** je Röstgrad und Brühmethode. Die Korrekturhilfe nennt konkrete neue Werte (z. B. „Mahlgrad 15 → 14“, „Temperatur +1 °C“) und übernimmt sie auf Wunsch als Notiz.
 
@@ -50,7 +53,9 @@ npm run dev        # http://localhost:5173 – startet im Demo-Modus
 5. *Optional, Google-Login:* **Authentication → Providers → Google** aktivieren (OAuth-Client aus der Google Cloud Console). Unter **Authentication → URL Configuration** die Site-URL bzw. Redirect-URLs (`http://localhost:5173`, später die Produktions-URL) eintragen.
 6. `npm run dev` neu starten → Login-Bildschirm erscheint.
 
-## KI-Etikett-Erkennung aktivieren (optional)
+## KI-Etikett-Erkennung aktivieren (optional, derzeit „TBA“)
+
+In `src/lib/images.js` `AI_LABEL_ENABLED = true` setzen und die Edge Function deployen:
 
 Benötigt die [Supabase CLI](https://supabase.com/docs/guides/cli) und einen Gemini-API-Key aus [Google AI Studio](https://aistudio.google.com/apikey).
 
@@ -111,6 +116,9 @@ machines  (id, user_id, name, type, preset_id, notes, created_at)
 grinders  (id, user_id, name, scale_type, preset_id, notes, created_at)
 beans     (id, user_id, name, roaster, origin, variety, process, roast_level,
            roast_date, flavor_notes[], image_url, barcode, active, created_at)
+profiles  (id→auth.users, username, display_name, avatar_url, bio, is_public, created_at)
+friendships (id, requester_id, addressee_id, status pending|accepted, created_at)
+brew_likes (brew_id, user_id) · brew_comments (id, brew_id, user_id, body, created_at)
 brews     (id, user_id, bean_id→beans, machine_id→machines, grinder_id→grinders,
            dose, yield, grind_setting, temperature, brew_time, preinfusion,
            rating 1–5, extraction -5…+5, notes, created_at)
@@ -126,13 +134,15 @@ src/
   lib/images.js         Foto verkleinern, Storage-Upload, KI-Analyse aufrufen
   lib/community.js      Community-Abfrage (RPC)
   lib/dialin.js         Dial-In-Logik: Basiswerte, Zielwerte, Mahlgrad-Korrektur
-  lib/barcode.js        Barcode prüfen + nachschlagen (Community → Open Food Facts)
+  lib/barcode.js        Barcode prüfen + nachschlagen (Community → Open Food Facts → UPCitemdb) + Kaffee-Filter
+  lib/social.js         Profile, Freunde, Feed, Likes, Kommentare
   data/presets.js       Kuratierte Maschinen & Mühlen (preset_id nie ändern!)
   components/ui.jsx     Stoppuhr, Sterne, Extraktions-Regler, Zahlenfeld, Rezeptkarte …
   components/CommunityTip.jsx   Community-Sofort-Check
   components/DialInGuide.jsx    Dial-In-Assistent + Korrekturhilfe
   components/BarcodeScanner.jsx Kamera-Scanner (BarcodeDetector / ZXing) + manuelle Eingabe
-  pages/                Dashboard, Bezug, Log, Bohnen, Setup, Login
+  components/FeedCard.jsx       Feed-Karte (Likes, Kommentare, Rezept übernehmen)
+  pages/                Dashboard, Bezug, Log, Bohnen, Community, Profil, Barista-Profil, Setup, Login
 supabase/schema.sql     Tabellen, Row Level Security, Storage, Community-Funktion
 supabase/functions/analyze-bean-label/   Edge Function (Gemini Vision)
 ```

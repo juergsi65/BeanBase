@@ -51,24 +51,34 @@ const PROCESS_HINTS = [
 ]
 const firstMatch = (text, list) => list.find(([re]) => re.test(text))?.[1] ?? null
 
-async function lookupOpenFoodFacts(code) {
-  const fields = 'product_name,product_name_de,brands,origins,origin,labels,categories_tags,generic_name'
-  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`)
-  if (!res.ok) return null
-  const json = await res.json()
-  const p = json?.product
-  if (json?.status !== 1 || !p) return null
-  const isCoffee = (p.categories_tags ?? []).some((t) => /coffee|kaffee|cafe/.test(t))
-  const name = (p.product_name_de || p.product_name || '').trim()
-  if (!name) return null
-  const text = [name, p.generic_name, p.labels].filter(Boolean).join(' ')
+// --- Kaffee-Filter -------------------------------------------------------------
+const COFFEE_RE = /(kaffee|coffee|caf[eé]|caff[eè]|espresso|ristretto|arabica|robusta|cold[- ]?brew)/i
+// Produkte, die zwar "Kaffee" im Namen/der Kategorie tragen, aber keine Bohnen/kein Kaffeepulver sind
+const NOT_COFFEE_RE = /(drinks?|getr[äa]nk|iced|eiskaffee|\beis\b|milk|milch|latte-?macchiato|cappuccino-?drink|chocolate|schokolad|candies|s[üu]ßwaren|biscuit|keks|cookie|ice-?cream|liqueur|lik[öo]r|cake|kuchen|yoghurt|joghurt|dessert|bonbon|sahne|creamer|weißer|filtert[üu]te|filterpapier|entkalk|reinig|cleaner|descal|filters\b|machine|maschine|kitchen|appliance|\bmugs?\b|tasse|grinder|m[üu]hle)/i
+
+/**
+ * true = Kaffee, false = eindeutig kein Kaffee.
+ * Kategorien haben Vorrang vor dem Produktnamen ("Kaffee-Schokolade" ist Schokolade).
+ */
+export function isCoffeeProduct({ name = '', categories = [] }) {
+  const cats = categories.filter(Boolean)
+  if (cats.length) {
+    // Kaffee nur, wenn eine Kategorie Kaffee ist und keine auf ein anderes Produkt hinweist
+    const coffeeCat = cats.some((c) => COFFEE_RE.test(c) && !NOT_COFFEE_RE.test(c))
+    const otherCat = cats.some((c) => NOT_COFFEE_RE.test(c))
+    return coffeeCat && !(otherCat && NOT_COFFEE_RE.test(name))
+  }
+  return COFFEE_RE.test(name) && !NOT_COFFEE_RE.test(name)
+}
+
+function fromText({ source, name, brand, origin, extraText }) {
+  const text = [name, extraText].filter(Boolean).join(' ')
   return {
-    source: 'openfoodfacts',
-    isCoffee,
+    source,
     data: {
       name,
-      roaster: (p.brands ?? '').split(',')[0].trim() || null,
-      origin: (p.origins || p.origin || '').trim() || null,
+      roaster: brand || null,
+      origin: origin || null,
       process: firstMatch(text, PROCESS_HINTS),
       roast_level: firstMatch(text, ROAST_HINTS),
       flavor_notes: [],
@@ -76,22 +86,59 @@ async function lookupOpenFoodFacts(code) {
   }
 }
 
+/** Open Food Facts – größte freie Lebensmitteldatenbank */
+async function lookupOpenFoodFacts(code) {
+  const fields = 'product_name,product_name_de,brands,origins,origin,labels,categories_tags,categories,generic_name'
+  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`)
+  if (!res.ok) return null
+  const json = await res.json()
+  const p = json?.product
+  if (json?.status !== 1 || !p) return null
+  const name = (p.product_name_de || p.product_name || p.generic_name || '').trim()
+  if (!name) return null
+  const categories = [...(p.categories_tags ?? []), ...(p.categories ? p.categories.split(',') : [])]
+  if (!isCoffeeProduct({ name, categories })) return { source: 'openfoodfacts', notCoffee: true, productName: name }
+  return fromText({
+    source: 'openfoodfacts',
+    name,
+    brand: (p.brands ?? '').split(',')[0].trim(),
+    origin: (p.origins || p.origin || '').trim(),
+    extraText: [p.generic_name, p.labels].filter(Boolean).join(' '),
+  })
+}
+
+/** UPCitemdb (Trial-API, ohne Key, ~100 Abfragen/Tag pro IP) – v. a. internationale/US-Produkte */
+async function lookupUpcItemDb(code) {
+  const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`)
+  if (!res.ok) return null
+  const json = await res.json()
+  const item = json?.items?.[0]
+  const name = (item?.title ?? '').trim()
+  if (!name) return null
+  const categories = item.category ? item.category.split('>').map((c) => c.trim()) : []
+  if (!isCoffeeProduct({ name, categories })) return { source: 'upcitemdb', notCoffee: true, productName: name }
+  return fromText({ source: 'upcitemdb', name, brand: (item.brand ?? '').trim(), extraText: item.description })
+}
+
+const quiet = (fn) => async (code) => {
+  try {
+    return await fn(code)
+  } catch {
+    return null // Netzwerk/CORS/Limit → nächste Quelle
+  }
+}
+
 /**
- * Sucht Bohnen-Daten zu einem Barcode.
- * → { source: 'community'|'openfoodfacts', data, users?, isCoffee? } oder null
+ * Sucht Bohnen-Daten zu einem Barcode – kaskadierend:
+ * BeanBase-Community → Open Food Facts → UPCitemdb.
+ * → { source, data, users? } | { source, notCoffee: true, productName } | null
  */
 export async function lookupBarcode(raw) {
   const code = normalizeBarcode(raw)
   if (!code) return null
-  try {
-    const hit = await lookupCommunity(code)
-    if (hit) return hit
-  } catch {
-    /* Community nicht verfügbar → weiter mit Open Food Facts */
+  for (const source of [quiet(lookupCommunity), quiet(lookupOpenFoodFacts), quiet(lookupUpcItemDb)]) {
+    const hit = await source(code)
+    if (hit) return hit // auch "kein Kaffee" ist eine eindeutige Antwort → abbrechen
   }
-  try {
-    return await lookupOpenFoodFacts(code)
-  } catch {
-    return null
-  }
+  return null
 }
