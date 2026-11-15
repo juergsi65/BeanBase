@@ -45,9 +45,16 @@ const local = {
   },
 }
 
+async function currentUserId() {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user?.id
+}
+
 const remote = {
+  // Nur eigene Zeilen – RLS erlaubt zusätzlich das Lesen von Freunden/öffentlichen Profilen
   async list(table) {
-    const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false })
+    const uid = await currentUserId()
+    const { data, error } = await supabase.from(table).select('*').eq('user_id', uid).order('created_at', { ascending: false })
     if (error) throw error
     return data
   },

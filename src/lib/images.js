@@ -2,7 +2,9 @@
 import { supabase } from './supabase'
 
 const BUCKET = 'bean-images'
-export const canAnalyze = !!supabase
+// KI-Etiketten-Erkennung (Gemini) ist vorbereitet, aber noch nicht freigeschaltet → in der UI als "TBA" markiert.
+export const AI_LABEL_ENABLED = false
+export const canAnalyze = AI_LABEL_ENABLED && !!supabase
 
 /** Verkleinert ein Foto auf max. `max` px Kantenlänge als JPEG (spart Upload & Speicher). */
 export async function resizeImage(file, max = supabase ? 1600 : 640, quality = supabase ? 0.85 : 0.7) {

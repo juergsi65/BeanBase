@@ -72,17 +72,12 @@ alter table public.beans    add column if not exists barcode text;
 
 create index if not exists brews_user_bean_idx on public.brews (user_id, bean_id, created_at desc);
 
--- Row Level Security: jeder Nutzer sieht nur seine eigenen Daten -------------
-do $$
-declare t text;
-begin
-  foreach t in array array['machines','grinders','beans','brews'] loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format('drop policy if exists "own rows" on public.%I', t);
-    execute format(
-      'create policy "own rows" on public.%I for all using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
-  end loop;
-end $$;
+-- Row Level Security: wird im Abschnitt "Social" (unten) gesetzt –
+-- lesen: eigene Daten, akzeptierte Freunde, öffentliche Profile; schreiben: nur Besitzer.
+alter table public.machines enable row level security;
+alter table public.grinders enable row level security;
+alter table public.beans    enable row level security;
+alter table public.brews    enable row level security;
 
 -- Storage: Bohnen-Fotos -------------------------------------------------------
 -- Öffentlich lesbar (nur wer die zufällige URL kennt), schreiben/löschen nur im
@@ -255,3 +250,186 @@ $$;
 
 revoke all on function public.lookup_bean_by_barcode(text) from public, anon;
 grant execute on function public.lookup_bean_by_barcode(text) to authenticated;
+
+-- =============================================================================
+-- Social: Profile, Freundschaften, Likes, Kommentare
+-- =============================================================================
+
+-- Profile ---------------------------------------------------------------------
+create table if not exists public.profiles (
+  id           uuid primary key references auth.users on delete cascade,
+  username     text not null unique check (username ~ '^[a-z0-9_]{3,20}$'),
+  display_name text check (char_length(display_name) <= 40),
+  avatar_url   text,
+  bio          text check (char_length(bio) <= 280),
+  is_public    boolean not null default false,  -- privat per Default: nur Freunde sehen Bezüge
+  created_at   timestamptz not null default now()
+);
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles readable" on public.profiles;
+drop policy if exists "profiles update own" on public.profiles;
+-- Profile (Name, Bild, Bio) sind für eingeloggte Nutzer sichtbar – nötig für die Freundessuche.
+create policy "profiles readable" on public.profiles for select to authenticated using (true);
+create policy "profiles update own" on public.profiles for update to authenticated
+  using (id = auth.uid()) with check (id = auth.uid());
+
+-- Profil automatisch beim Registrieren anlegen (Username ohne Bezug zur E-Mail)
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare candidate text;
+begin
+  loop
+    candidate := 'barista_' || substr(md5(random()::text || clock_timestamp()::text), 1, 6);
+    exit when not exists (select 1 from public.profiles where username = candidate);
+  end loop;
+  insert into public.profiles (id, username) values (new.id, candidate) on conflict (id) do nothing;
+  return new;
+end $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Bereits registrierte Nutzer nachträglich mit Profil versorgen
+insert into public.profiles (id, username)
+select u.id, 'barista_' || substr(md5(u.id::text), 1, 6) from auth.users u
+on conflict (id) do nothing;
+
+-- Freundschaften ----------------------------------------------------------------
+create table if not exists public.friendships (
+  id           uuid primary key default gen_random_uuid(),
+  requester_id uuid not null default auth.uid() references public.profiles on delete cascade,
+  addressee_id uuid not null references public.profiles on delete cascade,
+  status       text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at   timestamptz not null default now(),
+  check (requester_id <> addressee_id)
+);
+create unique index if not exists friendships_pair_idx
+  on public.friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
+alter table public.friendships enable row level security;
+
+drop policy if exists "friendships read own" on public.friendships;
+drop policy if exists "friendships request" on public.friendships;
+drop policy if exists "friendships accept" on public.friendships;
+drop policy if exists "friendships remove" on public.friendships;
+create policy "friendships read own" on public.friendships for select to authenticated
+  using (auth.uid() in (requester_id, addressee_id));
+create policy "friendships request" on public.friendships for insert to authenticated
+  with check (requester_id = auth.uid() and status = 'pending');
+create policy "friendships accept" on public.friendships for update to authenticated
+  using (addressee_id = auth.uid()) with check (addressee_id = auth.uid() and status = 'accepted');
+create policy "friendships remove" on public.friendships for delete to authenticated
+  using (auth.uid() in (requester_id, addressee_id));
+-- Beim Annehmen darf nur der Status geändert werden (sonst könnte man requester_id umbiegen)
+revoke update on public.friendships from authenticated, anon;
+grant update (status) on public.friendships to authenticated;
+
+-- Sichtbarkeit: eigene Daten, akzeptierte Freunde oder öffentliches Profil.
+-- Liegt im nicht per API erreichbaren Schema "private" (nur für RLS-Policies).
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+create or replace function private.can_view(owner uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select auth.uid() is not null and (
+    owner = auth.uid()
+    or exists (
+      select 1 from public.friendships f
+      where f.status = 'accepted'
+        and ((f.requester_id = auth.uid() and f.addressee_id = owner)
+          or (f.addressee_id = auth.uid() and f.requester_id = owner))
+    )
+    or exists (select 1 from public.profiles p where p.id = owner and p.is_public)
+  )
+$$;
+revoke all on function private.can_view(uuid) from public;
+grant execute on function private.can_view(uuid) to authenticated;
+-- Trigger-Funktion nicht per API aufrufbar
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+-- RLS für Equipment, Bohnen, Bezüge: lesen sichtbar, schreiben nur Besitzer
+do $$
+declare t text;
+begin
+  foreach t in array array['machines','grinders','beans','brews'] loop
+    execute format('drop policy if exists "own rows" on public.%I', t);
+    execute format('drop policy if exists "read visible" on public.%I', t);
+    execute format('drop policy if exists "insert own" on public.%I', t);
+    execute format('drop policy if exists "update own" on public.%I', t);
+    execute format('drop policy if exists "delete own" on public.%I', t);
+    execute format('create policy "read visible" on public.%I for select to authenticated using (private.can_view(user_id))', t);
+    execute format('create policy "insert own" on public.%I for insert with check (auth.uid() = user_id)', t);
+    execute format('create policy "update own" on public.%I for update using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
+    execute format('create policy "delete own" on public.%I for delete using (auth.uid() = user_id)', t);
+  end loop;
+end $$;
+
+-- Alte Version der Sichtbarkeitsfunktion (früher im public-Schema) entfernen
+drop function if exists public.can_view(uuid);
+
+-- Verknüpfung Bezug → Profil (für den Feed: brews?select=*,profile:profiles(...))
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'brews_user_profile_fkey') then
+    alter table public.brews add constraint brews_user_profile_fkey
+      foreign key (user_id) references public.profiles (id) on delete cascade;
+  end if;
+end $$;
+create index if not exists brews_created_idx on public.brews (created_at desc);
+
+-- Likes ("Kaffeetassen") & Kommentare --------------------------------------------
+create table if not exists public.brew_likes (
+  brew_id    uuid not null references public.brews on delete cascade,
+  user_id    uuid not null default auth.uid() references public.profiles on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (brew_id, user_id)
+);
+create table if not exists public.brew_comments (
+  id         uuid primary key default gen_random_uuid(),
+  brew_id    uuid not null references public.brews on delete cascade,
+  user_id    uuid not null default auth.uid() references public.profiles on delete cascade,
+  body       text not null check (char_length(trim(body)) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+create index if not exists brew_comments_brew_idx on public.brew_comments (brew_id, created_at);
+alter table public.brew_likes enable row level security;
+alter table public.brew_comments enable row level security;
+
+drop policy if exists "likes read" on public.brew_likes;
+drop policy if exists "likes add" on public.brew_likes;
+drop policy if exists "likes remove" on public.brew_likes;
+-- Unterabfragen auf brews unterliegen deren RLS → nur sichtbare Bezüge
+create policy "likes read" on public.brew_likes for select to authenticated
+  using (exists (select 1 from public.brews b where b.id = brew_id));
+create policy "likes add" on public.brew_likes for insert to authenticated
+  with check (user_id = auth.uid() and exists (select 1 from public.brews b where b.id = brew_id));
+create policy "likes remove" on public.brew_likes for delete to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "comments read" on public.brew_comments;
+drop policy if exists "comments add" on public.brew_comments;
+drop policy if exists "comments remove" on public.brew_comments;
+create policy "comments read" on public.brew_comments for select to authenticated
+  using (exists (select 1 from public.brews b where b.id = brew_id));
+create policy "comments add" on public.brew_comments for insert to authenticated
+  with check (user_id = auth.uid() and exists (select 1 from public.brews b where b.id = brew_id));
+create policy "comments remove" on public.brew_comments for delete to authenticated
+  using (user_id = auth.uid()
+         or exists (select 1 from public.brews b where b.id = brew_id and b.user_id = auth.uid()));
+
+-- Storage: Profilbilder ------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 2097152, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+drop policy if exists "avatars insert own" on storage.objects;
+drop policy if exists "avatars update own" on storage.objects;
+drop policy if exists "avatars delete own" on storage.objects;
+create policy "avatars insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars update own" on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);

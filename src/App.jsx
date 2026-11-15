@@ -8,6 +8,9 @@ import BrewPage from './pages/BrewPage'
 import HistoryPage from './pages/HistoryPage'
 import BeansPage from './pages/BeansPage'
 import EquipmentPage from './pages/EquipmentPage'
+import CommunityPage from './pages/CommunityPage'
+import ProfilePage from './pages/ProfilePage'
+import UserPage from './pages/UserPage'
 import { exportAll } from './lib/db'
 
 const TABS = [
@@ -15,6 +18,7 @@ const TABS = [
   { id: 'brew', label: 'Bezug', icon: '⏱' },
   { id: 'history', label: 'Log', icon: '📋' },
   { id: 'beans', label: 'Bohnen', icon: '🫘' },
+  { id: 'community', label: 'Community', icon: '🌍' },
   { id: 'equipment', label: 'Setup', icon: '⚙️' },
 ]
 
@@ -23,12 +27,15 @@ export default function App() {
   const data = useData(user)
   const [tab, setTab] = useState('dashboard')
   const [brewPreset, setBrewPreset] = useState(null)
+  const [userId, setUserId] = useState(null)
 
   if (user === undefined) return <div className="splash">BeanBase lädt …</div>
   if (!user) return <AuthPage />
 
+  // go('brew', { key, brew }) · go('user', { userId }) · go('<tab>')
   const go = (t, preset = null) => {
-    setBrewPreset(preset)
+    if (t === 'user') setUserId(preset?.userId ?? null)
+    else setBrewPreset(preset)
     setTab(t)
     window.scrollTo(0, 0)
   }
@@ -55,6 +62,11 @@ export default function App() {
             Export
           </button>
           {!isLocalMode && (
+            <button className={`btn ghost sm ${tab === 'profile' ? 'on' : ''}`} onClick={() => go('profile')} aria-label="Mein Profil">
+              👤
+            </button>
+          )}
+          {!isLocalMode && (
             <button className="btn ghost sm" onClick={signOut}>
               Logout
             </button>
@@ -79,11 +91,18 @@ export default function App() {
         {tab === 'history' && <HistoryPage {...props} />}
         {tab === 'beans' && <BeansPage {...props} />}
         {tab === 'equipment' && <EquipmentPage {...props} />}
+        {tab === 'community' && <CommunityPage {...props} />}
+        {tab === 'profile' && <ProfilePage {...props} />}
+        {tab === 'user' && <UserPage {...props} userId={userId} key={userId} />}
       </main>
 
       <nav className="tabbar">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => go(t.id)}>
+          <button
+            key={t.id}
+            className={tab === t.id || (t.id === 'community' && (tab === 'user' || tab === 'profile')) ? 'active' : ''}
+            onClick={() => go(t.id)}
+          >
             <span className="tab-icon">{t.icon}</span>
             <span>{t.label}</span>
           </button>

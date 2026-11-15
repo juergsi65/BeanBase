@@ -143,6 +143,7 @@ export default function BeansPage({ data, go }) {
 const SOURCE_TEXT = {
   community: (n) => `Erkannt über die BeanBase-Community (${n} Nutzer${n === 1 ? '' : ''}) – leere Felder wurden ergänzt.`,
   openfoodfacts: () => 'Erkannt über Open Food Facts – leere Felder wurden ergänzt. Bitte prüfen.',
+  upcitemdb: () => 'Erkannt über UPCitemdb – leere Felder wurden ergänzt. Bitte prüfen.',
 }
 
 function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
@@ -191,13 +192,18 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
     setScan({ status: 'loading' })
     const hit = await lookupBarcode(code)
     if (!hit) return setScan({ status: 'unknown' })
+    if (hit.notCoffee) {
+      // Strikter Kaffee-Filter: nichts übernehmen, Barcode nicht speichern
+      setForm((f) => ({ ...f, barcode: bean?.barcode ?? null }))
+      return setScan({ status: 'notcoffee', productName: hit.productName })
+    }
     setForm((f) => {
       const next = { ...f }
       for (const k of ['name', 'roaster', 'origin', 'variety', 'process', 'roast_level']) if (hit.data[k] && !f[k]) next[k] = hit.data[k]
       next.flavor_notes = [...new Set([...(f.flavor_notes ?? []), ...(hit.data.flavor_notes ?? [])])]
       return next
     })
-    setScan({ status: 'found', text: SOURCE_TEXT[hit.source](hit.users), warn: hit.source === 'openfoodfacts' && !hit.isCoffee })
+    setScan({ status: 'found', text: SOURCE_TEXT[hit.source](hit.users) })
   }
 
   useEffect(() => {
@@ -287,7 +293,12 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
         {scan.status === 'found' && (
           <div className="banner info">
             ✨ {scan.text}
-            {scan.warn && ' Hinweis: Das Produkt ist dort nicht als Kaffee eingeordnet.'}
+          </div>
+        )}
+        {scan.status === 'notcoffee' && (
+          <div className="banner error" role="alert">
+            <strong>Kein Kaffee erkannt:</strong> Dieser Barcode gehört zu einem anderen Produkt ({scan.productName}). Bitte scanne eine
+            Kaffeepackung.
           </div>
         )}
         {scan.status === 'unknown' && (
@@ -317,7 +328,7 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
           <p className="muted small">
             {canAnalyze
               ? 'Fotografiere die Vorderseite der Tüte – Sorte, Rösterei, Herkunft & Co. werden automatisch erkannt.'
-              : 'Fotografiere die Tüte zur Wiedererkennung. (KI-Etikett-Erkennung ist mit Supabase + Gemini verfügbar.)'}
+              : 'Fotografiere die Tüte zur Wiedererkennung in deiner Bohnen-Liste.'}
           </p>
         )}
         <div className="grid2">
@@ -328,6 +339,11 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
             🖼 Hochladen
           </button>
         </div>
+        {!canAnalyze && (
+          <p className="tba-note">
+            <span className="tba">KI-Erkennung · TBA</span> Automatische Etiketten-Erkennung folgt in einem kommenden Update.
+          </p>
+        )}
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
         <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} data-testid="bean-upload" />
         {canAnalyze && (
