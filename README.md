@@ -80,7 +80,22 @@ Bohnen-Fotos liegen im Bucket `bean-images` unter `<user_id>/…`. Lesen ist üb
 2. Environment Variables `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY` setzen.
 3. Deploy. Die Vercel-URL in Supabase unter *Authentication → URL Configuration* eintragen.
 
-Netlify / Cloudflare Pages funktionieren identisch: Build-Befehl `npm run build`, Output-Verzeichnis `dist`.
+Netlify funktioniert identisch: Build-Befehl `npm run build`, Output-Verzeichnis `dist`.
+
+### Cloudflare Workers
+
+`wrangler.jsonc` ist vorkonfiguriert (statische Assets aus `dist`). In Cloudflare unter *Workers & Pages → Worker → Settings → Build*:
+
+| Einstellung | Wert |
+|---|---|
+| Branch | der Branch mit dem Code (z. B. `main`) |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler deploy` |
+| Build variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
+
+Die `VITE_*`-Variablen müssen als **Build**-Variablen gesetzt sein (nicht als Runtime-Variablen), da Vite sie beim Build einbettet. Danach die `*.workers.dev`-URL in Supabase unter *Authentication → URL Configuration* eintragen.
+
+Lokal: `npm run build && npx wrangler deploy`.
 
 ## Datenmodell
 
