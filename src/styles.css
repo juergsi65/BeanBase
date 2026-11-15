@@ -72,6 +72,7 @@ code { background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
 .row { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .row-actions { display: flex; gap: 8px; align-items: center; }
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.page-head .btn { white-space: nowrap; }
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px);
   padding: 16px; display: flex; flex-direction: column; gap: 14px;
@@ -280,3 +281,38 @@ textarea { resize: vertical; }
 .auth-card form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
 .auth-logo { font-size: 3rem; }
 @media (max-width: 560px) { .grid2.nums { grid-template-columns: 1fr; } }
+
+/* Fotos ------------------------------------------------------------------ */
+.thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; flex-shrink: 0; border: 1px solid var(--border); }
+.thumb.lg { width: 72px; height: 72px; border-radius: 14px; }
+.photo { position: relative; border-radius: 14px; overflow: hidden; background: var(--surface-2); }
+.photo img { display: block; width: 100%; max-height: 320px; object-fit: contain; }
+.photo-remove { position: absolute; top: 8px; right: 8px; background: color-mix(in srgb, var(--bg) 75%, transparent); }
+
+/* Preset-Auswahl ----------------------------------------------------------- */
+.preset-picker { position: relative; }
+.preset-results {
+  list-style: none; margin: 4px 0 0; padding: 4px; position: absolute; left: 0; right: 0; z-index: 5;
+  max-height: 320px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+}
+.preset-results li.muted { padding: 10px; }
+.preset-results button {
+  width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px; cursor: pointer;
+  background: none; border: 0; border-radius: 8px; color: var(--text); font: inherit;
+}
+.preset-results button:hover, .preset-results button:focus { background: var(--surface-2); }
+.preset-results button span { font-size: 0.78rem; color: var(--muted); }
+.badge { font-size: 0.75rem; color: var(--good); margin-left: 4px; }
+
+/* Community -------------------------------------------------------------- */
+.community.card-inner {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 14px;
+  background: color-mix(in srgb, var(--info) 12%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--info) 40%, transparent);
+}
+.community-head { font-weight: 600; }
+.community-grind { font-size: 1.05rem; }
+.community-grind strong { font-size: 1.6rem; color: var(--accent-strong); }
+.community .btn { margin-top: 4px; }
+p.community { padding: 2px 0; }

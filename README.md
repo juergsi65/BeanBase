@@ -13,6 +13,9 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 - **Dashboard**: Bohne antippen → sofort **letzter** und **bestbewerteter** Bezug mit großem Mahlgrad-Display + Dial-In-Tipp; „Mit diesen Werten neuen Bezug starten“
 - **Suche & Filter** nach Bohne, Röstgrad, Bewertung und Freitext
 - **JSON-Export** als Backup
+- **Hardware-Presets**: ~25 Maschinen/Brühmethoden und ~22 Mühlen zum Auswählen (Suche tolerant gegenüber Tippfehlern). Füllt Typ, Skala und Notizen vor; Maschinen liefern passende Startwerte (z. B. Dedica 14 g → 28 g, V60 15 g → 250 g). Eigene Geräte bleiben möglich, umbenennen ist erlaubt – die Modell-Verknüpfung (`preset_id`) bleibt.
+- **Bohnen-Foto & KI-Etikett-Scan**: Tüte direkt mit der Handykamera fotografieren. Das Foto wird verkleinert und im Supabase Storage gespeichert; eine Edge Function liest per Gemini Vision Name, Rösterei, Herkunft, Varietät, Aufbereitung, Röstgrad, Röstdatum und Geschmacksnoten aus und füllt **nur leere** Felder. Im Demo-Modus wird das Foto lokal gespeichert (ohne KI).
+- **Community-Sofort-Check**: Beim Anlegen einer Bohne und beim Bezug zeigt BeanBase anonymisierte Durchschnittswerte anderer Nutzer für dieselbe Bohne (Rösterei + Name, Schreibweise egal), getrennt nach Brühmethode – und mit Mahlgrad, wenn die eigene Mühle mit demselben Modell verknüpft ist. Ein Tipp übernimmt die Werte in den Bezug.
 
 ## Tech-Stack
 
@@ -41,8 +44,35 @@ npm run dev        # http://localhost:5173 – startet im Demo-Modus
    VITE_SUPABASE_URL=https://xxxx.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJ...
    ```
+   Das Skript ist idempotent – bei Updates einfach erneut ausführen (ergänzt neue Spalten, Storage-Bucket `bean-images` und die Funktion `get_community_recipes`).
 5. *Optional, Google-Login:* **Authentication → Providers → Google** aktivieren (OAuth-Client aus der Google Cloud Console). Unter **Authentication → URL Configuration** die Site-URL bzw. Redirect-URLs (`http://localhost:5173`, später die Produktions-URL) eintragen.
 6. `npm run dev` neu starten → Login-Bildschirm erscheint.
+
+## KI-Etikett-Erkennung aktivieren (optional)
+
+Benötigt die [Supabase CLI](https://supabase.com/docs/guides/cli) und einen Gemini-API-Key aus [Google AI Studio](https://aistudio.google.com/apikey).
+
+```bash
+supabase login
+supabase link --project-ref <dein-project-ref>
+supabase secrets set GEMINI_API_KEY=dein-key
+supabase secrets set GEMINI_MODEL=gemini-2.5-flash   # optional, jedes Gemini-Modell mit Bildeingabe
+supabase functions deploy analyze-bean-label
+```
+
+Der API-Key liegt nur serverseitig in der Edge Function, nie im Browser. Nur eingeloggte Nutzer können die Funktion aufrufen.
+
+## Community-Abgleich & Datenschutz
+
+`get_community_recipes(roaster, name, grinder_preset, machine_type)` ist eine Postgres-Funktion (`security definer`), die **nur Aggregate** liefert:
+
+- nur Bezüge **anderer** Nutzer mit **≥ 4 Sternen**
+- Abgleich über normalisierte Rösterei + Bohnenname (`"BONANZA "` = `"bonanza"`, `"Ethiopia-Guji"` = `"ethiopia guji"`)
+- Mahlgrad nur bei gleicher Mühle (`preset_id`), nur numerische Werte (Komma oder Punkt)
+- Ausgabe erst ab **2 verschiedenen Nutzern** (`min_users` in `schema.sql` anpassbar), keine IDs, keine Notizen
+- nur für eingeloggte Nutzer aufrufbar
+
+Bohnen-Fotos liegen im Bucket `bean-images` unter `<user_id>/…`. Lesen ist über die zufällige URL möglich (öffentlicher Bucket), Hochladen/Löschen nur im eigenen Ordner.
 
 ## Deployen (Beispiel Vercel)
 
@@ -55,10 +85,10 @@ Netlify / Cloudflare Pages funktionieren identisch: Build-Befehl `npm run build`
 ## Datenmodell
 
 ```
-machines  (id, user_id, name, type, notes, created_at)
-grinders  (id, user_id, name, scale_type, notes, created_at)
+machines  (id, user_id, name, type, preset_id, notes, created_at)
+grinders  (id, user_id, name, scale_type, preset_id, notes, created_at)
 beans     (id, user_id, name, roaster, origin, variety, process, roast_level,
-           roast_date, flavor_notes[], active, created_at)
+           roast_date, flavor_notes[], image_url, active, created_at)
 brews     (id, user_id, bean_id→beans, machine_id→machines, grinder_id→grinders,
            dose, yield, grind_setting, temperature, brew_time, preinfusion,
            rating 1–5, extraction -5…+5, notes, created_at)
@@ -71,7 +101,12 @@ src/
   App.jsx               Layout, Tab-Navigation, Auth-Gate
   lib/db.js             Datenschicht (Supabase oder localStorage)
   lib/coffee.js         Fachlogik: Ratio, Röst-Alter, Rezept-Auswahl, Labels
+  lib/images.js         Foto verkleinern, Storage-Upload, KI-Analyse aufrufen
+  lib/community.js      Community-Abfrage (RPC)
+  data/presets.js       Kuratierte Maschinen & Mühlen (preset_id nie ändern!)
   components/ui.jsx     Stoppuhr, Sterne, Extraktions-Regler, Zahlenfeld, Rezeptkarte …
+  components/CommunityTip.jsx   Community-Sofort-Check
   pages/                Dashboard, Bezug, Log, Bohnen, Setup, Login
-supabase/schema.sql     Tabellen + Row Level Security
+supabase/schema.sql     Tabellen, Row Level Security, Storage, Community-Funktion
+supabase/functions/analyze-bean-label/   Edge Function (Gemini Vision)
 ```

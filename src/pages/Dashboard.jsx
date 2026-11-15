@@ -53,7 +53,8 @@ export default function Dashboard({ data, go }) {
       {selected && (
         <section className="card">
           <div className="bean-head">
-            <div>
+            {selected.image_url && <img className="thumb lg" src={selected.image_url} alt="" />}
+            <div className="grow">
               <h2>{selected.name}</h2>
               <p className="muted">{[selected.roaster, selected.origin].filter(Boolean).join(' · ')}</p>
             </div>

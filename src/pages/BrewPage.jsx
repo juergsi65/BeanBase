@@ -1,6 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, useLookup } from '../components/ui'
+import CommunityTip from '../components/CommunityTip'
 import { ratio, fmtRatio, recipesForBean, SCALE_TYPES } from '../lib/coffee'
+import { findMachinePreset } from '../data/presets'
+
+const DEFAULTS = { dose: 18, yield: 36, temperature: 93 }
+/** Startwerte einer Maschine (aus Preset), sonst Espresso-Standard */
+function machineDefaults(machine) {
+  const d = findMachinePreset(machine?.preset_id)?.defaults ?? {}
+  return {
+    dose: d.dose ?? DEFAULTS.dose,
+    yield: d.yield ?? DEFAULTS.yield,
+    temperature: d.temperature === null ? '' : d.temperature ?? DEFAULTS.temperature,
+  }
+}
 
 const FIELDS = ['bean_id', 'machine_id', 'grinder_id', 'dose', 'yield', 'grind_setting', 'temperature', 'brew_time', 'preinfusion']
 
@@ -15,14 +28,13 @@ export default function BrewPage({ data, go, preset }) {
   const lastBrew = data.brews[0] ?? {}
 
   const [form, setForm] = useState(() => {
+    const machine_id = src.machine_id ?? lastBrew.machine_id ?? data.machines[0]?.id ?? ''
     const base = {
       bean_id: data.beans.find((b) => b.active)?.id ?? '',
-      machine_id: lastBrew.machine_id ?? data.machines[0]?.id ?? '',
+      machine_id,
       grinder_id: lastBrew.grinder_id ?? data.grinders[0]?.id ?? '',
-      dose: 18,
-      yield: 36,
+      ...machineDefaults(lookup.machines[machine_id]),
       grind_setting: '',
-      temperature: 93,
       brew_time: '',
       preinfusion: '',
       rating: null,
@@ -40,6 +52,28 @@ export default function BrewPage({ data, go, preset }) {
   const r = ratio(form.dose, form.yield)
   const prev = useMemo(() => (form.bean_id ? recipesForBean(data.brews, form.bean_id) : {}), [data.brews, form.bean_id])
   const grinder = lookup.grinders[form.grinder_id]
+  const bean = lookup.beans[form.bean_id]
+  const machine = lookup.machines[form.machine_id]
+
+  // Maschinenwechsel: unveränderte Startwerte durch die der neuen Maschine ersetzen
+  const changeMachine = (e) => {
+    const id = e.target.value
+    setForm((f) => {
+      if (editing) return { ...f, machine_id: id }
+      const oldD = machineDefaults(lookup.machines[f.machine_id])
+      const newD = machineDefaults(lookup.machines[id])
+      const next = { ...f, machine_id: id }
+      for (const k of Object.keys(newD)) if (f[k] === oldD[k]) next[k] = newD[k]
+      return next
+    })
+  }
+
+  const applyCommunity = (v) =>
+    setForm((f) => {
+      const next = { ...f }
+      for (const [k, val] of Object.entries(v)) if (val != null) next[k] = val
+      return next
+    })
 
   const save = async (e) => {
     e.preventDefault()
@@ -87,7 +121,7 @@ export default function BrewPage({ data, go, preset }) {
         </Field>
         <div className="grid2">
           <Field label="Maschine / Methode">
-            <select value={form.machine_id} onChange={set('machine_id')}>
+            <select value={form.machine_id} onChange={changeMachine}>
               <option value="">—</option>
               {data.machines.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -107,6 +141,15 @@ export default function BrewPage({ data, go, preset }) {
             </select>
           </Field>
         </div>
+        {!editing && bean && (
+          <CommunityTip
+            roaster={bean.roaster}
+            name={bean.name}
+            grinder={grinder}
+            machineType={machine?.type}
+            onApply={applyCommunity}
+          />
+        )}
         {!editing && prev.last && (
           <details className="prev">
             <summary>

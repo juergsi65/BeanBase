@@ -10,6 +10,7 @@ create table if not exists public.machines (
   name        text not null,
   type        text not null default 'espresso'
               check (type in ('espresso','pour_over','aeropress','french_press','moka','cold_brew','other')),
+  preset_id   text,                    -- z. B. 'gaggia-classic-pro' (src/data/presets.js)
   notes       text,
   created_at  timestamptz not null default now()
 );
@@ -21,6 +22,7 @@ create table if not exists public.grinders (
   name        text not null,
   scale_type  text not null default 'numbers'
               check (scale_type in ('stepless','clicks','numbers')),
+  preset_id   text,                    -- z. B. 'niche-zero' → macht Mahlgrade nutzerübergreifend vergleichbar
   notes       text,
   created_at  timestamptz not null default now()
 );
@@ -37,6 +39,7 @@ create table if not exists public.beans (
   roast_level   text check (roast_level in ('light','medium','dark')),
   roast_date    date,
   flavor_notes  text[] not null default '{}',
+  image_url     text,                    -- Foto der Tüte (Storage-Bucket bean-images)
   active        boolean not null default true,
   created_at    timestamptz not null default now()
 );
@@ -60,6 +63,11 @@ create table if not exists public.brews (
   created_at    timestamptz not null default now()
 );
 
+-- Migration für bestehende Installationen (idempotent) ------------------------
+alter table public.machines add column if not exists preset_id text;
+alter table public.grinders add column if not exists preset_id text;
+alter table public.beans    add column if not exists image_url text;
+
 create index if not exists brews_user_bean_idx on public.brews (user_id, bean_id, created_at desc);
 
 -- Row Level Security: jeder Nutzer sieht nur seine eigenen Daten -------------
@@ -73,3 +81,103 @@ begin
       'create policy "own rows" on public.%I for all using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
   end loop;
 end $$;
+
+-- Storage: Bohnen-Fotos -------------------------------------------------------
+-- Öffentlich lesbar (nur wer die zufällige URL kennt), schreiben/löschen nur im
+-- eigenen Ordner <user_id>/...
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('bean-images', 'bean-images', true, 5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+drop policy if exists "bean-images insert own" on storage.objects;
+drop policy if exists "bean-images update own" on storage.objects;
+drop policy if exists "bean-images delete own" on storage.objects;
+create policy "bean-images insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'bean-images' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "bean-images update own" on storage.objects for update to authenticated
+  using (bucket_id = 'bean-images' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "bean-images delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'bean-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Community-Abgleich ----------------------------------------------------------
+-- Normalisiert Namen für den Abgleich: "Bonanza Coffee " ≙ "bonanzacoffee"
+create or replace function public.normalize_key(t text)
+returns text language sql immutable as $$
+  select regexp_replace(lower(coalesce(t, '')), '[^a-z0-9äöüß]+', '', 'g')
+$$;
+
+create index if not exists beans_match_idx on public.beans (public.normalize_key(roaster), public.normalize_key(name));
+
+-- Liefert anonymisierte Durchschnittswerte gut bewerteter Bezüge (≥ 4 Sterne)
+-- ANDERER Nutzer für dieselbe Bohne (Rösterei + Name).
+--   scope 'all'     : über alle Mühlen (ohne Mahlgrad – nicht vergleichbar)
+--   scope 'grinder' : nur Bezüge mit derselben Mühle (preset_id) inkl. Mahlgrad
+-- Optional nur Bezüge mit derselben Brühmethode (machines.type).
+-- Datenschutz: Es werden nur Aggregate zurückgegeben und erst ab
+-- min_users verschiedenen Nutzern (k-Anonymität). Keine IDs, keine Notizen.
+drop function if exists public.get_community_recipes(text, text, text);
+drop function if exists public.get_community_recipes(text, text, text, text);
+create or replace function public.get_community_recipes(
+  p_roaster text,
+  p_name text,
+  p_grinder_preset text default null,
+  p_machine_type text default null   -- z. B. 'espresso' – Espresso & V60 nicht vermischen
+)
+returns table (
+  scope        text,
+  user_count   int,
+  brew_count   int,
+  avg_rating   numeric,
+  avg_dose     numeric,
+  avg_yield    numeric,
+  avg_time     numeric,
+  avg_temp     numeric,
+  avg_grind    numeric,
+  min_grind    numeric,
+  max_grind    numeric
+)
+language sql stable security definer
+set search_path = public
+as $$
+  with params as (
+    select 2 as min_users,
+           public.normalize_key(p_roaster) as r,
+           public.normalize_key(p_name) as n
+  ),
+  pool as (
+    select b.user_id, b.rating, b.dose, b.yield, b.brew_time, b.temperature,
+           g.preset_id as grinder_preset,
+           case when b.grind_setting ~ '^\s*-?\d+([.,]\d+)?\s*$'
+                then replace(trim(b.grind_setting), ',', '.')::numeric end as grind
+    from public.brews b
+    join public.beans bn on bn.id = b.bean_id
+    left join public.grinders g on g.id = b.grinder_id
+    left join public.machines m on m.id = b.machine_id
+    cross join params p
+    where auth.uid() is not null
+      and b.user_id <> auth.uid()
+      and b.rating >= 4
+      and (p_machine_type is null or m.type = p_machine_type)
+      and length(p.r) > 0 and length(p.n) >= 3
+      and public.normalize_key(bn.roaster) = p.r
+      and public.normalize_key(bn.name) = p.n
+  ),
+  agg as (
+    select 'all'::text as scope, count(distinct user_id)::int as user_count, count(*)::int as brew_count,
+           round(avg(rating), 1) as avg_rating, round(avg(dose), 1) as avg_dose, round(avg(yield), 1) as avg_yield,
+           round(avg(brew_time)) as avg_time, round(avg(temperature), 1) as avg_temp,
+           null::numeric as avg_grind, null::numeric as min_grind, null::numeric as max_grind
+    from pool
+    union all
+    select 'grinder', count(distinct user_id)::int, count(*)::int,
+           round(avg(rating), 1), round(avg(dose), 1), round(avg(yield), 1),
+           round(avg(brew_time)), round(avg(temperature), 1),
+           round(avg(grind), 2), min(grind), max(grind)
+    from pool
+    where p_grinder_preset is not null and grinder_preset = p_grinder_preset
+  )
+  select agg.* from agg, params where agg.user_count >= params.min_users
+$$;
+
+revoke all on function public.get_community_recipes(text, text, text, text) from public, anon;
+grant execute on function public.get_community_recipes(text, text, text, text) to authenticated;
