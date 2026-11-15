@@ -325,8 +325,13 @@ create policy "friendships remove" on public.friendships for delete to authentic
 revoke update on public.friendships from authenticated, anon;
 grant update (status) on public.friendships to authenticated;
 
--- Sichtbarkeit: eigene Daten, akzeptierte Freunde oder öffentliches Profil
-create or replace function public.can_view(owner uuid)
+-- Sichtbarkeit: eigene Daten, akzeptierte Freunde oder öffentliches Profil.
+-- Liegt im nicht per API erreichbaren Schema "private" (nur für RLS-Policies).
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+create or replace function private.can_view(owner uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select auth.uid() is not null and (
     owner = auth.uid()
@@ -339,8 +344,10 @@ returns boolean language sql stable security definer set search_path = '' as $$
     or exists (select 1 from public.profiles p where p.id = owner and p.is_public)
   )
 $$;
-revoke all on function public.can_view(uuid) from public;
-grant execute on function public.can_view(uuid) to authenticated, anon;
+revoke all on function private.can_view(uuid) from public;
+grant execute on function private.can_view(uuid) to authenticated;
+-- Trigger-Funktion nicht per API aufrufbar
+revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 -- RLS für Equipment, Bohnen, Bezüge: lesen sichtbar, schreiben nur Besitzer
 do $$
@@ -352,12 +359,15 @@ begin
     execute format('drop policy if exists "insert own" on public.%I', t);
     execute format('drop policy if exists "update own" on public.%I', t);
     execute format('drop policy if exists "delete own" on public.%I', t);
-    execute format('create policy "read visible" on public.%I for select using (public.can_view(user_id))', t);
+    execute format('create policy "read visible" on public.%I for select to authenticated using (private.can_view(user_id))', t);
     execute format('create policy "insert own" on public.%I for insert with check (auth.uid() = user_id)', t);
     execute format('create policy "update own" on public.%I for update using (auth.uid() = user_id) with check (auth.uid() = user_id)', t);
     execute format('create policy "delete own" on public.%I for delete using (auth.uid() = user_id)', t);
   end loop;
 end $$;
+
+-- Alte Version der Sichtbarkeitsfunktion (früher im public-Schema) entfernen
+drop function if exists public.can_view(uuid);
 
 -- Verknüpfung Bezug → Profil (für den Feed: brews?select=*,profile:profiles(...))
 do $$
