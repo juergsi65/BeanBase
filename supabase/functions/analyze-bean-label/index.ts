@@ -29,6 +29,7 @@ Regeln:
 - roast_level: eines von ${ROASTS.join(', ')} (Espresso-Röstung ohne weitere Angabe eher medium; "Filter"/"Omni" hell eher light).
 - roast_date: Röstdatum als YYYY-MM-DD, nur wenn eindeutig ein Röstdatum (nicht MHD) aufgedruckt ist.
 - flavor_notes: Geschmacksnoten als kurze Begriffe, ins Deutsche übersetzt (max. 6).
+- barcode: die Ziffern unter einem sichtbaren EAN/UPC-Strichcode, nur wenn vollständig lesbar.
 Unbekannte oder nicht lesbare Felder: null. Nichts erfinden.`
 
 const SCHEMA = {
@@ -42,6 +43,7 @@ const SCHEMA = {
     roast_level: { type: 'STRING', nullable: true },
     roast_date: { type: 'STRING', nullable: true },
     flavor_notes: { type: 'ARRAY', items: { type: 'STRING' } },
+    barcode: { type: 'STRING', nullable: true },
   },
 }
 
@@ -52,6 +54,7 @@ const str = (v: unknown, max = 120) => (typeof v === 'string' && v.trim() ? v.tr
 
 function sanitize(raw: Record<string, unknown>) {
   const date = str(raw.roast_date, 10)
+  const code = typeof raw.barcode === 'string' ? raw.barcode.replace(/\D/g, '') : ''
   return {
     name: str(raw.name),
     roaster: str(raw.roaster),
@@ -60,6 +63,7 @@ function sanitize(raw: Record<string, unknown>) {
     process: PROCESSES.includes(raw.process as string) ? raw.process : null,
     roast_level: ROASTS.includes(raw.roast_level as string) ? raw.roast_level : null,
     roast_date: date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(Date.parse(date)) ? date : null,
+    barcode: [8, 12, 13, 14].includes(code.length) ? code : null,
     flavor_notes: Array.isArray(raw.flavor_notes)
       ? raw.flavor_notes.map((t) => str(t, 40)).filter(Boolean).slice(0, 6)
       : [],

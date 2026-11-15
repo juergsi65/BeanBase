@@ -15,6 +15,7 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 - **JSON-Export** als Backup
 - **Hardware-Presets**: ~25 Maschinen/Brühmethoden und ~22 Mühlen zum Auswählen (Suche tolerant gegenüber Tippfehlern). Füllt Typ, Skala und Notizen vor; Maschinen liefern passende Startwerte (z. B. Dedica 14 g → 28 g, V60 15 g → 250 g). Eigene Geräte bleiben möglich, umbenennen ist erlaubt – die Modell-Verknüpfung (`preset_id`) bleibt.
 - **Bohnen-Foto & KI-Etikett-Scan**: Tüte direkt mit der Handykamera fotografieren. Das Foto wird verkleinert und im Supabase Storage gespeichert; eine Edge Function liest per Gemini Vision Name, Rösterei, Herkunft, Varietät, Aufbereitung, Röstgrad, Röstdatum und Geschmacksnoten aus und füllt **nur leere** Felder. Im Demo-Modus wird das Foto lokal gespeichert (ohne KI).
+- **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung in drei Stufen: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** (v. a. Supermarkt-Kaffee). Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
 - **Community-Sofort-Check**: Beim Anlegen einer Bohne und beim Bezug zeigt BeanBase anonymisierte Durchschnittswerte **und das bestbewertete Rezept** anderer Nutzer für dieselbe Bohne (Rösterei + Name, Schreibweise egal), getrennt nach Brühmethode – mit Mahlgrad, wenn die eigene Mühle mit demselben Modell verknüpft ist, und noch genauer bei gleicher Mühle **und** Maschine. „Rezept übernehmen“ bzw. „Ø übernehmen“ füllt den Bezug aus.
 - **Dial-In-Assistent** auf der Bezug-Seite: Checkliste in 4 Schritten (Mühle einstellen inkl. Purge-Hinweis → Maschine vorbereiten → Zielwerte Output/Zeit → Geschmack korrigieren). Zielwerte wahlweise aus dem **eigenen** besten/letzten Bezug (automatisch korrigiert, wenn er zu sauer/bitter war), der **Community** oder **Basiswerten** je Röstgrad und Brühmethode. Die Korrekturhilfe nennt konkrete neue Werte (z. B. „Mahlgrad 15 → 14“, „Temperatur +1 °C“) und übernimmt sie auf Wunsch als Notiz.
 
@@ -74,6 +75,10 @@ Der API-Key liegt nur serverseitig in der Edge Function, nie im Browser. Nur ein
 - „Bestes Rezept“ = Messwerte des bestbewerteten Bezugs (bei Gleichstand: ausgewogenste Extraktion, dann neuester) – ohne Nutzerbezug
 - nur für eingeloggte Nutzer aufrufbar
 
+`lookup_bean_by_barcode(barcode)` gibt nur **Produktangaben** zurück (Name, Rösterei, Herkunft, Varietät, Aufbereitung, Röstgrad, häufigste Geschmacksnoten – jeweils der häufigste Wert aller Einträge) plus die Anzahl der Nutzer; keine Notizen, Röstdaten, Fotos oder IDs. Nur für eingeloggte Nutzer.
+
+Beim Scan wird der Barcode (nur die Nummer) an [Open Food Facts](https://world.openfoodfacts.org) gesendet, falls die Community ihn nicht kennt.
+
 Bohnen-Fotos liegen im Bucket `bean-images` unter `<user_id>/…`. Lesen ist über die zufällige URL möglich (öffentlicher Bucket), Hochladen/Löschen nur im eigenen Ordner.
 
 ## Deployen (Beispiel Vercel)
@@ -105,7 +110,7 @@ Lokal: `npm run build && npx wrangler deploy`.
 machines  (id, user_id, name, type, preset_id, notes, created_at)
 grinders  (id, user_id, name, scale_type, preset_id, notes, created_at)
 beans     (id, user_id, name, roaster, origin, variety, process, roast_level,
-           roast_date, flavor_notes[], image_url, active, created_at)
+           roast_date, flavor_notes[], image_url, barcode, active, created_at)
 brews     (id, user_id, bean_id→beans, machine_id→machines, grinder_id→grinders,
            dose, yield, grind_setting, temperature, brew_time, preinfusion,
            rating 1–5, extraction -5…+5, notes, created_at)
@@ -121,10 +126,12 @@ src/
   lib/images.js         Foto verkleinern, Storage-Upload, KI-Analyse aufrufen
   lib/community.js      Community-Abfrage (RPC)
   lib/dialin.js         Dial-In-Logik: Basiswerte, Zielwerte, Mahlgrad-Korrektur
+  lib/barcode.js        Barcode prüfen + nachschlagen (Community → Open Food Facts)
   data/presets.js       Kuratierte Maschinen & Mühlen (preset_id nie ändern!)
   components/ui.jsx     Stoppuhr, Sterne, Extraktions-Regler, Zahlenfeld, Rezeptkarte …
   components/CommunityTip.jsx   Community-Sofort-Check
   components/DialInGuide.jsx    Dial-In-Assistent + Korrekturhilfe
+  components/BarcodeScanner.jsx Kamera-Scanner (BarcodeDetector / ZXing) + manuelle Eingabe
   pages/                Dashboard, Bezug, Log, Bohnen, Setup, Login
 supabase/schema.sql     Tabellen, Row Level Security, Storage, Community-Funktion
 supabase/functions/analyze-bean-label/   Edge Function (Gemini Vision)

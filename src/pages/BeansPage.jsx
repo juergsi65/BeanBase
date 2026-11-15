@@ -1,6 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Field, TagInput, Segmented, Chip, Empty, Stars } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
+import BarcodeScanner from '../components/BarcodeScanner'
+import { lookupBarcode } from '../lib/barcode'
 import { PROCESSES, ROAST_LEVELS, daysSince, freshness, recipesForBean } from '../lib/coffee'
 import { resizeImage, storeBeanImage, deleteBeanImage, analyzeLabel, canAnalyze } from '../lib/images'
 
@@ -14,11 +16,13 @@ const blank = {
   roast_date: '',
   flavor_notes: [],
   image_url: null,
+  barcode: null,
   active: true,
 }
 
 export default function BeansPage({ data, go }) {
-  const [editing, setEditing] = useState(null) // null | 'new' | bean
+  const [editing, setEditing] = useState(null) // null | 'new' | { mode: 'new', barcode } | bean
+  const [scanning, setScanning] = useState(false)
   const [view, setView] = useState('active')
   const [q, setQ] = useState('')
   const [roast, setRoast] = useState('')
@@ -33,16 +37,40 @@ export default function BeansPage({ data, go }) {
     )
   }, [data.beans, view, q, roast])
 
-  if (editing) return <BeanForm data={data} bean={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />
+  // Scan auf der Übersicht: eigene Bohne mit diesem Barcode öffnen, sonst neue Bohne vorausfüllen
+  const onScan = (code) => {
+    setScanning(false)
+    setEditing(data.beans.find((b) => b.barcode === code) ?? { mode: 'new', barcode: code })
+  }
+
+  if (editing) {
+    const isNew = editing === 'new' || editing.mode === 'new'
+    return (
+      <BeanForm
+        key={isNew ? `new-${editing.barcode ?? ''}` : editing.id}
+        data={data}
+        bean={isNew ? null : editing}
+        initialBarcode={editing.mode === 'new' ? editing.barcode : null}
+        onOpen={(b) => setEditing(b)}
+        onDone={() => setEditing(null)}
+      />
+    )
+  }
 
   return (
     <div className="stack">
       <div className="page-head">
         <h2>Bohnen</h2>
-        <button className="btn primary" onClick={() => setEditing('new')}>
-          + Bohne
-        </button>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={() => setScanning(true)} aria-label="Barcode scannen">
+            ▦ Scan
+          </button>
+          <button className="btn primary" onClick={() => setEditing('new')}>
+            + Bohne
+          </button>
+        </div>
       </div>
+      {scanning && <BarcodeScanner onResult={onScan} onClose={() => setScanning(false)} />}
       <Segmented options={{ active: 'In der Mühle', archived: 'Archiv', all: 'Alle' }} value={view} onChange={(v) => setView(v ?? 'all')} />
       <div className="grid2">
         <input type="search" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -112,10 +140,17 @@ export default function BeansPage({ data, go }) {
   )
 }
 
-function BeanForm({ data, bean, onDone }) {
+const SOURCE_TEXT = {
+  community: (n) => `Erkannt über die BeanBase-Community (${n} Nutzer${n === 1 ? '' : ''}) – leere Felder wurden ergänzt.`,
+  openfoodfacts: () => 'Erkannt über Open Food Facts – leere Felder wurden ergänzt. Bitte prüfen.',
+}
+
+function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
   const [form, setForm] = useState(() => ({ ...blank, ...(bean ?? {}), roast_date: bean?.roast_date ?? '' }))
   const [photo, setPhoto] = useState(null) // { blob, dataUrl } – neues, noch nicht gespeichertes Foto
   const [ai, setAi] = useState({ status: 'idle' })
+  const [scan, setScan] = useState({ status: 'idle' }) // idle | loading | found | unknown | existing
+  const [scanning, setScanning] = useState(false)
   const [saving, setSaving] = useState(false)
   const cameraRef = useRef(null)
   const uploadRef = useRef(null)
@@ -137,6 +172,7 @@ function BeanForm({ data, bean, onDone }) {
         for (const k of ['name', 'roaster', 'origin', 'variety', 'process', 'roast_level', 'roast_date']) {
           if (res[k] && !f[k]) next[k] = res[k]
         }
+        if (res.barcode && !f.barcode) next.barcode = res.barcode
         next.flavor_notes = [...new Set([...(f.flavor_notes ?? []), ...(res.flavor_notes ?? [])])]
         return next
       })
@@ -145,6 +181,29 @@ function BeanForm({ data, bean, onDone }) {
       setAi({ status: 'error', text: e.message })
     }
   }
+
+  // Barcode → eigene Bohne? → Community → Open Food Facts; nur leere Felder werden ergänzt
+  const handleBarcode = async (code) => {
+    setScanning(false)
+    setForm((f) => ({ ...f, barcode: code }))
+    const own = data.beans.find((b) => b.barcode === code && b.id !== bean?.id)
+    if (own) return setScan({ status: 'existing', bean: own })
+    setScan({ status: 'loading' })
+    const hit = await lookupBarcode(code)
+    if (!hit) return setScan({ status: 'unknown' })
+    setForm((f) => {
+      const next = { ...f }
+      for (const k of ['name', 'roaster', 'origin', 'variety', 'process', 'roast_level']) if (hit.data[k] && !f[k]) next[k] = hit.data[k]
+      next.flavor_notes = [...new Set([...(f.flavor_notes ?? []), ...(hit.data.flavor_notes ?? [])])]
+      return next
+    })
+    setScan({ status: 'found', text: SOURCE_TEXT[hit.source](hit.users), warn: hit.source === 'openfoodfacts' && !hit.isCoffee })
+  }
+
+  useEffect(() => {
+    if (initialBarcode) handleBarcode(initialBarcode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onFile = async (e) => {
     const file = e.target.files?.[0]
@@ -181,6 +240,7 @@ function BeanForm({ data, bean, onDone }) {
         roast_date: form.roast_date || null,
         flavor_notes: form.flavor_notes,
         image_url,
+        barcode: form.barcode || null,
         active: form.active,
       }
       if (bean) await data.update('beans', bean.id, row)
@@ -206,7 +266,46 @@ function BeanForm({ data, bean, onDone }) {
       <h2>{bean ? 'Bohne bearbeiten' : 'Neue Bohne'}</h2>
 
       <section className="card">
-        <h3 className="section-title">Foto der Tüte</h3>
+        <h3 className="section-title">Schnell erfassen</h3>
+        <button type="button" className="btn primary big block" onClick={() => setScanning(true)}>
+          ▦ Barcode scannen
+        </button>
+        {scanning && <BarcodeScanner onResult={handleBarcode} onClose={() => setScanning(false)} />}
+        {form.barcode && (
+          <div className="chips">
+            <Chip
+              onRemove={() => {
+                setForm((f) => ({ ...f, barcode: null }))
+                setScan({ status: 'idle' })
+              }}
+            >
+              ▦ {form.barcode}
+            </Chip>
+          </div>
+        )}
+        {scan.status === 'loading' && <div className="banner info">🔍 Suche Bohne zum Barcode …</div>}
+        {scan.status === 'found' && (
+          <div className="banner info">
+            ✨ {scan.text}
+            {scan.warn && ' Hinweis: Das Produkt ist dort nicht als Kaffee eingeordnet.'}
+          </div>
+        )}
+        {scan.status === 'unknown' && (
+          <div className="banner info">
+            Barcode noch unbekannt – fotografiere das Etikett oder trag die Daten ein. Beim Speichern wird der Barcode hinterlegt, damit die
+            Bohne beim nächsten Scan sofort erkannt wird.
+          </div>
+        )}
+        {scan.status === 'existing' && (
+          <div className="banner info">
+            Diese Bohne hast du schon: <strong>{scan.bean.name}</strong>{' '}
+            {onOpen && (
+              <button type="button" className="link" onClick={() => onOpen(scan.bean)}>
+                Öffnen
+              </button>
+            )}
+          </div>
+        )}
         {preview ? (
           <div className="photo">
             <img src={preview} alt="Kaffeetüte" />
