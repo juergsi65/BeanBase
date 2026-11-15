@@ -1,0 +1,29 @@
+{
+  "name": "beanbase",
+  "version": "0.1.0",
+  "description": "BeanBase – Dial-In & Brew-Log für Home-Baristas",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juergsi65/BeanBase.git"
+  },
+  "bugs": {
+    "url": "https://github.com/juergsi65/BeanBase/issues"
+  },
+  "homepage": "https://github.com/juergsi65/BeanBase#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  },
+  "private": true,
+  "type": "module"
+}

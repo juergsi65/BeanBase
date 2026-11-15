@@ -1,0 +1,12 @@
+// Cloudflare Workers (Static Assets) – Deploy: npm run build && npx wrangler deploy
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "beanbase",
+  "compatibility_date": "2026-11-01",
+  // Baut die App automatisch vor jedem "wrangler deploy" (auch ohne Build-Befehl im Dashboard)
+  "build": { "command": "npm ci && npm run build" },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
