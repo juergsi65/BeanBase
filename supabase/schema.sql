@@ -102,7 +102,9 @@ create policy "bean-images delete own" on storage.objects for delete to authenti
 -- Community-Abgleich ----------------------------------------------------------
 -- Normalisiert Namen für den Abgleich: "Bonanza Coffee " ≙ "bonanzacoffee"
 create or replace function public.normalize_key(t text)
-returns text language sql immutable as $$
+returns text language sql immutable
+set search_path = ''
+as $$
   select regexp_replace(lower(coalesce(t, '')), '[^a-z0-9äöüß]+', '', 'g')
 $$;
 
@@ -120,6 +122,10 @@ create index if not exists beans_match_idx on public.beans (public.normalize_key
 drop function if exists public.get_community_recipes(text, text, text);
 drop function if exists public.get_community_recipes(text, text, text, text);
 drop function if exists public.get_community_recipes(text, text, text, text, text);
+-- Hinweis: Der Supabase-Linter warnt, dass diese SECURITY-DEFINER-Funktion für
+-- eingeloggte Nutzer aufrufbar ist. Das ist gewollt: Nur so können Aggregate über
+-- fremde Bezüge gebildet werden (RLS würde sie sonst ausblenden). Die Funktion
+-- gibt ausschließlich Durchschnitts-/Messwerte ab 2 Nutzern zurück.
 create or replace function public.get_community_recipes(
   p_roaster text,
   p_name text,
