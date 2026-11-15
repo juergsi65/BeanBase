@@ -109,19 +109,23 @@ $$;
 create index if not exists beans_match_idx on public.beans (public.normalize_key(roaster), public.normalize_key(name));
 
 -- Liefert anonymisierte Durchschnittswerte gut bewerteter Bezüge (≥ 4 Sterne)
--- ANDERER Nutzer für dieselbe Bohne (Rösterei + Name).
+-- ANDERER Nutzer für dieselbe Bohne (Rösterei + Name), plus die Werte des
+-- bestbewerteten Bezugs (ohne Nutzerbezug).
 --   scope 'all'     : über alle Mühlen (ohne Mahlgrad – nicht vergleichbar)
 --   scope 'grinder' : nur Bezüge mit derselben Mühle (preset_id) inkl. Mahlgrad
+--   scope 'setup'   : dieselbe Mühle UND dasselbe Maschinen-Modell
 -- Optional nur Bezüge mit derselben Brühmethode (machines.type).
--- Datenschutz: Es werden nur Aggregate zurückgegeben und erst ab
--- min_users verschiedenen Nutzern (k-Anonymität). Keine IDs, keine Notizen.
+-- Datenschutz: nur Aggregate bzw. Messwerte, erst ab min_users verschiedenen
+-- Nutzern pro Scope (k-Anonymität). Keine IDs, keine Notizen, keine Zeitstempel.
 drop function if exists public.get_community_recipes(text, text, text);
 drop function if exists public.get_community_recipes(text, text, text, text);
+drop function if exists public.get_community_recipes(text, text, text, text, text);
 create or replace function public.get_community_recipes(
   p_roaster text,
   p_name text,
   p_grinder_preset text default null,
-  p_machine_type text default null   -- z. B. 'espresso' – Espresso & V60 nicht vermischen
+  p_machine_type text default null,   -- z. B. 'espresso' – Espresso & V60 nicht vermischen
+  p_machine_preset text default null  -- z. B. 'lelit-bianca'
 )
 returns table (
   scope        text,
@@ -134,7 +138,13 @@ returns table (
   avg_temp     numeric,
   avg_grind    numeric,
   min_grind    numeric,
-  max_grind    numeric
+  max_grind    numeric,
+  best_rating  smallint,
+  best_dose    numeric,
+  best_yield   numeric,
+  best_time    integer,
+  best_temp    numeric,
+  best_grind   numeric
 )
 language sql stable security definer
 set search_path = public
@@ -145,8 +155,8 @@ as $$
            public.normalize_key(p_name) as n
   ),
   pool as (
-    select b.user_id, b.rating, b.dose, b.yield, b.brew_time, b.temperature,
-           g.preset_id as grinder_preset,
+    select b.user_id, b.rating, b.extraction, b.created_at, b.dose, b.yield, b.brew_time, b.temperature,
+           g.preset_id as grinder_preset, m.preset_id as machine_preset,
            case when b.grind_setting ~ '^\s*-?\d+([.,]\d+)?\s*$'
                 then replace(trim(b.grind_setting), ',', '.')::numeric end as grind
     from public.brews b
@@ -162,22 +172,39 @@ as $$
       and public.normalize_key(bn.roaster) = p.r
       and public.normalize_key(bn.name) = p.n
   ),
+  scoped as (
+    select 'all'::text as scope, pool.* from pool
+    union all
+    select 'grinder', pool.* from pool
+      where p_grinder_preset is not null and grinder_preset = p_grinder_preset
+    union all
+    select 'setup', pool.* from pool
+      where p_grinder_preset is not null and p_machine_preset is not null
+        and grinder_preset = p_grinder_preset and machine_preset = p_machine_preset
+  ),
   agg as (
-    select 'all'::text as scope, count(distinct user_id)::int as user_count, count(*)::int as brew_count,
+    select scope, count(distinct user_id)::int as user_count, count(*)::int as brew_count,
            round(avg(rating), 1) as avg_rating, round(avg(dose), 1) as avg_dose, round(avg(yield), 1) as avg_yield,
            round(avg(brew_time)) as avg_time, round(avg(temperature), 1) as avg_temp,
-           null::numeric as avg_grind, null::numeric as min_grind, null::numeric as max_grind
-    from pool
-    union all
-    select 'grinder', count(distinct user_id)::int, count(*)::int,
-           round(avg(rating), 1), round(avg(dose), 1), round(avg(yield), 1),
-           round(avg(brew_time)), round(avg(temperature), 1),
-           round(avg(grind), 2), min(grind), max(grind)
-    from pool
-    where p_grinder_preset is not null and grinder_preset = p_grinder_preset
+           round(avg(grind), 2) as avg_grind, min(grind) as min_grind, max(grind) as max_grind
+    from scoped group by scope
+  ),
+  best as (
+    select distinct on (scope) scope, rating, dose, yield, brew_time, temperature, grind
+    from scoped
+    order by scope, rating desc, abs(coalesce(extraction, 0)), created_at desc
   )
-  select agg.* from agg, params where agg.user_count >= params.min_users
+  select a.scope, a.user_count, a.brew_count, a.avg_rating, a.avg_dose, a.avg_yield, a.avg_time, a.avg_temp,
+         case when a.scope = 'all' then null else a.avg_grind end,
+         case when a.scope = 'all' then null else a.min_grind end,
+         case when a.scope = 'all' then null else a.max_grind end,
+         b.rating, b.dose, b.yield, b.brew_time, b.temperature,
+         case when a.scope = 'all' then null else b.grind end
+  from agg a
+  join best b using (scope)
+  cross join params
+  where a.user_count >= params.min_users
 $$;
 
-revoke all on function public.get_community_recipes(text, text, text, text) from public, anon;
-grant execute on function public.get_community_recipes(text, text, text, text) to authenticated;
+revoke all on function public.get_community_recipes(text, text, text, text, text) from public, anon;
+grant execute on function public.get_community_recipes(text, text, text, text, text) to authenticated;

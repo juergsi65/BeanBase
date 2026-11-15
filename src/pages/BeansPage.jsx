@@ -217,7 +217,7 @@ function BeanForm({ data, bean, onDone }) {
         ) : (
           <p className="muted small">
             {canAnalyze
-              ? 'Fotografiere das Etikett – Name, Rösterei, Herkunft & Co. werden automatisch erkannt.'
+              ? 'Fotografiere die Vorderseite der Tüte – Sorte, Rösterei, Herkunft & Co. werden automatisch erkannt.'
               : 'Fotografiere die Tüte zur Wiedererkennung. (KI-Etikett-Erkennung ist mit Supabase + Gemini verfügbar.)'}
           </p>
         )}
@@ -231,7 +231,12 @@ function BeanForm({ data, bean, onDone }) {
         </div>
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
         <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} data-testid="bean-upload" />
-        {ai.status === 'loading' && <div className="banner info">🔍 Lese Etikett aus …</div>}
+        {canAnalyze && (
+          <p className="muted small">
+            💡 Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
+          </p>
+        )}
+        {ai.status === 'loading' && <div className="banner info">🔍 Etikett wird erkannt …</div>}
         {ai.status === 'done' && <div className="banner info">✨ {ai.text}</div>}
         {ai.status === 'error' && (
           <div className="banner error">
@@ -252,7 +257,7 @@ function BeanForm({ data, bean, onDone }) {
         <Field label="Rösterei">
           <input value={form.roaster ?? ''} onChange={set('roaster')} />
         </Field>
-        <CommunityTip roaster={form.roaster} name={form.name} grinder={ctxGrinder} machineType={ctxMachine?.type} />
+        <CommunityTip roaster={form.roaster} name={form.name} grinder={ctxGrinder} machine={ctxMachine} />
         <div className="grid2">
           <Field label="Herkunft">
             <input value={form.origin ?? ''} onChange={set('origin')} placeholder="Land / Region / Farm" />
