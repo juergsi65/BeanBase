@@ -40,6 +40,7 @@ create table if not exists public.beans (
   roast_date    date,
   flavor_notes  text[] not null default '{}',
   image_url     text,                    -- Foto der Tüte (Storage-Bucket bean-images)
+  barcode       text,                    -- EAN/UPC der Tüte (nur Ziffern)
   active        boolean not null default true,
   created_at    timestamptz not null default now()
 );
@@ -67,6 +68,7 @@ create table if not exists public.brews (
 alter table public.machines add column if not exists preset_id text;
 alter table public.grinders add column if not exists preset_id text;
 alter table public.beans    add column if not exists image_url text;
+alter table public.beans    add column if not exists barcode text;
 
 create index if not exists brews_user_bean_idx on public.brews (user_id, bean_id, created_at desc);
 
@@ -214,3 +216,42 @@ $$;
 
 revoke all on function public.get_community_recipes(text, text, text, text, text) from public, anon;
 grant execute on function public.get_community_recipes(text, text, text, text, text) to authenticated;
+
+-- Barcode-Erkennung -----------------------------------------------------------
+create index if not exists beans_barcode_idx on public.beans (barcode) where barcode is not null;
+
+-- Liefert die Produktdaten (keine Nutzerdaten) einer Bohne anhand des Barcodes,
+-- ermittelt aus den Einträgen aller Nutzer: pro Feld der häufigste Wert.
+-- Rösterei/Name/Herkunft sind Produktangaben der Tüte und keine persönlichen
+-- Daten; Notizen, Röstdatum, Fotos und IDs werden nicht zurückgegeben.
+create or replace function public.lookup_bean_by_barcode(p_barcode text)
+returns table (
+  name text, roaster text, origin text, variety text, process text, roast_level text,
+  flavor_notes text[], user_count int
+)
+language sql stable security definer
+set search_path = public
+as $$
+  with code as (select regexp_replace(coalesce(p_barcode, ''), '\D', '', 'g') as c),
+  hits as (
+    select b.* from public.beans b, code
+    where auth.uid() is not null and length(code.c) between 8 and 14 and b.barcode = code.c
+  ),
+  tags as (
+    select t, count(*) as n from hits, unnest(hits.flavor_notes) as t group by t order by n desc, t limit 6
+  )
+  select
+    mode() within group (order by trim(name)) filter (where nullif(trim(name), '') is not null),
+    mode() within group (order by trim(roaster)) filter (where nullif(trim(roaster), '') is not null),
+    mode() within group (order by trim(origin)) filter (where nullif(trim(origin), '') is not null),
+    mode() within group (order by trim(variety)) filter (where nullif(trim(variety), '') is not null),
+    mode() within group (order by process)     filter (where process is not null),
+    mode() within group (order by roast_level) filter (where roast_level is not null),
+    coalesce((select array_agg(t order by n desc, t) from tags), '{}'),
+    count(distinct user_id)::int
+  from hits
+  having count(*) > 0
+$$;
+
+revoke all on function public.lookup_bean_by_barcode(text) from public, anon;
+grant execute on function public.lookup_bean_by_barcode(text) to authenticated;
