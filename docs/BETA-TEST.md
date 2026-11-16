@@ -20,9 +20,9 @@ Der Worker schickt jedes neue Feedback per Mail – kostenlos über Cloudflare E
    ⚠️ Das setzt MX-Einträge für die Domain. Wenn du auf `@wsmronline.uk` bereits E-Mails über einen anderen Anbieter empfängst, vorher prüfen!
 2. **Destination Addresses** → deine Empfänger-Adresse eintragen und über den Link in der Bestätigungsmail verifizieren.
 3. Worker **beanbase → Settings → Variables and Secrets** → *Secret* `FEEDBACK_TO` = deine Empfänger-Adresse (optional *Variable* `FEEDBACK_FROM`, Standard `beanbase@wsmronline.uk`).
-4. In `wrangler.jsonc` die Zeile `"send_email": [{ "name": "FEEDBACK_EMAIL" }],` einkommentieren und deployen.
+4. ✅ Das Binding `"send_email": [{ "name": "FEEDBACK_EMAIL" }]` ist in `wrangler.jsonc` aktiv.
 
-Bis dahin landet Feedback wie gewohnt nur im Admin-Bereich (🛠 → Feedback).
+Feedback landet zusätzlich immer im Admin-Bereich (🛠 → Feedback) – auch falls eine Mail einmal nicht zugestellt wird.
 
 ## Empfohlen
 
