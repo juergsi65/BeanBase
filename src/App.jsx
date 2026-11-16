@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage'
 import UserPage from './pages/UserPage'
 import FeedbackPage from './pages/FeedbackPage'
 import AdminPage from './pages/AdminPage'
+import SetPasswordPage from './pages/SetPasswordPage'
 import { getMyProfile } from './lib/social'
 
 // Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
@@ -48,7 +49,7 @@ function Toaster() {
 }
 
 export default function App() {
-  const { user } = useAuth()
+  const { user, recovery, endRecovery } = useAuth()
   const data = useData(user)
   // Start-Tab aus dem PWA-Shortcut (?tab=brew)
   const [tab, setTab] = useState(() => {
@@ -67,6 +68,7 @@ export default function App() {
 
   if (user === undefined) return <div className="splash">☕ BeanBase lädt …</div>
   if (!user) return <AuthPage />
+  if (recovery) return <SetPasswordPage onDone={endRecovery} />
 
   // go('brew', { key, brew }) · go('user', { userId }) · go('<tab>')
   const go = (t, preset = null) => {

@@ -9,6 +9,7 @@ import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
 import { supabase } from '../lib/supabase'
 import { deleteMyAccount } from '../lib/admin'
+import { PasswordForm } from './SetPasswordPage'
 import {
   socialAvailable, myId, getProfile, updateMyProfile, uploadAvatar, deleteAvatar, USERNAME_RE,
   searchProfiles, listFriendships, sendFriendRequest, acceptFriend, removeFriendship,
@@ -225,6 +226,10 @@ export default function ProfilePage({ data, go, me }) {
         <button className="btn ghost block" onClick={() => go('feedback')}>
           💬 Feedback zur Beta geben
         </button>
+        <details className="pw-change">
+          <summary className="btn ghost block">🔒 Passwort ändern</summary>
+          <PasswordForm />
+        </details>
         <button className="btn ghost block" onClick={() => supabase.auth.signOut()}>
           Abmelden
         </button>
