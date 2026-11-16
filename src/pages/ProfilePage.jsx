@@ -166,7 +166,7 @@ export default function ProfilePage({ data, go, me }) {
   }
 
   return (
-    <div className="stack">
+    <div className="stack profile-page">
       <h2>Mein Profil</h2>
       <form className="card" onSubmit={save}>
         <div className="profile-head">

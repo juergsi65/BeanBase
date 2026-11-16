@@ -125,7 +125,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="content" key={tab}>
+      <main className={`content page-${tab}`} key={tab}>
         {tab === 'dashboard' && <Dashboard {...props} />}
         {tab === 'brew' && <BrewPage {...props} preset={brewPreset} key={brewPreset?.key ?? 'new'} />}
         {tab === 'history' && <HistoryPage {...props} />}
