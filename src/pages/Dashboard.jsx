@@ -35,7 +35,8 @@ export default function Dashboard({ data, go }) {
   const fresh = freshness(days)
 
   return (
-    <div className="stack">
+    <div className="dash">
+     <div className="dash-main stack">
       <section>
         <h3 className="section-title">Aktive Bohnen</h3>
         {active.length ? (
@@ -105,7 +106,9 @@ export default function Dashboard({ data, go }) {
           )}
         </section>
       )}
+     </div>
 
+     <aside className="dash-side stack">
       <button className="btn primary big block" onClick={() => go('brew', { key: Date.now(), brew: last ?? { bean_id: selected?.id } })}>
         + Neuer Bezug
       </button>
@@ -157,6 +160,7 @@ export default function Dashboard({ data, go }) {
           </ul>
         </section>
       )}
+     </aside>
     </div>
   )
 }

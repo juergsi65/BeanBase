@@ -10,9 +10,28 @@ const rpc = async (fn, args) => check(await supabase.rpc(fn, args))
 
 // Feedback ------------------------------------------------------------------------
 export async function sendFeedback(message, context) {
-  return check(
-    await supabase.from('feedback').insert({ message: message.trim(), context, user_agent: navigator.userAgent.slice(0, 300) }),
+  const row = check(
+    await supabase
+      .from('feedback')
+      .insert({ message: message.trim(), context, user_agent: navigator.userAgent.slice(0, 300) })
+      .select('id')
+      .single(),
   )
+  notifyAdmin(row.id) // E-Mail an den Admin (falls im Worker eingerichtet) – Fehler stören den Nutzer nicht
+  return row
+}
+
+async function notifyAdmin(id) {
+  try {
+    const { data } = await supabase.auth.getSession()
+    await fetch('/api/feedback-notify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${data.session?.access_token}` },
+      body: JSON.stringify({ id }),
+    })
+  } catch {
+    /* E-Mail ist nur ein Extra – Feedback ist bereits gespeichert */
+  }
 }
 export async function listFeedback() {
   return check(

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Field } from '../components/ui'
 import { useSettings } from '../lib/settings'
@@ -25,6 +25,16 @@ export default function AuthPage() {
   const [password, setPassword] = useState('')
   const [invite, setInvite] = useState(() => (new URLSearchParams(window.location.search).get('invite') ?? '').toUpperCase())
   const settings = useSettings()
+  // Google-Button nur zeigen, wenn der Provider in Supabase aktiviert ist
+  const [googleEnabled, setGoogleEnabled] = useState(false)
+  useEffect(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+    fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } })
+      .then((r) => r.json())
+      .then((j) => setGoogleEnabled(!!j?.external?.google))
+      .catch(() => {})
+  }, [])
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -32,6 +42,13 @@ export default function AuthPage() {
     e.preventDefault()
     setBusy(true)
     setMsg(null)
+    if (mode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/?recovery=1` })
+      setBusy(false)
+      // Aus Datenschutzgründen nicht verraten, ob es ein Konto zu der Adresse gibt
+      if (error && !/not.?found|user/i.test(error.message)) return setMsg({ tone: 'error', text: authError(error) })
+      return setMsg({ tone: 'info', text: 'Falls es ein Konto mit dieser E-Mail gibt, ist jetzt ein Link zum Zurücksetzen unterwegs. Schau auch im Spam-Ordner nach.' })
+    }
     const { data, error } =
       mode === 'login'
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -71,6 +88,7 @@ export default function AuthPage() {
               />
             </Field>
           )}
+          {mode !== 'reset' && (
           <Field label="Passwort">
             <input
               type="password"
@@ -81,16 +99,24 @@ export default function AuthPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
+          )}
           {msg && <div className={`banner ${msg.tone}`}>{msg.text}</div>}
           <button className="btn primary block big" disabled={busy}>
-            {mode === 'login' ? 'Einloggen' : 'Konto erstellen'}
+            {mode === 'login' ? 'Einloggen' : mode === 'signup' ? 'Konto erstellen' : 'Link zum Zurücksetzen senden'}
           </button>
         </form>
-        <button className="btn ghost block" onClick={google}>
-          Mit Google anmelden
-        </button>
-        <button className="link" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
-          {mode === 'login' ? 'Noch kein Konto? Registrieren' : 'Schon registriert? Einloggen'}
+        {googleEnabled && mode !== 'reset' && (
+          <button className="btn ghost block" onClick={google}>
+            Mit Google anmelden
+          </button>
+        )}
+        {mode === 'login' && (
+          <button className="link" onClick={() => { setMode('reset'); setMsg(null) }}>
+            Passwort vergessen?
+          </button>
+        )}
+        <button className="link" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg(null) }}>
+          {mode === 'login' ? 'Noch kein Konto? Registrieren' : mode === 'signup' ? 'Schon registriert? Einloggen' : '← Zurück zum Login'}
         </button>
       </div>
     </div>

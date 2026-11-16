@@ -5,8 +5,24 @@
 1. **Mail-Versand klären** – der eingebaute Supabase-Mailversand schickt nur an Mitglieder des Supabase-Teams und nur wenige Mails pro Stunde. Für Tester also eine der beiden Varianten:
    - **Schnell:** *Authentication → Sign In / Providers → Email → „Confirm email“* ausschalten. Der Zugang ist trotzdem geschützt, weil die Registrierung einen Einladungscode braucht.
    - **Sauber:** eigenen SMTP-Dienst eintragen (*Authentication → Emails → SMTP Settings*), z. B. Brevo, Resend oder Postmark (alle mit Gratis-Kontingent). Danach kann „Confirm email“ an bleiben.
-2. **URL Configuration** – *Authentication → URL Configuration*: Site URL `https://beanbase.wsmronline.uk`, dieselbe Adresse unter *Redirect URLs*.
+2. **URL Configuration** – *Authentication → URL Configuration*: Site URL `https://beanbase.wsmronline.uk`, unter *Redirect URLs* `https://beanbase.wsmronline.uk/**` (das `**` erlaubt auch den Link aus „Passwort vergessen“ mit `?recovery=1`).
 3. **Einladungscode erstellen** – in der App: 🛠 → Einladungen → z. B. 20 Nutzungen, Notiz „Beta Runde 1“ → „Teilen“. Der Link `…/?invite=CODE` öffnet direkt die Registrierung mit eingetragenem Code.
+
+## Passwort vergessen
+
+Login → „Passwort vergessen?“ → Supabase schickt einen Link → die App öffnet „Neues Passwort“. Eingeloggte Nutzer ändern ihr Passwort unter 👤 → „Passwort ändern“. **Die Reset-Mail erreicht Tester nur mit eigenem SMTP-Dienst** (siehe Punkt 1), der eingebaute Versand liefert nur an das Supabase-Team.
+
+## Feedback per E-Mail an den Admin (optional)
+
+Der Worker schickt jedes neue Feedback per Mail – kostenlos über Cloudflare Email Routing, ohne Drittanbieter. Einmalig einrichten:
+
+1. Cloudflare-Dashboard → **Compute → Email Service → Email Routing** → für `wsmronline.uk` aktivieren.
+   ⚠️ Das setzt MX-Einträge für die Domain. Wenn du auf `@wsmronline.uk` bereits E-Mails über einen anderen Anbieter empfängst, vorher prüfen!
+2. **Destination Addresses** → deine Empfänger-Adresse eintragen und über den Link in der Bestätigungsmail verifizieren.
+3. Worker **beanbase → Settings → Variables and Secrets** → *Secret* `FEEDBACK_TO` = deine Empfänger-Adresse (optional *Variable* `FEEDBACK_FROM`, Standard `beanbase@wsmronline.uk`).
+4. In `wrangler.jsonc` die Zeile `"send_email": [{ "name": "FEEDBACK_EMAIL" }],` einkommentieren und deployen.
+
+Bis dahin landet Feedback wie gewohnt nur im Admin-Bereich (🛠 → Feedback).
 
 ## Empfohlen
 

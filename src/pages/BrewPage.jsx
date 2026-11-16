@@ -132,10 +132,10 @@ export default function BrewPage({ data, go, preset }) {
   }
 
   return (
-    <form className="stack" onSubmit={save}>
-      <h2>{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
+    <form className="stack brew-form" onSubmit={save}>
+      <h2 className="brew-title">{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
 
-      <section className="card">
+      <section className="card brew-bean">
         <Field label="Bohne">
           <select value={form.bean_id} onChange={set('bean_id')}>
             <option value="">— keine —</option>
@@ -207,7 +207,7 @@ export default function BrewPage({ data, go, preset }) {
         />
       )}
 
-      <section className="card">
+      <section className="card brew-recipe">
         <h3 className="section-title">Rezept</h3>
         <div className="grid2 nums">
           <Field label="Dosis (Mehl)">
@@ -250,7 +250,7 @@ export default function BrewPage({ data, go, preset }) {
         </div>
       </section>
 
-      <section className="card">
+      <section className="card brew-timer">
         <h3 className="section-title">Durchlaufzeit</h3>
         <Stopwatch onStop={set('brew_time')} />
         <Field label="Brühzeit">
@@ -258,7 +258,7 @@ export default function BrewPage({ data, go, preset }) {
         </Field>
       </section>
 
-      <section className="card">
+      <section className="card brew-rating">
         <h3 className="section-title">Bewertung</h3>
         <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
         <Stars value={form.rating} onChange={set('rating')} />
