@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Field, Empty } from '../components/ui'
+import { Field, Empty, Chip } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { SocialUnavailable } from './CommunityPage'
 import { MACHINE_TYPES, SCALE_TYPES, plural } from '../lib/coffee'
@@ -8,6 +8,7 @@ import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
 import { supabase } from '../lib/supabase'
+import { deleteMyAccount } from '../lib/admin'
 import {
   socialAvailable, myId, getProfile, updateMyProfile, uploadAvatar, deleteAvatar, USERNAME_RE,
   searchProfiles, listFriendships, sendFriendRequest, acceptFriend, removeFriendship,
@@ -73,7 +74,7 @@ function PersonRow({ profile, onOpen, children }) {
   )
 }
 
-export default function ProfilePage({ data, go }) {
+export default function ProfilePage({ data, go, me }) {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState(null)
   const [msg, setMsg] = useState(null)
@@ -176,6 +177,7 @@ export default function ProfilePage({ data, go }) {
           <div>
             <strong>{profile.display_name || profile.username}</strong>
             <span className="muted small">@{profile.username}</span>
+            <span>{me?.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Beta-Tester</Chip>}</span>
           </div>
         </div>
         <Field label="Username" hint="3–20 Zeichen: a–z, 0–9, _">
@@ -215,8 +217,30 @@ export default function ProfilePage({ data, go }) {
       </SetupCard>
 
       <section className="card">
+        {me?.role === 'admin' && (
+          <button className="btn primary block" onClick={() => go('admin')}>
+            🛠 Admin-Bereich
+          </button>
+        )}
+        <button className="btn ghost block" onClick={() => go('feedback')}>
+          💬 Feedback zur Beta geben
+        </button>
         <button className="btn ghost block" onClick={() => supabase.auth.signOut()}>
           Abmelden
+        </button>
+        <button
+          className="btn danger-ghost block"
+          onClick={async () => {
+            if (prompt('Konto und ALLE Daten (Bohnen, Bezüge, Fotos-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen:') !== 'LÖSCHEN') return
+            try {
+              await deleteMyAccount()
+              await supabase.auth.signOut()
+            } catch (e) {
+              toast(e.message, { tone: 'error' })
+            }
+          }}
+        >
+          Konto löschen
         </button>
       </section>
 

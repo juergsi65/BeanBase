@@ -538,3 +538,19 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 .extraction input[type='range'] { width: 100%; margin: 0; box-sizing: border-box; }
 .stars.lg { flex-wrap: nowrap; max-width: 100%; }
 .stars.lg button { font-size: clamp(2rem, 10.5vw, 2.6rem); padding: 0 2px; }
+
+/* Admin & Beta */
+.admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.admin-stats .stat { background: var(--surface); border: 1px solid var(--border); text-align: center; }
+.stat-sub { font-size: 0.65rem; color: var(--muted); }
+.admin-tabs .segmented button { flex: 1 1 30%; font-size: 0.85rem; min-height: 40px; }
+.admin-media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.admin-media figure { margin: 0; }
+.admin-media .media { height: 140px; }
+.admin-media figcaption { font-size: 0.78rem; color: var(--muted); display: flex; justify-content: space-between; gap: 4px; flex-wrap: wrap; }
+.list-item.blocked { opacity: 0.6; border-style: dashed; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; }
+.feedback-text { white-space: pre-wrap; }
+.ua { font-size: 0.68rem; }
+.beta-pill { font-size: 0.62rem; font-weight: 800; letter-spacing: .05em; color: var(--accent-text); background: var(--accent); border-radius: 999px; padding: 2px 6px; margin-left: 4px; }
+@media (max-width: 360px) { .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

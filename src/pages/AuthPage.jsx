@@ -1,11 +1,26 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Field } from '../components/ui'
+import { useSettings } from '../lib/settings'
+
+/** Verständliche Fehlermeldungen statt technischer Supabase-Texte */
+function authError(error) {
+  const m = error.message ?? ''
+  if (/Database error saving new user|INVITE_INVALID/i.test(m)) return 'Einladungscode ungültig oder schon aufgebraucht.'
+  if (/Invalid login credentials/i.test(m)) return 'E-Mail oder Passwort falsch.'
+  if (/Email not confirmed/i.test(m)) return 'Bitte bestätige zuerst deine E-Mail-Adresse (Link im Postfach).'
+  if (/User already registered/i.test(m)) return 'Für diese E-Mail gibt es schon ein Konto – bitte einloggen.'
+  if (/rate limit|too many/i.test(m)) return 'Zu viele Versuche – bitte in ein paar Minuten erneut probieren.'
+  if (/Password should be at least/i.test(m)) return 'Das Passwort muss mindestens 6 Zeichen haben.'
+  return m
+}
 
 export default function AuthPage() {
-  const [mode, setMode] = useState('login')
+  const [mode, setMode] = useState(() => (new URLSearchParams(window.location.search).get('invite') ? 'signup' : 'login'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [invite, setInvite] = useState(() => new URLSearchParams(window.location.search).get('invite') ?? '')
+  const settings = useSettings()
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -16,9 +31,13 @@ export default function AuthPage() {
     const { data, error } =
       mode === 'login'
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } })
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin, data: { invite_code: invite.trim().toUpperCase() } },
+          })
     setBusy(false)
-    if (error) setMsg({ tone: 'error', text: error.message })
+    if (error) setMsg({ tone: 'error', text: authError(error) })
     else if (mode === 'signup' && !data.session)
       setMsg({ tone: 'info', text: 'Fast geschafft! Bitte bestätige deine E-Mail-Adresse über den Link im Postfach.' })
   }
@@ -36,6 +55,18 @@ export default function AuthPage() {
           <Field label="E-Mail">
             <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
+          {mode === 'signup' && settings.invite_required && (
+            <Field label="Einladungscode" hint="BeanBase ist in der Beta – nur mit Einladung">
+              <input
+                required
+                value={invite}
+                onChange={(e) => setInvite(e.target.value.toUpperCase())}
+                placeholder="z. B. BEAN-3F9A2C"
+                autoCapitalize="characters"
+                autoCorrect="off"
+              />
+            </Field>
+          )}
           <Field label="Passwort">
             <input
               type="password"

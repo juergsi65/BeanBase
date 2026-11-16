@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 
 export const socialAvailable = !!supabase
 
-const PROFILE_COLS = 'id,username,display_name,avatar_url,bio,is_public,setup_photo_url'
+const PROFILE_COLS = 'id,username,display_name,avatar_url,bio,is_public,setup_photo_url,role'
 const check = ({ data, error }) => {
   if (error) throw error
   return data
@@ -16,6 +16,13 @@ export async function myId() {
 }
 
 // --- Profil ---------------------------------------------------------------------
+/** Eigenes Profil inkl. Sperr-Status (nur für mich selbst relevant) */
+export async function getMyProfile() {
+  const id = await myId()
+  if (!id) return null
+  return check(await supabase.from('profiles').select(`${PROFILE_COLS},blocked`).eq('id', id).maybeSingle())
+}
+
 export async function getProfile(id) {
   return check(await supabase.from('profiles').select(PROFILE_COLS).eq('id', id).maybeSingle())
 }
