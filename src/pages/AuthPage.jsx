@@ -10,6 +10,10 @@ function authError(error) {
   if (/Invalid login credentials/i.test(m)) return 'E-Mail oder Passwort falsch.'
   if (/Email not confirmed/i.test(m)) return 'Bitte bestätige zuerst deine E-Mail-Adresse (Link im Postfach).'
   if (/User already registered/i.test(m)) return 'Für diese E-Mail gibt es schon ein Konto – bitte einloggen.'
+  if (/email_address_not_authorized|not authorized/i.test(m) || error.code === 'email_address_not_authorized')
+    return 'Bestätigungs-Mail konnte nicht zugestellt werden (Mail-Versand noch nicht eingerichtet). Bitte melde dich beim BeanBase-Team.'
+  if (/email rate limit/i.test(m) || error.code === 'over_email_send_rate_limit')
+    return 'Gerade werden zu viele E-Mails verschickt – bitte in einer Stunde erneut versuchen.'
   if (/rate limit|too many/i.test(m)) return 'Zu viele Versuche – bitte in ein paar Minuten erneut probieren.'
   if (/Password should be at least/i.test(m)) return 'Das Passwort muss mindestens 6 Zeichen haben.'
   return m
@@ -19,7 +23,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState(() => (new URLSearchParams(window.location.search).get('invite') ? 'signup' : 'login'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [invite, setInvite] = useState(() => new URLSearchParams(window.location.search).get('invite') ?? '')
+  const [invite, setInvite] = useState(() => (new URLSearchParams(window.location.search).get('invite') ?? '').toUpperCase())
   const settings = useSettings()
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)

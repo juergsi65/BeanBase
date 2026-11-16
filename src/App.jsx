@@ -84,7 +84,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <button className="brand" onClick={() => go('dashboard')}>
-          <span className="logo">🫘</span> BeanBase
+          <span className="logo">🫘</span> <span className="brand-name">BeanBase</span>
           {!isLocalMode && <span className="beta-pill">BETA</span>}
         </button>
         <div className="topbar-actions">

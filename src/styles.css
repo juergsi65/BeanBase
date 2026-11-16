@@ -554,3 +554,18 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 .ua { font-size: 0.68rem; }
 .beta-pill { font-size: 0.62rem; font-weight: 800; letter-spacing: .05em; color: var(--accent-text); background: var(--accent); border-radius: 999px; padding: 2px 6px; margin-left: 4px; }
 @media (max-width: 360px) { .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Header kompakt: bis zu 4 Symbol-Knöpfe + Logo passen auch auf 320 px */
+.topbar { padding-left: 12px; padding-right: 12px; }
+.topbar-actions { gap: 6px; flex-shrink: 0; }
+.icon-btn { width: 40px; height: 40px; font-size: 1.05rem; border-radius: 11px; }
+.brand { font-size: 1.15rem; gap: 6px; overflow: hidden; }
+.brand .beta-pill { flex-shrink: 0; }
+@media (max-width: 400px) {
+  .brand { font-size: 1.02rem; }
+  .brand .logo { font-size: 1.1rem; }
+  .beta-pill { font-size: 0.56rem; padding: 2px 5px; margin-left: 2px; }
+  .icon-btn { width: 38px; height: 38px; font-size: 1rem; }
+}
+@media (max-width: 340px) {
+  .brand-name { display: none; }
+}

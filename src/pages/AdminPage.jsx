@@ -270,7 +270,10 @@ function Moderation() {
   const [state, reload] = useLoad(adminRecentContent)
   return (
     <Loading state={state}>
-      {({ comments, media }) => (
+      {(content) => {
+        const comments = Array.isArray(content?.comments) ? content.comments : []
+        const media = Array.isArray(content?.media) ? content.media : []
+        return (
         <>
           <h3 className="section-title">Neueste Kommentare</h3>
           {!comments.length && <p className="muted small">Keine Kommentare.</p>}
@@ -305,7 +308,8 @@ function Moderation() {
             ))}
           </div>
         </>
-      )}
+        )
+      }}
     </Loading>
   )
 }
