@@ -13,9 +13,9 @@
   },
   // Im Dashboard gesetzte Variablen/Secrets (z. B. FEEDBACK_TO) beim Deploy behalten
   "keep_vars": true,
-  // Feedback per E-Mail aktivieren – ERST NACHDEM Email Routing in Cloudflare eingerichtet ist
-  // (sonst kann der Deploy fehlschlagen). Dann diese Zeilen einkommentieren:
-  // "send_email": [{ "name": "FEEDBACK_EMAIL" }],
+  // Feedback per E-Mail an den Admin (Cloudflare Email Routing ist eingerichtet,
+  // Empfänger kommt aus dem Secret FEEDBACK_TO – siehe docs/BETA-TEST.md)
+  "send_email": [{ "name": "FEEDBACK_EMAIL" }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
