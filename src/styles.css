@@ -499,3 +499,42 @@ video.media { object-fit: contain; }
 form.stack { padding-bottom: 84px; }
 .sticky-actions { z-index: 5; pointer-events: none; }
 .sticky-actions > * { pointer-events: auto; }
+
+/* ===== Layout-Härtung: nichts darf über den Rand ragen (auch bei 320 px) ===== */
+html, body { max-width: 100%; }
+.grid2 > *, .grid3 > *, .stats > *, .cost-preview > *, .num > *, .field, .row > *, .list-item > * { min-width: 0; }
+h1, h2, h3, strong, .recipe-note, .feed-bean-info, .list-item span { overflow-wrap: anywhere; }
+.btn { max-width: 100%; line-height: 1.2; }
+.btn.big { white-space: normal; }
+.row, .row-actions, .page-head, .feed-actions { flex-wrap: wrap; }
+.row-actions { gap: 6px; }
+.list-item .row.small { row-gap: 6px; }
+.list-item .row.small .btn { flex: 0 1 auto; }
+.tabbar { grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; }
+.tabbar button { min-width: 0; }
+.tabbar button > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.sticky-actions { flex-wrap: nowrap; }
+.sticky-actions .btn { min-width: 0; padding-left: 14px; padding-right: 14px; }
+.sticky-actions .btn.ghost { flex: 0 1 auto; }
+.topbar { gap: 8px; }
+.brand { min-width: 0; white-space: nowrap; }
+input, select, textarea { min-width: 0; max-width: 100%; }
+.money-input { grid-template-columns: minmax(0, 1fr) 76px; }
+.cost-preview strong { font-size: 1rem; overflow-wrap: anywhere; }
+.stock-text { flex-wrap: wrap; row-gap: 2px; }
+.recipe-meta, .muted.small { overflow-wrap: anywhere; }
+@media (max-width: 360px) {
+  .content { padding: 12px; }
+  .card { padding: 14px; }
+  .btn.big { font-size: 1rem; padding: 12px 14px; }
+  .num { grid-template-columns: 46px minmax(0, 1fr) 46px; }
+  .stats { gap: 6px; }
+  .stat-value { font-size: 1rem; }
+  .cost-preview { grid-template-columns: 1fr 1fr; }
+  .cost-preview > div:last-child { grid-column: span 2; }
+  .tabbar button { font-size: 0.66rem; }
+  .fab-circle { width: 52px; height: 52px; }
+}
+.extraction input[type='range'] { width: 100%; margin: 0; box-sizing: border-box; }
+.stars.lg { flex-wrap: nowrap; max-width: 100%; }
+.stars.lg button { font-size: clamp(2rem, 10.5vw, 2.6rem); padding: 0 2px; }
