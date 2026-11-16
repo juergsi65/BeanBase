@@ -477,3 +477,285 @@ create policy "brew-media update own" on storage.objects for update to authentic
   using (bucket_id = 'brew-media' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "brew-media delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'brew-media' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =============================================================================
+-- Beta-Test: Rollen, Sperren, Einladungscodes, App-Einstellungen, Feedback, Admin
+-- Admin festlegen (einmalig, E-Mail anpassen):
+--   update public.profiles set role = 'admin'
+--   where id = (select id from auth.users where lower(email) = lower('DEINE@EMAIL'));
+-- =============================================================================
+alter table public.profiles add column if not exists role text not null default 'tester' check (role in ('admin', 'tester'));
+alter table public.profiles add column if not exists blocked boolean not null default false;
+-- Rolle & Sperre darf nur der Admin (über Funktionen) ändern
+revoke update on public.profiles from authenticated, anon;
+grant update (username, display_name, avatar_url, bio, is_public, setup_photo_url) on public.profiles to authenticated;
+
+create or replace function private.is_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and not blocked)
+$$;
+create or replace function private.is_blocked()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce((select blocked from public.profiles where id = auth.uid()), false)
+$$;
+revoke all on function private.is_admin() from public;
+revoke all on function private.is_blocked() from public;
+grant execute on function private.is_admin() to authenticated;
+grant execute on function private.is_blocked() to authenticated;
+
+-- Gesperrte Nutzer sind für andere unsichtbar
+create or replace function private.can_view(owner uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select auth.uid() is not null and (
+    owner = auth.uid()
+    or (
+      not exists (select 1 from public.profiles b where b.id = owner and b.blocked)
+      and (
+        exists (
+          select 1 from public.friendships f
+          where f.status = 'accepted'
+            and ((f.requester_id = auth.uid() and f.addressee_id = owner)
+              or (f.addressee_id = auth.uid() and f.requester_id = owner))
+        )
+        or exists (select 1 from public.profiles p where p.id = owner and p.is_public)
+      )
+    )
+  )
+$$;
+
+-- Gesperrte Nutzer können nichts mehr schreiben
+alter policy "insert own" on public.machines with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "insert own" on public.grinders with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "insert own" on public.beans    with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "insert own" on public.brews    with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "update own" on public.machines using (auth.uid() = user_id) with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "update own" on public.grinders using (auth.uid() = user_id) with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "update own" on public.beans    using (auth.uid() = user_id) with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "update own" on public.brews    using (auth.uid() = user_id) with check (auth.uid() = user_id and not private.is_blocked());
+alter policy "likes add" on public.brew_likes
+  with check (user_id = auth.uid() and not private.is_blocked() and exists (select 1 from public.brews b where b.id = brew_id));
+alter policy "comments add" on public.brew_comments
+  with check (user_id = auth.uid() and not private.is_blocked() and exists (select 1 from public.brews b where b.id = brew_id));
+alter policy "friendships request" on public.friendships
+  with check (requester_id = auth.uid() and status = 'pending' and not private.is_blocked());
+
+-- App-Einstellungen (für alle lesbar, ändern nur Admin per Funktion) ------------------
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+drop policy if exists "settings readable" on public.app_settings;
+create policy "settings readable" on public.app_settings for select to anon, authenticated using (true);
+insert into public.app_settings (key, value) values
+  ('video_uploads', 'false'::jsonb),
+  ('invite_required', 'true'::jsonb)
+on conflict (key) do nothing;
+
+-- Einladungscodes ------------------------------------------------------------------
+create table if not exists public.invite_codes (
+  code       text primary key check (code ~ '^[A-Z0-9-]{4,32}$'),
+  max_uses   int not null default 1 check (max_uses between 1 and 200),
+  uses       int not null default 0 check (uses >= 0),
+  note       text check (char_length(note) <= 120),
+  created_by uuid references public.profiles on delete set null,
+  created_at timestamptz not null default now()
+);
+alter table public.invite_codes enable row level security;
+drop policy if exists "invites admin read" on public.invite_codes;
+create policy "invites admin read" on public.invite_codes for select to authenticated using (private.is_admin());
+
+-- Registrierung: Profil anlegen + (falls aktiv) Einladungscode prüfen und verbrauchen
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  candidate text;
+  invite text := upper(trim(coalesce(new.raw_user_meta_data->>'invite_code', '')));
+  required boolean := coalesce((select (value)::boolean from public.app_settings where key = 'invite_required'), false);
+begin
+  if required then
+    update public.invite_codes set uses = uses + 1 where code = invite and uses < max_uses;
+    if not found then
+      raise exception 'INVITE_INVALID: Einladungscode ungültig oder aufgebraucht' using errcode = 'P0001';
+    end if;
+  end if;
+  loop
+    candidate := 'barista_' || substr(md5(random()::text || clock_timestamp()::text), 1, 6);
+    exit when not exists (select 1 from public.profiles where username = candidate);
+  end loop;
+  insert into public.profiles (id, username) values (new.id, candidate) on conflict (id) do nothing;
+  return new;
+end $$;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+
+-- Feedback ---------------------------------------------------------------------------
+create table if not exists public.feedback (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid default auth.uid() references public.profiles on delete set null,
+  message    text not null check (char_length(trim(message)) between 1 and 2000),
+  context    text check (char_length(context) <= 200),
+  user_agent text check (char_length(user_agent) <= 300),
+  status     text not null default 'neu' check (status in ('neu', 'erledigt')),
+  created_at timestamptz not null default now()
+);
+alter table public.feedback enable row level security;
+drop policy if exists "feedback add" on public.feedback;
+drop policy if exists "feedback read" on public.feedback;
+drop policy if exists "feedback admin update" on public.feedback;
+drop policy if exists "feedback admin delete" on public.feedback;
+create policy "feedback add" on public.feedback for insert to authenticated
+  with check (user_id = auth.uid() and status = 'neu');
+create policy "feedback read" on public.feedback for select to authenticated
+  using (user_id = auth.uid() or private.is_admin());
+create policy "feedback admin update" on public.feedback for update to authenticated
+  using (private.is_admin()) with check (private.is_admin());
+create policy "feedback admin delete" on public.feedback for delete to authenticated using (private.is_admin());
+
+-- Admin-Funktionen (prüfen selbst auf Admin-Rolle) ---------------------------------------
+create or replace function private.assert_admin()
+returns void language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.is_admin() then raise exception 'NOT_ADMIN' using errcode = '42501'; end if;
+end $$;
+
+create or replace function public.admin_overview()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  return jsonb_build_object(
+    'users',          (select count(*) from public.profiles),
+    'users_7d',       (select count(*) from public.profiles where created_at > now() - interval '7 days'),
+    'active_7d',      (select count(distinct user_id) from public.brews where created_at > now() - interval '7 days'),
+    'blocked',        (select count(*) from public.profiles where blocked),
+    'public_profiles',(select count(*) from public.profiles where is_public),
+    'beans',          (select count(*) from public.beans),
+    'brews',          (select count(*) from public.brews),
+    'brews_7d',       (select count(*) from public.brews where created_at > now() - interval '7 days'),
+    'friendships',    (select count(*) from public.friendships where status = 'accepted'),
+    'likes',          (select count(*) from public.brew_likes),
+    'comments',       (select count(*) from public.brew_comments),
+    'feedback_open',  (select count(*) from public.feedback where status = 'neu'),
+    'storage_mb',     (select round(coalesce(sum((metadata->>'size')::bigint), 0) / 1048576.0, 1) from storage.objects)
+  );
+end $$;
+
+create or replace function public.admin_users()
+returns table (
+  id uuid, username text, display_name text, email text, role text, blocked boolean, is_public boolean,
+  created_at timestamptz, last_sign_in_at timestamptz, beans bigint, brews bigint, last_brew_at timestamptz
+)
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  return query
+    select p.id, p.username, p.display_name, u.email::text, p.role, p.blocked, p.is_public,
+           p.created_at, u.last_sign_in_at,
+           (select count(*) from public.beans b where b.user_id = p.id),
+           (select count(*) from public.brews r where r.user_id = p.id),
+           (select max(r.created_at) from public.brews r where r.user_id = p.id)
+    from public.profiles p left join auth.users u on u.id = p.id
+    order by p.created_at desc;
+end $$;
+
+create or replace function public.admin_set_blocked(p_user uuid, p_blocked boolean)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  if p_user = auth.uid() then raise exception 'Du kannst dich nicht selbst sperren.'; end if;
+  update public.profiles set blocked = p_blocked where id = p_user and role <> 'admin';
+end $$;
+
+create or replace function public.admin_set_setting(p_key text, p_value jsonb)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  if p_key not in ('video_uploads', 'invite_required') then raise exception 'Unbekannte Einstellung'; end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  -- Video-Sperre auch serverseitig im Storage durchsetzen
+  if p_key = 'video_uploads' then
+    update storage.buckets set allowed_mime_types = case when (p_value)::boolean
+      then array['image/jpeg','image/png','image/webp','video/mp4','video/quicktime','video/webm']
+      else array['image/jpeg','image/png','image/webp'] end
+    where id = 'brew-media';
+  end if;
+end $$;
+
+create or replace function public.admin_create_invite(p_max_uses int default 1, p_note text default null, p_code text default null)
+returns text language plpgsql security definer set search_path = '' as $$
+declare c text := upper(coalesce(nullif(trim(p_code), ''), 'BEAN-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6))));
+begin
+  perform private.assert_admin();
+  insert into public.invite_codes (code, max_uses, note, created_by) values (c, p_max_uses, p_note, auth.uid());
+  return c;
+end $$;
+
+create or replace function public.admin_delete_invite(p_code text)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  delete from public.invite_codes where code = p_code;
+end $$;
+
+-- Moderation: neueste Kommentare und Medien aller Nutzer
+create or replace function public.admin_recent_content()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  return jsonb_build_object(
+    'comments', coalesce((select jsonb_agg(x order by x.created_at desc) from (
+      select c.id, c.body, c.created_at, p.username from public.brew_comments c join public.profiles p on p.id = c.user_id
+      order by c.created_at desc limit 40) x), '[]'::jsonb),
+    'media', coalesce((select jsonb_agg(x order by x.created_at desc) from (
+      select r.id, r.media_url, r.media_type, r.created_at, p.username from public.brews r join public.profiles p on p.id = r.user_id
+      where r.media_url is not null order by r.created_at desc limit 40) x), '[]'::jsonb)
+  );
+end $$;
+
+create or replace function public.admin_delete_comment(p_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  delete from public.brew_comments where id = p_id;
+end $$;
+
+create or replace function public.admin_remove_media(p_brew uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  update public.brews set media_url = null, media_type = null where id = p_brew;
+end $$;
+
+-- Konto löschen (DSGVO): eigenes Konto bzw. als Admin ein Testkonto
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  delete from auth.users where id = auth.uid();
+end $$;
+
+create or replace function public.admin_delete_user(p_user uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.assert_admin();
+  if p_user = auth.uid() then raise exception 'Eigenes Konto bitte über „Konto löschen“ entfernen.'; end if;
+  if exists (select 1 from public.profiles where id = p_user and role = 'admin') then raise exception 'Admins können nicht gelöscht werden.'; end if;
+  delete from auth.users where id = p_user;
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['admin_overview()', 'admin_users()', 'admin_set_blocked(uuid, boolean)', 'admin_set_setting(text, jsonb)',
+    'admin_create_invite(int, text, text)', 'admin_delete_invite(text)', 'admin_recent_content()', 'admin_delete_comment(uuid)',
+    'admin_remove_media(uuid)', 'delete_my_account()', 'admin_delete_user(uuid)'] loop
+    execute format('revoke all on function public.%s from public, anon', f);
+    execute format('grant execute on function public.%s to authenticated', f);
+  end loop;
+end $$;
+revoke all on function private.assert_admin() from public;
+grant execute on function private.assert_admin() to authenticated;
+
+-- Videos vorerst gesperrt (Beta-Test)
+update storage.buckets set allowed_mime_types = array['image/jpeg','image/png','image/webp'] where id = 'brew-media';
