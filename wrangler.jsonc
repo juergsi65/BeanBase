@@ -6,6 +6,16 @@
   "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
   "build": { "command": "npm ci && npm run build" },
+  // Öffentliche Supabase-Werte (wie in .env.production) für /api/feedback-notify
+  "vars": {
+    "SUPABASE_URL": "https://swjishmcidohbllsenzn.supabase.co",
+    "SUPABASE_KEY": "sb_publishable_xV7e3395bruhO7LAtsGd5w_DI24Ew6X"
+  },
+  // Im Dashboard gesetzte Variablen/Secrets (z. B. FEEDBACK_TO) beim Deploy behalten
+  "keep_vars": true,
+  // Feedback per E-Mail aktivieren – ERST NACHDEM Email Routing in Cloudflare eingerichtet ist
+  // (sonst kann der Deploy fehlschlagen). Dann diese Zeilen einkommentieren:
+  // "send_email": [{ "name": "FEEDBACK_EMAIL" }],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
