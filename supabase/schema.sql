@@ -433,3 +433,47 @@ create policy "avatars update own" on storage.objects for update to authenticate
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "avatars delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- =============================================================================
+-- Packung, Preis & Bestand (privat: nur der Besitzer sieht Preise)
+-- =============================================================================
+create table if not exists public.bean_stock (
+  id           uuid primary key default gen_random_uuid(),
+  bean_id      uuid not null unique references public.beans on delete cascade,
+  user_id      uuid not null default auth.uid() references auth.users on delete cascade,
+  bag_weight_g numeric(7,1) check (bag_weight_g > 0),
+  price        numeric(8,2) check (price >= 0),
+  currency     text not null default 'EUR' check (currency in ('EUR', 'CHF', 'USD', 'GBP')),
+  opened_at    timestamptz not null default now(),   -- ab hier zählt der Verbrauch (neue Packung = neu setzen)
+  created_at   timestamptz not null default now()
+);
+alter table public.bean_stock enable row level security;
+drop policy if exists "stock own" on public.bean_stock;
+create policy "stock own" on public.bean_stock for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid()
+              and exists (select 1 from public.beans b where b.id = bean_id and b.user_id = auth.uid()));
+
+-- =============================================================================
+-- Medien: Foto/Video zum Bezug, Fotos vom Equipment und vom ganzen Setup
+-- =============================================================================
+alter table public.brews    add column if not exists media_url text;
+alter table public.brews    add column if not exists media_type text check (media_type in ('image', 'video'));
+alter table public.machines add column if not exists image_url text;
+alter table public.grinders add column if not exists image_url text;
+alter table public.profiles add column if not exists setup_photo_url text;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('brew-media', 'brew-media', true, 52428800,
+        array['image/jpeg','image/png','image/webp','video/mp4','video/quicktime','video/webm'])
+on conflict (id) do nothing;
+
+drop policy if exists "brew-media insert own" on storage.objects;
+drop policy if exists "brew-media update own" on storage.objects;
+drop policy if exists "brew-media delete own" on storage.objects;
+create policy "brew-media insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'brew-media' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "brew-media update own" on storage.objects for update to authenticated
+  using (bucket_id = 'brew-media' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "brew-media delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'brew-media' and (storage.foldername(name))[1] = auth.uid()::text);

@@ -2,18 +2,35 @@ import { useEffect, useState } from 'react'
 import { Field, Empty } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { SocialUnavailable } from './CommunityPage'
-import { MACHINE_TYPES, SCALE_TYPES } from '../lib/coffee'
+import { MACHINE_TYPES, SCALE_TYPES, plural } from '../lib/coffee'
 import { resizeImage } from '../lib/images'
+import MediaPicker from '../components/MediaPicker'
+import { uploadMedia, deleteMedia } from '../lib/media'
+import { toast } from '../lib/toast'
+import { supabase } from '../lib/supabase'
 import {
   socialAvailable, myId, getProfile, updateMyProfile, uploadAvatar, deleteAvatar, USERNAME_RE,
   searchProfiles, listFriendships, sendFriendRequest, acceptFriend, removeFriendship,
 } from '../lib/social'
 
 /** Barista-Visitenkarte: Setup + Kennzahlen */
-export function SetupCard({ machines, grinders, beansCount, brewsCount }) {
+export function SetupCard({ machines, grinders, beansCount, brewsCount, setupPhoto, children }) {
+  const gear = [...machines, ...grinders].filter((g) => g.image_url)
   return (
     <section className="card">
       <h3 className="section-title">Barista-Visitenkarte</h3>
+      {setupPhoto && <img className="media setup-photo" src={setupPhoto} alt="Kaffee-Setup" loading="lazy" />}
+      {gear.length > 0 && (
+        <div className="gear-strip">
+          {gear.map((g) => (
+            <figure key={g.id}>
+              <img src={g.image_url} alt="" loading="lazy" />
+              <figcaption>{g.name}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {children}
       {machines.length || grinders.length ? (
         <ul className="setup-list">
           {machines.map((m) => (
@@ -34,7 +51,7 @@ export function SetupCard({ machines, grinders, beansCount, brewsCount }) {
         <p className="muted small">
           {beansCount != null && `${beansCount} aktive Bohnen`}
           {beansCount != null && brewsCount != null && ' · '}
-          {brewsCount != null && `${brewsCount} Bezüge`}
+          {brewsCount != null && plural(brewsCount, 'Bezug', 'Bezüge')}
         </p>
       )}
     </section>
@@ -192,7 +209,16 @@ export default function ProfilePage({ data, go }) {
         grinders={data.grinders}
         beansCount={data.beans.filter((b) => b.active).length}
         brewsCount={data.brews.length}
-      />
+        setupPhoto={profile.setup_photo_url}
+      >
+        <SetupPhotoEditor profile={profile} onSaved={setProfile} />
+      </SetupCard>
+
+      <section className="card">
+        <button className="btn ghost block" onClick={() => supabase.auth.signOut()}>
+          Abmelden
+        </button>
+      </section>
 
       <section className="card">
         <h3 className="section-title">Freunde finden</h3>
@@ -272,6 +298,38 @@ export default function ProfilePage({ data, go }) {
           </>
         )}
       </section>
+    </div>
+  )
+}
+
+/** Foto vom ganzen Setup (wird direkt nach Auswahl gespeichert) */
+function SetupPhotoEditor({ profile, onSaved }) {
+  const [busy, setBusy] = useState(false)
+  const change = async ({ pending, removed }) => {
+    setBusy(true)
+    try {
+      const old = profile.setup_photo_url
+      const url = pending ? (await uploadMedia(pending)).url : null
+      if (pending || removed) {
+        onSaved(await updateMyProfile({ setup_photo_url: url }))
+        if (old) deleteMedia(old).catch(() => {})
+        toast(url ? 'Setup-Foto gespeichert' : 'Setup-Foto entfernt')
+      }
+    } catch (e) {
+      toast(e.message, { tone: 'error' })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div>
+      <p className="muted small">{busy ? 'Lade hoch …' : profile.setup_photo_url ? 'Setup-Foto ändern:' : 'Zeig dein Setup – ein Foto für deine Visitenkarte:'}</p>
+      {!profile.setup_photo_url && <MediaPicker allowVideo={false} onChange={change} />}
+      {profile.setup_photo_url && (
+        <button type="button" className="btn ghost sm" onClick={() => change({ pending: null, removed: true })} disabled={busy}>
+          Setup-Foto entfernen
+        </button>
+      )}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { normalizeBarcode, isValidGtin } from '../lib/barcode'
+import { haptic } from '../lib/haptics'
 
 const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e']
 
@@ -16,7 +17,7 @@ export default function BarcodeScanner({ onResult, onClose }) {
     const code = normalizeBarcode(raw)
     if (!code || doneRef.current) return
     doneRef.current = true
-    navigator.vibrate?.(80)
+    haptic('success')
     onResult(code)
   }
 

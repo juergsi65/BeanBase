@@ -1,0 +1,21 @@
+{
+  "name": "BeanBase – Dial-In & Brew-Log",
+  "short_name": "BeanBase",
+  "description": "Dein digitales Barista-Notizbuch: Bohnen, Setup, Dial-In und Community.",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16110e",
+  "theme_color": "#16110e",
+  "categories": ["food", "lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Neuer Bezug", "url": "/?tab=brew", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

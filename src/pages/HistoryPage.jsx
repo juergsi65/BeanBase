@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Stars, Stat, Empty, useLookup } from '../components/ui'
 import { fmtDate, fmtRatio, ratio, extractionLabel, ROAST_LEVELS } from '../lib/coffee'
+import { brewCost, fmtMoney } from '../lib/cost'
+import { MediaView } from '../components/MediaPicker'
+import { deleteMedia } from '../lib/media'
+import { toast } from '../lib/toast'
 
 export default function HistoryPage({ data, go }) {
   const lookup = useLookup(data)
@@ -28,7 +32,11 @@ export default function HistoryPage({ data, go }) {
   }, [data.brews, lookup, q, bean, roast, minRating])
 
   const del = async (id) => {
-    if (confirm('Diesen Bezug wirklich löschen?')) await data.remove('brews', id)
+    if (!confirm('Diesen Bezug wirklich löschen?')) return
+    const b = data.brews.find((x) => x.id === id)
+    await data.remove('brews', id)
+    if (b?.media_url) deleteMedia(b.media_url).catch(() => {})
+    toast('Bezug gelöscht', { tone: 'info' })
   }
 
   return (
@@ -73,6 +81,7 @@ export default function HistoryPage({ data, go }) {
           {rows.map((b) => {
             const bn = lookup.beans[b.bean_id]
             const isOpen = open === b.id
+            const cost = brewCost(b, data.bean_stock)
             return (
               <li key={b.id} className={`list-item col ${isOpen ? 'open' : ''}`}>
                 <div className="row" onClick={() => setOpen(isOpen ? null : b.id)}>
@@ -80,7 +89,8 @@ export default function HistoryPage({ data, go }) {
                     <strong>{bn?.name ?? 'Unbekannte Bohne'}</strong>
                     <span className="muted small">
                       {fmtDate(b.created_at)} · Mahlgrad {b.grind_setting || '–'} · {b.dose ?? '–'}g → {b.yield ?? '–'}g ·{' '}
-                      {b.brew_time ?? '–'}s
+                      {b.brew_time ?? '–'}s{cost && ` · ${fmtMoney(cost.value, cost.currency)}`}
+                      {b.media_url && (b.media_type === 'video' ? ' · 🎬' : ' · 📷')}
                     </span>
                   </div>
                   <Stars value={b.rating} size="sm" />
@@ -96,6 +106,7 @@ export default function HistoryPage({ data, go }) {
                       {lookup.machines[b.machine_id]?.name ?? '–'} · {lookup.grinders[b.grinder_id]?.name ?? '–'} · {extractionLabel(b.extraction)}
                     </p>
                     {b.notes && <p className="recipe-note">„{b.notes}“</p>}
+                    <MediaView url={b.media_url} type={b.media_type} />
                     <div className="row-actions">
                       <button className="btn primary sm" onClick={() => go('brew', { key: Date.now(), brew: b })}>
                         Wiederholen

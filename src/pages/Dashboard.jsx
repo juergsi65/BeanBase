@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { RecipeCard, Empty, Chip, Stars, useLookup } from '../components/ui'
-import { daysSince, freshness, recipesForBean, ROAST_LEVELS, fmtRatio, ratio, fmtDate } from '../lib/coffee'
+import { daysSince, freshness, recipesForBean, ROAST_LEVELS, fmtRatio, ratio, fmtDate, plural } from '../lib/coffee'
+import { beanUsage, spending, fmtMoney } from '../lib/cost'
+import StockBar from '../components/StockBar'
 
 export default function Dashboard({ data, go }) {
   const lookup = useLookup(data)
@@ -41,7 +43,7 @@ export default function Dashboard({ data, go }) {
             {active.map((b) => (
               <button key={b.id} className={selected?.id === b.id ? 'on' : ''} onClick={() => setBeanId(b.id)}>
                 <strong>{b.name}</strong>
-                <span>{b.roaster || '—'}</span>
+                {b.roaster && <span>{b.roaster}</span>}
               </button>
             ))}
           </div>
@@ -74,13 +76,21 @@ export default function Dashboard({ data, go }) {
               </Chip>
             ))}
           </div>
+          {(() => {
+            const u = beanUsage(selected.id, data.bean_stock, data.brews)
+            return u ? <StockBar usage={u} /> : (
+              <button className="link small" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => go('beans')}>
+                + Packungsgröße & Preis eintragen → Kosten pro Tasse & Restmenge
+              </button>
+            )
+          })()}
           {count ? (
             <>
               <RecipeCard title="Letzter Bezug" brew={last} lookup={lookup} onReuse={reuse} />
               {best && best.id !== last.id && (
                 <RecipeCard title="Bestbewertet" brew={best} lookup={lookup} onReuse={reuse} />
               )}
-              <p className="muted small">{count} Bezüge mit dieser Bohne</p>
+              <p className="muted small">{plural(count, 'Bezug', 'Bezüge')} mit dieser Bohne</p>
             </>
           ) : (
             <Empty
@@ -99,6 +109,35 @@ export default function Dashboard({ data, go }) {
       <button className="btn primary big block" onClick={() => go('brew', { key: Date.now(), brew: last ?? { bean_id: selected?.id } })}>
         + Neuer Bezug
       </button>
+
+      {(() => {
+        const sp = spending(data.brews, data.bean_stock, 30)
+        if (!sp.count) return null
+        return (
+          <section className="card stats-card">
+            <h3 className="section-title">Letzte 30 Tage</h3>
+            <div className="stats">
+              <div className="stat">
+                <span className="stat-value">{sp.count}</span>
+                <span className="stat-label">Bezüge</span>
+              </div>
+              <div className="stat">
+                <span className="stat-value">{sp.priced ? fmtMoney(sp.total, sp.currency) : '–'}</span>
+                <span className="stat-label">Kaffee-Kosten</span>
+              </div>
+              <div className="stat">
+                <span className="stat-value">{sp.perCup != null ? fmtMoney(sp.perCup, sp.currency) : '–'}</span>
+                <span className="stat-label">Ø pro Tasse</span>
+              </div>
+            </div>
+            {sp.priced < sp.count && (
+              <p className="muted small">
+                {plural(sp.count - sp.priced, 'Bezug', 'Bezüge')} ohne Preis – trag bei der Bohne Packungsgröße und Kaufpreis ein.
+              </p>
+            )}
+          </section>
+        )
+      })()}
 
       {data.brews.length > 0 && (
         <section>

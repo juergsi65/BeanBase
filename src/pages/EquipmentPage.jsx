@@ -2,6 +2,11 @@ import { useState } from 'react'
 import { Field, Empty, Chip } from '../components/ui'
 import { MACHINE_TYPES, SCALE_TYPES } from '../lib/coffee'
 import { MACHINE_PRESETS, GRINDER_PRESETS, searchPresets } from '../data/presets'
+import MediaPicker from '../components/MediaPicker'
+import { uploadMedia, deleteMedia } from '../lib/media'
+import { toast } from '../lib/toast'
+import { exportAll } from '../lib/db'
+import { hapticsEnabled, setHapticsEnabled } from '../lib/haptics'
 
 export default function EquipmentPage({ data }) {
   return (
@@ -27,7 +32,38 @@ export default function EquipmentPage({ data }) {
         defaultType="numbers"
         notesHint="z. B. Nullpunkt kalibriert, Burrs gewechselt am …"
       />
+      <AppSettings />
     </div>
+  )
+}
+
+function AppSettings() {
+  const [haptics, setHaptics] = useState(hapticsEnabled())
+  const download = async () => {
+    const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
+    Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `beanbase-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    }).click()
+  }
+  return (
+    <section className="card">
+      <h3 className="section-title">App</h3>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={haptics}
+          onChange={(e) => {
+            setHapticsEnabled(e.target.checked)
+            setHaptics(e.target.checked)
+          }}
+        />
+        <span>Haptisches Feedback (Vibration beim Tippen)</span>
+      </label>
+      <button className="btn ghost block" onClick={download}>
+        ⤓ Alle Daten exportieren (JSON-Backup)
+      </button>
+    </section>
   )
 }
 
@@ -79,16 +115,26 @@ function PresetPicker({ presets, onPick }) {
 }
 
 function EquipmentSection({ data, table, title, typeKey, types, presets, defaultType, notesHint }) {
-  const [form, setForm] = useState(null) // null | { id?, name, type, notes, preset_id }
+  const [form, setForm] = useState(null) // null | { id?, name, type, notes, preset_id, image_url }
+  const [media, setMedia] = useState({ pending: null, removed: false })
   const rows = data[table]
   const presetName = (id) => presets.find((p) => p.id === id)?.name
 
   const save = async (e) => {
     e.preventDefault()
     const row = { name: form.name.trim(), [typeKey]: form.type, notes: form.notes.trim() || null, preset_id: form.preset_id || null }
-    if (form.id) await data.update(table, form.id, row)
-    else await data.add(table, row)
-    setForm(null)
+    try {
+      if (media.pending) row.image_url = (await uploadMedia(media.pending)).url
+      else if (media.removed) row.image_url = null
+      if (form.id) await data.update(table, form.id, row)
+      else await data.add(table, row)
+      if (form.image_url && (media.pending || media.removed)) deleteMedia(form.image_url).catch(() => {})
+      toast('Gespeichert')
+      setForm(null)
+      setMedia({ pending: null, removed: false })
+    } catch (err) {
+      data.setError(err.message)
+    }
   }
   const del = async (r) => {
     if (confirm(`„${r.name}“ löschen?`)) await data.remove(table, r.id)
@@ -131,8 +177,16 @@ function EquipmentSection({ data, table, title, typeKey, types, presets, default
           <Field label="Notizen">
             <textarea rows={2} value={form.notes} placeholder={notesHint} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </Field>
+          <Field label="Foto">
+            <MediaPicker
+              allowVideo={false}
+              value={media.removed || !form.image_url ? null : { url: form.image_url, type: 'image' }}
+              pending={media.pending}
+              onChange={setMedia}
+            />
+          </Field>
           <div className="row-actions">
-            <button type="button" className="btn ghost" onClick={() => setForm(null)}>
+            <button type="button" className="btn ghost" onClick={() => { setForm(null); setMedia({ pending: null, removed: false }) }}>
               Abbrechen
             </button>
             <button className="btn primary grow">Speichern</button>
@@ -146,7 +200,8 @@ function EquipmentSection({ data, table, title, typeKey, types, presets, default
         <ul className="list">
           {rows.map((r) => (
             <li key={r.id} className="list-item">
-              <div>
+              {r.image_url && <img className="thumb" src={r.image_url} alt="" loading="lazy" />}
+              <div className="grow">
                 <strong>
                   {r.name} {r.preset_id && <span className="badge" title={presetName(r.preset_id)}>✓</span>}
                 </strong>
@@ -158,7 +213,7 @@ function EquipmentSection({ data, table, title, typeKey, types, presets, default
               <div className="row-actions">
                 <button
                   className="btn ghost sm"
-                  onClick={() => setForm({ id: r.id, name: r.name, type: r[typeKey], notes: r.notes ?? '', preset_id: r.preset_id ?? null })}
+                  onClick={() => setForm({ id: r.id, name: r.name, type: r[typeKey], notes: r.notes ?? '', preset_id: r.preset_id ?? null, image_url: r.image_url ?? null })}
                 >
                   ✎
                 </button>

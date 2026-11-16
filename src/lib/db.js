@@ -1,7 +1,7 @@
 // Einheitliche Datenschicht: Supabase (Cloud) oder localStorage (Demo-Modus).
 import { supabase } from './supabase'
 
-export const TABLES = ['machines', 'grinders', 'beans', 'brews']
+export const TABLES = ['machines', 'grinders', 'beans', 'brews', 'bean_stock']
 const LS_KEY = 'beanbase:v1'
 
 function lsRead() {
@@ -41,6 +41,7 @@ const local = {
     // verwaiste Referenzen wie "on delete set null"
     const fk = { beans: 'bean_id', machines: 'machine_id', grinders: 'grinder_id' }[table]
     if (fk) data.brews = (data.brews ?? []).map((b) => (b[fk] === id ? { ...b, [fk]: null } : b))
+    if (table === 'beans') data.bean_stock = (data.bean_stock ?? []).filter((st) => st.bean_id !== id) // wie "on delete cascade"
     lsWrite(data)
   },
 }

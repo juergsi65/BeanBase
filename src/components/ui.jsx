@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { extractionLabel, fmtRatio, ratio, dialInHint, fmtDate } from '../lib/coffee'
+import { haptic } from '../lib/haptics'
 
 export function Field({ label, hint, children }) {
   return (
@@ -110,11 +111,11 @@ export function Stopwatch({ onStop }) {
       setRunning(false)
       const secs = Math.round((performance.now() - start.current) / 1000)
       onStop(secs)
-      navigator.vibrate?.(60)
+      haptic('success')
     } else {
       start.current = performance.now() - ms
       setRunning(true)
-      navigator.vibrate?.(30)
+      haptic('heavy')
       raf.current = requestAnimationFrame(tick)
     }
   }
@@ -131,7 +132,7 @@ export function Stopwatch({ onStop }) {
         <small>.{Math.floor((s % 1) * 10)} s</small>
       </div>
       <div className="sw-buttons">
-        <button type="button" className={`btn big ${running ? 'danger' : 'primary'}`} onClick={toggle}>
+        <button type="button" className={`btn big ${running ? 'danger' : 'primary'}`} onClick={toggle} data-no-haptic="1">
           {running ? '■ Stopp' : ms ? '▶ Weiter' : '▶ Start'}
         </button>
         <button type="button" className="btn big ghost" onClick={reset} disabled={running || !ms}>
