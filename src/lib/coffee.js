@@ -59,6 +59,22 @@ export function dialInHint(brew) {
 /** 1 Bezug / 2 Bezüge */
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 
+/** "jetzt", "vor 5 Min.", "vor 3 Std.", "gestern", "vor 4 Tagen", "12. Nov." */
+export function fmtRelative(iso, now = Date.now()) {
+  const t = new Date(iso).getTime()
+  const s = Math.max(0, Math.round((now - t) / 1000))
+  if (s < 60) return 'jetzt'
+  const m = Math.round(s / 60)
+  if (m < 60) return `vor ${m} Min.`
+  const h = Math.round(m / 60)
+  if (h < 24) return `vor ${h} Std.`
+  const d = Math.round(h / 24)
+  if (d === 1) return 'gestern'
+  if (d < 7) return `vor ${d} Tagen`
+  const sameYear = new Date(t).getFullYear() === new Date(now).getFullYear()
+  return new Date(t).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) })
+}
+
 export const fmtDate = (iso) =>
   new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 
