@@ -23,8 +23,9 @@
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
 }
+/* Hell/Dunkel: data-theme="light" | "dark" erzwingt, ohne Attribut folgt die App dem System */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme='dark']) {
     --bg: #f6efe6;
     --surface: #fffaf3;
     --surface-2: #efe4d6;
@@ -38,6 +39,20 @@
     color-scheme: light;
   }
 }
+:root[data-theme='light'] {
+    --bg: #f6efe6;
+    --surface: #fffaf3;
+    --surface-2: #efe4d6;
+    --border: #dccbb6;
+    --text: #2b1f18;
+    --muted: #7a6656;
+    --accent: #6f4e37;
+    --accent-strong: #5a3d2a;
+    --accent-text: #fff8ef;
+    --bitter: #6f4e37;
+    color-scheme: light;
+}
+:root[data-theme='dark'] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100dvh; background: var(--bg); }
@@ -695,3 +710,115 @@ input, select, textarea { min-width: 0; max-width: 100%; }
 .num { grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap); }
 @media (max-width: 360px) { .num { grid-template-columns: 46px minmax(0, 1fr) 46px; } }
 @media (min-width: 960px) and (max-width: 1199px) { .brew-recipe .grid2.nums { grid-template-columns: minmax(0, 1fr); } }
+
+/* =====================================================================
+   Community: Timeline im Stil eines Kurznachrichten-Feeds
+   ===================================================================== */
+.timeline-page { display: flex; flex-direction: column; gap: 0; margin: -16px -16px 0; }
+.timeline-tabs {
+  position: sticky; top: calc(64px + env(safe-area-inset-top)); z-index: 8; display: flex; align-items: stretch;
+  background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+}
+.timeline-tabs button[role='tab'] {
+  flex: 1; background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; padding: 14px 8px 12px; cursor: pointer;
+  position: relative;
+}
+.timeline-tabs button[role='tab'].on { color: var(--text); font-weight: 800; }
+.timeline-tabs button[role='tab'].on::after {
+  content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 56px; height: 4px; border-radius: 4px; background: var(--accent-strong);
+}
+.timeline-tabs button[role='tab']:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.timeline-friends { background: none; border: 0; padding: 0 16px; font-size: 1.15rem; cursor: pointer; }
+
+.composer {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: none; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--muted); font: inherit; text-align: left; cursor: pointer; width: 100%;
+}
+.composer-prompt { flex: 1; font-size: 1.08rem; }
+.composer:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+
+.timeline { display: flex; flex-direction: column; }
+.timeline-page > .empty, .timeline-page > .banner, .timeline-page > .btn { margin: 16px; }
+.post {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border); background: none; border-radius: 0;
+  transition: background-color .15s;
+}
+.post:hover { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+.post-avatar { background: none; border: 0; padding: 0; cursor: pointer; align-self: start; }
+.post-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.post-head { display: flex; align-items: baseline; gap: 4px; min-width: 0; font-size: 0.95rem; }
+.post-name { display: flex !important; flex-direction: row !important; align-items: baseline; gap: 4px; min-width: 0; padding: 0; }
+.post-name strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.post-name:hover strong { text-decoration: underline; }
+.post-handle, .post-dot, .post-head time, .comment-head time { color: var(--muted); font-weight: 400; white-space: nowrap; }
+.post-handle { overflow: hidden; text-overflow: ellipsis; }
+.post-head time { flex-shrink: 0; }
+.post-text { font-size: 1.02rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-bean { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; }
+.post-bean > span:nth-child(2) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.post-recipe { display: flex; flex-wrap: wrap; gap: 6px; }
+.post-recipe span {
+  font-size: 0.82rem; font-weight: 600; font-variant-numeric: tabular-nums; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.post-meta { font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.post-media { margin-top: 4px; border: 1px solid var(--border); border-radius: 16px; max-height: 480px; }
+.post-actions { display: flex; align-items: center; gap: 4px; margin: 2px -8px 0; flex-wrap: nowrap; }
+.post-action {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.86rem;
+  padding: 8px 10px; border-radius: 999px; cursor: pointer; min-height: 40px; transition: color .15s, background-color .15s;
+}
+.post-action:hover, .post-action.on { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
+.post-action.like:hover, .post-action.liked { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.post-action.liked { font-weight: 700; }
+.post-action.reuse { margin-left: auto; }
+.post-action.reuse:hover { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.post-icon { font-size: 1.05rem; line-height: 1; }
+.post-action.pop .post-icon { animation: like-pop .4s var(--ease); }
+@keyframes like-pop { 0% { transform: scale(1); } 40% { transform: scale(1.45) rotate(-12deg); } 100% { transform: scale(1); } }
+
+.post .comments { border-top: 0; padding-top: 4px; gap: 10px; }
+.comment { align-items: flex-start; }
+.comment-bubble { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 14px; background: var(--surface-2); overflow-wrap: anywhere; }
+.comment-head { display: flex; gap: 4px; align-items: baseline; font-size: 0.85rem; min-width: 0; }
+.comment-head strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Ladeplatzhalter */
+.skeleton .sk-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); }
+.sk-line { display: block; height: 12px; border-radius: 6px; background: var(--surface-2); margin: 4px 0; animation: sk 1.2s ease-in-out infinite alternate; }
+.sk-line.w40 { width: 40%; } .sk-line.w70 { width: 70%; } .sk-line.w90 { width: 90%; }
+@keyframes sk { from { opacity: .45; } to { opacity: 1; } }
+
+/* Profilseite anderer Nutzer: Timeline in einer Karte */
+.page-user .timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; }
+.page-user .timeline .post:last-child { border-bottom: 0; }
+
+/* Theme-Knopf */
+.theme-btn { font-size: 1.05rem; }
+
+@media (max-width: 360px) {
+  .post { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 12px; }
+  .post-action.reuse span:last-child { display: none; }
+  .composer-prompt { font-size: 1rem; }
+}
+@media (min-width: 700px) {
+  .timeline-page { margin: 0; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); overflow: hidden; }
+  .timeline-tabs { top: calc(64px + env(safe-area-inset-top)); border-radius: 18px 18px 0 0; }
+  .timeline .post:last-child { border-bottom: 0; }
+}
+@media (min-width: 960px) {
+  .page-community > .timeline-page { max-width: 680px; }
+  .timeline-tabs { top: var(--topbar); }
+}
+@media (max-width: 419px) { .brand-name { display: none; } }
+.post.feed-card { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: none; padding: 14px 16px 10px; gap: 12px; }
+.post-bean { align-items: flex-start; }
+.post-bean-icon { line-height: 1.35; }
+.post-bean .stars { margin-top: 2px; }
+@media (min-width: 700px) { .timeline-page { overflow: clip; } }
+@media (max-width: 360px) {
+  .timeline-page { margin: -12px -12px 0; }
+  .post-avatar .avatar, .composer .avatar { width: 38px !important; height: 38px !important; font-size: 16px !important; }
+  .timeline-friends { padding: 0 12px; }
+}

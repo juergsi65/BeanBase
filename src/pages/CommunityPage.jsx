@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Segmented, Empty } from '../components/ui'
+import { Empty } from '../components/ui'
+import Avatar from '../components/Avatar'
 import FeedCard, { recipeFromBrew } from '../components/FeedCard'
 import { socialAvailable, fetchFeed, myId } from '../lib/social'
 
@@ -11,7 +12,7 @@ export function SocialUnavailable() {
   )
 }
 
-export default function CommunityPage({ data, go }) {
+export default function CommunityPage({ data, go, me: myProfile }) {
   const [scope, setScope] = useState('friends')
   const [items, setItems] = useState([])
   const [me, setMe] = useState(null)
@@ -45,16 +46,41 @@ export default function CommunityPage({ data, go }) {
   const reuse = (brew) => go('brew', { key: Date.now(), brew: recipeFromBrew(brew, data) })
   const openUser = (id) => go('user', { userId: id })
 
+  const TABS = { friends: 'Freunde', all: 'Alle Baristas' }
+
   return (
-    <div className="stack">
-      <div className="page-head">
-        <h2>Community</h2>
-        <button className="btn ghost sm" onClick={() => go('profile')}>
-          👥 Freunde
+    <div className="timeline-page">
+      <div className="timeline-tabs" role="tablist">
+        {Object.entries(TABS).map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={scope === k} className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>
+            {label}
+          </button>
+        ))}
+        <button className="timeline-friends" onClick={() => go('profile')} aria-label="Freunde finden">
+          👥
         </button>
       </div>
-      <Segmented options={{ friends: 'Nur Freunde', all: 'Alle Baristas' }} value={scope} onChange={(v) => v && setScope(v)} />
-      {state === 'loading' && <p className="muted">Lade Feed …</p>}
+
+      <button className="composer" onClick={() => go('brew', { key: Date.now() })}>
+        <Avatar profile={myProfile} size={44} />
+        <span className="composer-prompt">Was brühst du gerade?</span>
+        <span className="btn primary sm">+ Bezug</span>
+      </button>
+
+      {state === 'loading' && (
+        <div className="timeline">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="post skeleton" aria-hidden>
+              <span className="sk-avatar" />
+              <div className="post-body">
+                <span className="sk-line w40" />
+                <span className="sk-line w90" />
+                <span className="sk-line w70" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {state === 'error' && <div className="banner error">Feed konnte nicht geladen werden: {error}</div>}
       {state === 'ready' && !items.length && (
         <Empty
@@ -69,9 +95,13 @@ export default function CommunityPage({ data, go }) {
             : 'Noch keine öffentlichen Bezüge. Mach dein Profil öffentlich, um hier zu erscheinen.'}
         </Empty>
       )}
-      {items.map((b) => (
-        <FeedCard key={b.id} brew={b} me={me} onReuse={reuse} onOpenUser={openUser} />
-      ))}
+      {state === 'ready' && items.length > 0 && (
+        <div className="timeline">
+          {items.map((b) => (
+            <FeedCard key={b.id} brew={b} me={me} onReuse={reuse} onOpenUser={openUser} />
+          ))}
+        </div>
+      )}
       {more && (
         <button className="btn ghost block" onClick={() => load(true, items[items.length - 1].created_at)}>
           Mehr laden

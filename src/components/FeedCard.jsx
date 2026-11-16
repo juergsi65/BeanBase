@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import Avatar from './Avatar'
-import { Stars, Stat } from './ui'
+import { Stars } from './ui'
 import { MediaView } from './MediaPicker'
-import { fmtDate, fmtRatio, ratio, extractionLabel, MACHINE_TYPES } from '../lib/coffee'
+import { fmtDate, fmtRelative, fmtRatio, ratio, extractionLabel, MACHINE_TYPES, ROAST_LEVELS } from '../lib/coffee'
 import { toggleLike, listComments, addComment, deleteComment } from '../lib/social'
+import { haptic } from '../lib/haptics'
 
 /** Rezept eines anderen Nutzers auf das eigene Setup abbilden (Mühle/Maschine über preset_id) */
 export function recipeFromBrew(brew, own) {
@@ -20,7 +21,10 @@ export function recipeFromBrew(brew, own) {
   }
 }
 
-export default function FeedCard({ brew, me, onReuse, onOpenUser, showAuthor = true }) {
+const has = (v) => v != null && v !== ''
+
+/** Beitrag im Timeline-Stil: Avatar links, Name · @handle · Zeit, Text, Rezept-Zeile, Medien, Aktionen */
+export default function FeedCard({ brew, me, onReuse, onOpenUser }) {
   const [liked, setLiked] = useState(brew.likedByMe)
   const [likes, setLikes] = useState(brew.likeCount ?? 0)
   const [commentCount, setCommentCount] = useState(brew.commentCount ?? 0)
@@ -28,13 +32,19 @@ export default function FeedCard({ brew, me, onReuse, onOpenUser, showAuthor = t
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
+  const [pop, setPop] = useState(false)
   const p = brew.profile
   const own = brew.user_id === me
+  const r = ratio(brew.dose, brew.yield)
 
   const like = async () => {
     const was = liked
     setLiked(!was)
     setLikes((n) => n + (was ? -1 : 1))
+    if (!was) {
+      setPop(true)
+      setTimeout(() => setPop(false), 400)
+    }
     try {
       await toggleLike(brew.id, was)
     } catch (e) {
@@ -61,6 +71,7 @@ export default function FeedCard({ brew, me, onReuse, onOpenUser, showAuthor = t
       const list = await listComments(brew.id)
       setComments(list)
       setCommentCount(list.length)
+      haptic('success')
     } catch (e2) {
       setErr(e2.message)
     } finally {
@@ -74,84 +85,117 @@ export default function FeedCard({ brew, me, onReuse, onOpenUser, showAuthor = t
     setCommentCount(list.length)
   }
 
+  const recipe = [
+    has(brew.dose) && has(brew.yield) ? `${brew.dose} g → ${brew.yield} g` : has(brew.dose) ? `${brew.dose} g` : null,
+    r ? fmtRatio(r) : null,
+    has(brew.brew_time) ? `${brew.brew_time} s` : null,
+    has(brew.temperature) ? `${brew.temperature} °C` : null,
+    has(brew.grind_setting) ? `Mahlgrad ${brew.grind_setting}` : null,
+    has(brew.preinfusion) && Number(brew.preinfusion) > 0 ? `Pre-Inf. ${brew.preinfusion} s` : null,
+  ].filter(Boolean)
+  const gear = [brew.machine?.name || MACHINE_TYPES[brew.machine?.type], brew.grinder?.name].filter(Boolean).join(' · ')
+
   return (
-    <article className="feed-card">
-      {showAuthor && (
-        <header className="feed-head">
-          <button type="button" className="feed-author" onClick={() => onOpenUser?.(p.id)}>
-            <Avatar profile={p} size={40} />
-            <span>
-              <strong>{p?.display_name || p?.username}</strong>
-              <span className="muted small">
-                @{p?.username} · {fmtDate(brew.created_at)}
-              </span>
-            </span>
+    <article className="post feed-card">
+      <button type="button" className="post-avatar" onClick={() => onOpenUser?.(p?.id)} aria-label={`Profil von @${p?.username}`}>
+        <Avatar profile={p} size={44} />
+      </button>
+      <div className="post-body">
+        <header className="post-head">
+          <button type="button" className="feed-author post-name" onClick={() => onOpenUser?.(p?.id)}>
+            <strong>{p?.display_name || p?.username}</strong>
+            <span className="post-handle">@{p?.username}</span>
           </button>
+          <span className="post-dot">·</span>
+          <time dateTime={brew.created_at} title={fmtDate(brew.created_at)}>
+            {fmtRelative(brew.created_at)}
+          </time>
         </header>
-      )}
-      <div className="feed-bean">
-        {brew.bean?.image_url && <img className="thumb" src={brew.bean.image_url} alt="" loading="lazy" />}
-        <div className="feed-bean-info">
-          <strong>{brew.bean?.name ?? 'Unbekannte Bohne'}</strong>
-          <span className="muted small">
-            {[brew.bean?.roaster, brew.machine?.name, brew.grinder?.name].filter(Boolean).join(' · ') ||
-              MACHINE_TYPES[brew.machine?.type] ||
-              ''}
-            {!showAuthor && ` · ${fmtDate(brew.created_at)}`}
+
+        {brew.notes && <p className="post-text">{brew.notes}</p>}
+
+        <div className="post-bean">
+          <span className="post-bean-icon">☕</span>
+          <span>
+            <strong>{brew.bean?.name ?? 'Unbekannte Bohne'}</strong>
+            {brew.bean?.roaster && <span className="muted"> · {brew.bean.roaster}</span>}
+            {brew.bean?.roast_level && <span className="muted"> · {ROAST_LEVELS[brew.bean.roast_level]}</span>}
           </span>
+          {brew.rating ? <Stars value={brew.rating} size="sm" /> : null}
         </div>
-        <Stars value={brew.rating} size="sm" />
-      </div>
-      {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="feed-media" />}
-      <div className="stats">
-        <Stat label="Dosis" value={brew.dose} unit="g" />
-        <Stat label="Output" value={brew.yield} unit="g" />
-        <Stat label="Ratio" value={fmtRatio(ratio(brew.dose, brew.yield))} />
-        <Stat label="Mahlgrad" value={brew.grind_setting} />
-        <Stat label="Zeit" value={brew.brew_time} unit="s" />
-        <Stat label="Temp" value={brew.temperature} unit="°C" />
-      </div>
-      {brew.extraction != null && <p className="muted small">{extractionLabel(brew.extraction)}</p>}
-      {brew.notes && <p className="recipe-note">„{brew.notes}“</p>}
-      <div className="feed-actions">
-        <button type="button" className={`btn ghost sm ${liked ? 'liked' : ''}`} onClick={like} aria-pressed={liked} aria-label="Gefällt mir">
-          ☕ {likes}
-        </button>
-        <button type="button" className="btn ghost sm" onClick={openComments} aria-expanded={!!comments}>
-          💬 {commentCount}
-        </button>
-        <span className="grow" />
-        {!own && onReuse && (
-          <button type="button" className="btn primary sm" onClick={() => onReuse(brew)}>
-            Rezept übernehmen
+
+        {recipe.length > 0 && (
+          <div className="post-recipe">
+            {recipe.map((x) => (
+              <span key={x}>{x}</span>
+            ))}
+          </div>
+        )}
+        {(gear || brew.extraction != null) && (
+          <p className="post-meta">
+            {gear}
+            {gear && brew.extraction != null && ' · '}
+            {brew.extraction != null && extractionLabel(brew.extraction)}
+          </p>
+        )}
+
+        {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="feed-media post-media" />}
+
+        <footer className="post-actions feed-actions">
+          <button type="button" className={`post-action ${comments ? 'on' : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
+            <span className="post-icon">💬</span>
+            <span>{commentCount}</span>
           </button>
+          <button
+            type="button"
+            className={`post-action like ${liked ? 'liked' : ''} ${pop ? 'pop' : ''}`}
+            onClick={like}
+            aria-pressed={liked}
+            aria-label="Gefällt mir"
+          >
+            <span className="post-icon">☕</span>
+            <span>{likes}</span>
+          </button>
+          {!own && onReuse && (
+            <button type="button" className="post-action reuse" onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
+              <span className="post-icon">↻</span>
+              <span>Rezept übernehmen</span>
+            </button>
+          )}
+        </footer>
+        {err && <p className="scanner-error">{err}</p>}
+
+        {comments && (
+          <div className="comments">
+            {comments.length === 0 && <p className="muted small">Noch keine Kommentare – schreib den ersten.</p>}
+            {comments.map((c) => (
+              <div key={c.id} className="comment">
+                <Avatar profile={c.author} size={30} />
+                <div className="comment-bubble">
+                  <div className="comment-head">
+                    <strong>{c.author?.display_name || c.author?.username}</strong>
+                    <span className="post-handle">@{c.author?.username}</span>
+                    <span className="post-dot">·</span>
+                    <time title={fmtDate(c.created_at)}>{fmtRelative(c.created_at)}</time>
+                  </div>
+                  <span>{c.body}</span>
+                </div>
+                {(c.user_id === me || own) && (
+                  <button type="button" className="link small" onClick={() => remove(c.id)} aria-label="Kommentar löschen">
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+            <form className="comment-form" onSubmit={send}>
+              <input value={draft} maxLength={500} placeholder="Antworten …" onChange={(e) => setDraft(e.target.value)} />
+              <button className="btn primary sm" disabled={busy || !draft.trim()}>
+                Senden
+              </button>
+            </form>
+          </div>
         )}
       </div>
-      {err && <p className="scanner-error">{err}</p>}
-      {comments && (
-        <div className="comments">
-          {comments.length === 0 && <p className="muted small">Noch keine Kommentare.</p>}
-          {comments.map((c) => (
-            <div key={c.id} className="comment">
-              <Avatar profile={c.author} size={28} />
-              <div className="grow">
-                <strong className="small">@{c.author?.username}</strong> <span>{c.body}</span>
-              </div>
-              {(c.user_id === me || own) && (
-                <button type="button" className="link small" onClick={() => remove(c.id)} aria-label="Kommentar löschen">
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-          <form className="comment-form" onSubmit={send}>
-            <input value={draft} maxLength={500} placeholder="Kommentar schreiben …" onChange={(e) => setDraft(e.target.value)} />
-            <button className="btn primary sm" disabled={busy || !draft.trim()}>
-              Senden
-            </button>
-          </form>
-        </div>
-      )}
     </article>
   )
 }

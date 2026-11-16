@@ -112,15 +112,11 @@ export default function UserPage({ data, go, userId }) {
           </section>
           <h3 className="section-title">Letzte Bezüge</h3>
           {view.brews.length ? (
-            view.brews.map((b) => (
-              <FeedCard
-                key={b.id}
-                brew={b}
-                me={me}
-                showAuthor={false}
-                onReuse={(brew) => go('brew', { key: Date.now(), brew: recipeFromBrew(brew, data) })}
-              />
-            ))
+            <div className="timeline">
+              {view.brews.map((b) => (
+                <FeedCard key={b.id} brew={b} me={me} onReuse={(brew) => go('brew', { key: Date.now(), brew: recipeFromBrew(brew, data) })} />
+              ))}
+            </div>
           ) : (
             <p className="muted small">Noch keine Bezüge.</p>
           )}

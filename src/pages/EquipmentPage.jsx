@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Field, Empty, Chip } from '../components/ui'
+import { Field, Empty, Chip, Segmented } from '../components/ui'
 import { MACHINE_TYPES, SCALE_TYPES } from '../lib/coffee'
 import { MACHINE_PRESETS, GRINDER_PRESETS, searchPresets } from '../data/presets'
 import MediaPicker from '../components/MediaPicker'
@@ -7,8 +7,9 @@ import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
 import { exportAll } from '../lib/db'
 import { hapticsEnabled, setHapticsEnabled } from '../lib/haptics'
+import { THEME_LABEL } from '../lib/theme'
 
-export default function EquipmentPage({ data }) {
+export default function EquipmentPage({ data, theme }) {
   return (
     <div className="stack">
       <h2>Mein Equipment</h2>
@@ -32,12 +33,12 @@ export default function EquipmentPage({ data }) {
         defaultType="numbers"
         notesHint="z. B. Nullpunkt kalibriert, Burrs gewechselt am …"
       />
-      <AppSettings />
+      <AppSettings theme={theme} />
     </div>
   )
 }
 
-function AppSettings() {
+function AppSettings({ theme }) {
   const [haptics, setHaptics] = useState(hapticsEnabled())
   const download = async () => {
     const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
@@ -49,6 +50,11 @@ function AppSettings() {
   return (
     <section className="card">
       <h3 className="section-title">App</h3>
+      {theme && (
+        <Field label="Design">
+          <Segmented options={THEME_LABEL} value={theme.theme} onChange={(v) => v && theme.setTheme(v)} />
+        </Field>
+      )}
       <label className="toggle">
         <input
           type="checkbox"

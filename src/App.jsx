@@ -16,6 +16,7 @@ import FeedbackPage from './pages/FeedbackPage'
 import AdminPage from './pages/AdminPage'
 import SetPasswordPage from './pages/SetPasswordPage'
 import { getMyProfile } from './lib/social'
+import { useTheme } from './lib/theme'
 
 // Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
 const TABS = [
@@ -50,6 +51,7 @@ function Toaster() {
 
 export default function App() {
   const { user, recovery, endRecovery } = useAuth()
+  const theme = useTheme()
   const data = useData(user)
   // Start-Tab aus dem PWA-Shortcut (?tab=brew)
   const [tab, setTab] = useState(() => {
@@ -79,7 +81,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const props = { data, go, me }
+  const props = { data, go, me, theme }
   const activeTab = TAB_GROUP[tab] ?? tab
 
   return (
@@ -90,6 +92,14 @@ export default function App() {
           {!isLocalMode && <span className="beta-pill">BETA</span>}
         </button>
         <div className="topbar-actions">
+          <button
+            className="icon-btn theme-btn"
+            onClick={theme.toggle}
+            aria-label={theme.isDark ? 'Helles Design' : 'Dunkles Design'}
+            title={theme.isDark ? 'Zu hell wechseln' : 'Zu dunkel wechseln'}
+          >
+            {theme.isDark ? '☀️' : '🌙'}
+          </button>
           {!isLocalMode && (
             <button className={`icon-btn ${tab === 'feedback' ? 'on' : ''}`} onClick={() => go('feedback')} aria-label="Feedback geben">
               💬
