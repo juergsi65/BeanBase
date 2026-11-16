@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Segmented, Empty, Field, Chip } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { MediaView } from '../components/MediaPicker'
@@ -13,20 +14,9 @@ import {
 const SECTIONS = { overview: 'Übersicht', users: 'Nutzer', invites: 'Einladungen', feedback: 'Feedback', moderation: 'Moderation', settings: 'Einstellungen' }
 const STORAGE_LIMIT_MB = 1024 // Supabase Free Plan
 
-function useLoad(fn) {
-  const [state, setState] = useState({ loading: true })
-  const reload = useCallback(async () => {
-    try {
-      setState((s) => ({ ...s, loading: true }))
-      setState({ data: await fn(), loading: false })
-    } catch (e) {
-      setState({ error: e.message, loading: false })
-    }
-  }, [fn])
-  useEffect(() => {
-    reload()
-  }, [reload])
-  return [state, reload]
+function useLoad(key, fn) {
+  const q = useQuery({ queryKey: ['admin', key], queryFn: fn })
+  return [{ data: q.data, loading: q.isPending, error: q.error?.message }, q.refetch]
 }
 
 const act = (fn, reload, ok) => async (...args) => {
@@ -46,7 +36,7 @@ function Loading({ state, children }) {
 }
 
 function Overview() {
-  const [state] = useLoad(adminOverview)
+  const [state] = useLoad('overview', adminOverview)
   return (
     <Loading state={state}>
       {(o) => (
@@ -80,7 +70,7 @@ function Overview() {
 }
 
 function Users({ me }) {
-  const [state, reload] = useLoad(adminUsers)
+  const [state, reload] = useLoad('users', adminUsers)
   const [q, setQ] = useState('')
   return (
     <Loading state={state}>
@@ -140,7 +130,7 @@ function Users({ me }) {
 }
 
 function Invites() {
-  const [state, reload] = useLoad(adminListInvites)
+  const [state, reload] = useLoad('invites', adminListInvites)
   const [form, setForm] = useState({ uses: 1, note: '', code: '' })
   const [created, setCreated] = useState(null)
   const link = (code) => `${window.location.origin}/?invite=${encodeURIComponent(code)}`
@@ -230,7 +220,7 @@ function Invites() {
 }
 
 function FeedbackInbox() {
-  const [state, reload] = useLoad(listFeedback)
+  const [state, reload] = useLoad('feedback', listFeedback)
   const [filter, setFilter] = useState('neu')
   return (
     <Loading state={state}>
@@ -267,7 +257,7 @@ function FeedbackInbox() {
 }
 
 function Moderation() {
-  const [state, reload] = useLoad(adminRecentContent)
+  const [state, reload] = useLoad('content', adminRecentContent)
   return (
     <Loading state={state}>
       {(content) => {

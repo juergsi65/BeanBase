@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useSessionStorage } from 'use-storage-hook'
 import { Field } from '../components/ui'
 import { sendFeedback, listFeedback } from '../lib/admin'
 import { toast } from '../lib/toast'
@@ -8,14 +10,9 @@ const TOPICS = { bug: '🐞 Fehler', idea: '💡 Idee', ux: '👆 Bedienung', ot
 
 export default function FeedbackPage({ go, fromTab }) {
   const [topic, setTopic] = useState('bug')
-  const [text, setText] = useState('')
+  const [text, setText] = useSessionStorage('beanbase:feedback-draft', '') // Entwurf überlebt Seitenwechsel/Reload
   const [busy, setBusy] = useState(false)
-  const [mine, setMine] = useState([])
-
-  const reload = () => listFeedback().then(setMine).catch(() => {})
-  useEffect(() => {
-    reload()
-  }, [])
+  const { data: mine = [], refetch } = useQuery({ queryKey: ['feedback'], queryFn: listFeedback })
 
   const submit = async (e) => {
     e.preventDefault()
@@ -24,7 +21,7 @@ export default function FeedbackPage({ go, fromTab }) {
       await sendFeedback(`[${TOPICS[topic]}] ${text}`, `Seite: ${fromTab ?? '–'} · ${window.innerWidth}×${window.innerHeight}`)
       setText('')
       toast('Danke für dein Feedback! ☕')
-      reload()
+      refetch()
     } catch (err) {
       toast(err.message, { tone: 'error' })
     } finally {

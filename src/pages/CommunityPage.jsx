@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useSessionStorage } from 'use-storage-hook'
 import { Empty } from '../components/ui'
 import Avatar from '../components/Avatar'
 import FeedCard, { recipeFromBrew } from '../components/FeedCard'
@@ -13,33 +14,17 @@ export function SocialUnavailable() {
 }
 
 export default function CommunityPage({ data, go, me: myProfile }) {
-  const [scope, setScope] = useState('friends')
-  const [items, setItems] = useState([])
-  const [me, setMe] = useState(null)
-  const [state, setState] = useState('loading') // loading | ready | error
-  const [error, setError] = useState(null)
-  const [more, setMore] = useState(false)
-
-  const load = useCallback(
-    async (append = false, before = null) => {
-      if (!append) setState('loading')
-      try {
-        const [rows, id] = await Promise.all([fetchFeed({ scope, before }), myId()])
-        setMe(id)
-        setItems((prev) => (append ? [...prev, ...rows] : rows))
-        setMore(rows.length === 20)
-        setState('ready')
-      } catch (e) {
-        setError(e.message)
-        setState('error')
-      }
-    },
-    [scope],
-  )
-
-  useEffect(() => {
-    if (socialAvailable) load()
-  }, [load])
+  const [scope, setScope] = useSessionStorage('beanbase:feed-scope', 'friends') // Tab bleibt in der Sitzung gemerkt
+  const { data: me = null } = useQuery({ queryKey: ['myId'], queryFn: myId, enabled: socialAvailable })
+  const feed = useInfiniteQuery({
+    queryKey: ['feed', scope],
+    queryFn: ({ pageParam }) => fetchFeed({ scope, before: pageParam }),
+    initialPageParam: null,
+    getNextPageParam: (last) => (last.length === 20 ? last.at(-1).created_at : undefined),
+    enabled: socialAvailable,
+  })
+  const items = feed.data?.pages.flat() ?? []
+  const state = feed.isPending ? 'loading' : feed.isError ? 'error' : 'ready'
 
   if (!socialAvailable) return <SocialUnavailable />
 
@@ -81,7 +66,7 @@ export default function CommunityPage({ data, go, me: myProfile }) {
           ))}
         </div>
       )}
-      {state === 'error' && <div className="banner error">Feed konnte nicht geladen werden: {error}</div>}
+      {state === 'error' && <div className="banner error">Feed konnte nicht geladen werden: {feed.error.message}</div>}
       {state === 'ready' && !items.length && (
         <Empty
           action={
@@ -102,9 +87,9 @@ export default function CommunityPage({ data, go, me: myProfile }) {
           ))}
         </div>
       )}
-      {more && (
-        <button className="btn ghost block" onClick={() => load(true, items[items.length - 1].created_at)}>
-          Mehr laden
+      {feed.hasNextPage && (
+        <button className="btn ghost block" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>
+          {feed.isFetchingNextPage ? 'Lade …' : 'Mehr laden'}
         </button>
       )}
     </div>

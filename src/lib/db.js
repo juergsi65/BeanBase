@@ -1,16 +1,11 @@
 // Einheitliche Datenschicht: Supabase (Cloud) oder localStorage (Demo-Modus).
 import { supabase } from './supabase'
+import { tryCatchOrUndefined } from 'only-utils'
 
 export const TABLES = ['machines', 'grinders', 'beans', 'brews', 'bean_stock']
 const LS_KEY = 'beanbase:v1'
 
-function lsRead() {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY)) ?? {}
-  } catch {
-    return {}
-  }
-}
+const lsRead = () => tryCatchOrUndefined(JSON.parse)(localStorage.getItem(LS_KEY)) ?? {}
 function lsWrite(data) {
   localStorage.setItem(LS_KEY, JSON.stringify(data))
 }

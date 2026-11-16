@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import { queryClient } from './query'
 
 const LOCAL_USER = { id: 'local', email: 'Lokaler Modus' }
 // Kommt der Nutzer über den Link aus der "Passwort vergessen"-Mail, steht ?recovery=1 in der URL
@@ -16,6 +17,7 @@ export function useAuth() {
     })
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      if (event === 'SIGNED_OUT') queryClient.clear() // keine Daten des alten Kontos im Cache lassen
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && recoveryInUrl())) setRecovery(true)
     })
     return () => data.subscription.unsubscribe()

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useStore } from '@tanstack/react-store'
 import { useAuth } from './lib/useAuth'
 import { useData } from './lib/useData'
 import { isLocalMode } from './lib/supabase'
-import { onToast } from './lib/toast'
+import { toastStore } from './lib/toast'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import BrewPage from './pages/BrewPage'
@@ -29,15 +31,7 @@ const TABS = [
 const TAB_GROUP = { user: 'community', profile: 'community', admin: 'community', feedback: null }
 
 function Toaster() {
-  const [items, setItems] = useState([])
-  useEffect(
-    () =>
-      onToast((t) => {
-        setItems([t])
-        setTimeout(() => setItems((list) => list.filter((x) => x.id !== t.id)), 2400)
-      }),
-    [],
-  )
+  const items = useStore(toastStore)
   return (
     <div className="toaster" aria-live="polite">
       {items.map((t) => (
@@ -61,12 +55,8 @@ export default function App() {
   const [brewPreset, setBrewPreset] = useState(null)
   const [userId, setUserId] = useState(null)
   const [prevTab, setPrevTab] = useState('dashboard')
-  const [me, setMe] = useState(null) // eigenes Profil (Rolle, Sperre)
-
-  useEffect(() => {
-    if (!user || isLocalMode) return
-    getMyProfile().then(setMe).catch(() => {})
-  }, [user])
+  // eigenes Profil (Rolle, Sperre)
+  const { data: me = null } = useQuery({ queryKey: ['me', user?.id], queryFn: getMyProfile, enabled: !!user && !isLocalMode })
 
   if (user === undefined) return <div className="splash">☕ BeanBase lädt …</div>
   if (!user) return <AuthPage />

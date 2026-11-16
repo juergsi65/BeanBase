@@ -1,9 +1,16 @@
 // Hell/Dunkel-Umschaltung: 'system' (folgt dem Gerät) | 'light' | 'dark'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useLocalStorage } from 'use-storage-hook'
+import { tryCatchOrUndefined } from 'only-utils'
 
 const KEY = 'beanbase:theme'
 export const THEMES = ['system', 'light', 'dark']
 export const THEME_LABEL = { system: 'Automatisch', light: 'Hell', dark: 'Dunkel' }
+
+// Altbestand: früher roh gespeichert ('dark'), use-storage-hook erwartet JSON ('"dark"')
+const stored = localStorage.getItem(KEY)
+if (stored !== null && !THEMES.includes(tryCatchOrUndefined(JSON.parse)(stored)))
+  localStorage.setItem(KEY, JSON.stringify(THEMES.includes(stored) ? stored : 'system'))
 
 const systemDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches
 export const resolvedTheme = (t) => (t === 'system' ? (systemDark() ? 'dark' : 'light') : t)
@@ -18,7 +25,7 @@ export function applyTheme(t) {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState(() => localStorage.getItem(KEY) || 'system')
+  const [theme, setTheme] = useLocalStorage(KEY, 'system')
   useEffect(() => {
     applyTheme(theme)
     if (theme !== 'system') return
@@ -27,10 +34,6 @@ export function useTheme() {
     mq.addEventListener?.('change', onChange)
     return () => mq.removeEventListener?.('change', onChange)
   }, [theme])
-  const setTheme = (t) => {
-    localStorage.setItem(KEY, t)
-    setThemeState(t)
-  }
   // Header-Knopf: zwischen Hell und Dunkel wechseln (ausgehend vom aktuell sichtbaren Modus)
   const toggle = () => setTheme(resolvedTheme(theme) === 'dark' ? 'light' : 'dark')
   return { theme, setTheme, toggle, isDark: resolvedTheme(theme) === 'dark' }

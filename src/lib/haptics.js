@@ -3,20 +3,25 @@
 // - iPhone (Safari ≥ 17.4, auch als Home-Bildschirm-App): Umschalten eines versteckten
 //   <input type="checkbox" switch> löst die Taptic Engine aus. Funktioniert nur innerhalb
 //   einer Nutzer-Geste (Tippen) – genau dort rufen wir es auf.
+import { useLocalStorage } from 'use-storage-hook'
+import { isIOS as detectIOS } from 'only-utils'
+
 const PATTERNS = { light: 8, medium: 15, heavy: 30, success: [12, 40, 12], error: [30, 50, 30] }
 
 let iosSwitch = null
-const isIOS = typeof navigator !== 'undefined' && /iP(hone|ad|od)/.test(navigator.userAgent)
-let enabled = typeof localStorage === 'undefined' || localStorage.getItem('beanbase:haptics') !== 'off'
+const isIOS = typeof navigator !== 'undefined' && detectIOS(navigator.userAgent)
+const KEY = 'beanbase:haptics'
 
-export const hapticsEnabled = () => enabled
-export function setHapticsEnabled(on) {
-  enabled = on
-  localStorage.setItem('beanbase:haptics', on ? 'on' : 'off')
-}
+// Altbestand: früher 'on'/'off', use-storage-hook speichert JSON (true/false)
+const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null
+if (stored !== null && stored !== 'true' && stored !== 'false') localStorage.setItem(KEY, JSON.stringify(stored !== 'off'))
+
+const enabled = () => typeof localStorage === 'undefined' || localStorage.getItem(KEY) !== 'false'
+/** [an, setAn] – Einstellung für die Settings-Seite */
+export const useHapticsSetting = () => useLocalStorage(KEY, true)
 
 export function haptic(kind = 'light') {
-  if (!enabled) return
+  if (!enabled()) return
   try {
     if (!isIOS && typeof navigator.vibrate === 'function') {
       navigator.vibrate(PATTERNS[kind] ?? PATTERNS.light)

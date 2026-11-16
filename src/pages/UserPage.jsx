@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import Avatar from '../components/Avatar'
 import FeedCard, { recipeFromBrew } from '../components/FeedCard'
 import { Chip, Empty } from '../components/ui'
@@ -8,23 +9,15 @@ import { ROAST_LEVELS } from '../lib/coffee'
 import { socialAvailable, getBaristaProfile, myId, sendFriendRequest, acceptFriend, removeFriendship } from '../lib/social'
 
 export default function UserPage({ data, go, userId }) {
-  const [view, setView] = useState(null)
-  const [me, setMe] = useState(null)
-  const [error, setError] = useState(null)
-
-  const load = async () => {
-    try {
-      const [v, id] = await Promise.all([getBaristaProfile(userId), myId()])
-      setView(v)
-      setMe(id)
-    } catch (e) {
-      setError(e.message)
-    }
-  }
-  useEffect(() => {
-    if (socialAvailable && userId) load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId])
+  const [actionError, setError] = useState(null)
+  const { data: me = null } = useQuery({ queryKey: ['myId'], queryFn: myId, enabled: socialAvailable })
+  const barista = useQuery({
+    queryKey: ['barista', userId],
+    queryFn: () => getBaristaProfile(userId),
+    enabled: socialAvailable && !!userId,
+  })
+  const view = barista.data
+  const error = actionError ?? barista.error?.message
 
   if (!socialAvailable) return <SocialUnavailable />
   if (error) return <div className="banner error">{error}</div>
@@ -37,7 +30,7 @@ export default function UserPage({ data, go, userId }) {
   const act = (fn) => async () => {
     try {
       await fn()
-      await load()
+      await barista.refetch()
     } catch (e) {
       setError(e.message)
     }

@@ -5,6 +5,7 @@ import { MediaView } from './MediaPicker'
 import { fmtDate, fmtRelative, fmtRatio, ratio, extractionLabel, MACHINE_TYPES, ROAST_LEVELS } from '../lib/coffee'
 import { toggleLike, listComments, addComment, deleteComment } from '../lib/social'
 import { haptic } from '../lib/haptics'
+import { isDefined } from 'only-utils'
 
 /** Rezept eines anderen Nutzers auf das eigene Setup abbilden (Mühle/Maschine über preset_id) */
 export function recipeFromBrew(brew, own) {
@@ -21,7 +22,7 @@ export function recipeFromBrew(brew, own) {
   }
 }
 
-const has = (v) => v != null && v !== ''
+const has = (v) => isDefined(v) && v !== ''
 
 /** Beitrag im Timeline-Stil: Avatar links, Name · @handle · Zeit, Text, Rezept-Zeile, Medien, Aktionen */
 export default function FeedCard({ brew, me, onReuse, onOpenUser }) {

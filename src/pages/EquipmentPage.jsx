@@ -6,7 +6,7 @@ import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
 import { exportAll } from '../lib/db'
-import { hapticsEnabled, setHapticsEnabled } from '../lib/haptics'
+import { useHapticsSetting } from '../lib/haptics'
 import { THEME_LABEL } from '../lib/theme'
 
 export default function EquipmentPage({ data, theme }) {
@@ -39,7 +39,7 @@ export default function EquipmentPage({ data, theme }) {
 }
 
 function AppSettings({ theme }) {
-  const [haptics, setHaptics] = useState(hapticsEnabled())
+  const [haptics, setHaptics] = useHapticsSetting()
   const download = async () => {
     const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
     Object.assign(document.createElement('a'), {
@@ -59,10 +59,7 @@ function AppSettings({ theme }) {
         <input
           type="checkbox"
           checked={haptics}
-          onChange={(e) => {
-            setHapticsEnabled(e.target.checked)
-            setHaptics(e.target.checked)
-          }}
+          onChange={(e) => setHaptics(e.target.checked)}
         />
         <span>Haptisches Feedback (Vibration beim Tippen)</span>
       </label>

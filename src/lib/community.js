@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isNotDefined } from 'only-utils'
 
 export const communityAvailable = !!supabase
 
@@ -25,14 +26,14 @@ export const bestScope = (c) => c?.setup ?? c?.grinder ?? c?.all ?? null
 
 /** Mahlgrad passend zum Skalentyp runden */
 export function roundGrind(value, scaleType) {
-  if (value == null) return null
+  if (isNotDefined(value)) return null
   const v = Number(value)
   if (scaleType === 'clicks') return Math.round(v)
   if (scaleType === 'numbers') return v < 5 ? Math.round(v * 10) / 10 : Math.round(v * 2) / 2
   return Math.round(v * 10) / 10
 }
 
-const num = (v) => (v == null ? null : Number(v))
+const num = (v) => (isNotDefined(v) ? null : Number(v))
 
 /** Werte einer Community-Zeile für das Formular: kind = 'avg' | 'best' */
 export function communityValues(row, kind, scaleType) {
