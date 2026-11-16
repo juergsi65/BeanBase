@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 
 export const socialAvailable = !!supabase
 
-const PROFILE_COLS = 'id,username,display_name,avatar_url,bio,is_public'
+const PROFILE_COLS = 'id,username,display_name,avatar_url,bio,is_public,setup_photo_url'
 const check = ({ data, error }) => {
   if (error) throw error
   return data
@@ -83,7 +83,7 @@ export async function removeFriendship(friendshipId) {
 }
 
 // --- Feed ---------------------------------------------------------------------------
-const BREW_SELECT = `id,user_id,created_at,dose,yield,grind_setting,temperature,brew_time,preinfusion,rating,extraction,notes,
+const BREW_SELECT = `id,user_id,created_at,dose,yield,grind_setting,temperature,brew_time,preinfusion,rating,extraction,notes,media_url,media_type,
   profile:profiles!brews_user_profile_fkey(${PROFILE_COLS}),
   bean:beans(name,roaster,roast_level,image_url),
   machine:machines(name,type,preset_id),
@@ -145,8 +145,8 @@ export async function getBaristaProfile(userId) {
   const [profile, beans, machines, grinders, brews, rel] = await Promise.all([
     getProfile(userId),
     supabase.from('beans').select('id,name,roaster,origin,roast_level,image_url,flavor_notes').eq('user_id', userId).eq('active', true).order('created_at', { ascending: false }),
-    supabase.from('machines').select('id,name,type,preset_id').eq('user_id', userId),
-    supabase.from('grinders').select('id,name,scale_type,preset_id').eq('user_id', userId),
+    supabase.from('machines').select('id,name,type,preset_id,image_url').eq('user_id', userId),
+    supabase.from('grinders').select('id,name,scale_type,preset_id,image_url').eq('user_id', userId),
     supabase.from('brews').select(BREW_SELECT).eq('user_id', userId).order('created_at', { ascending: false }).limit(10),
     listFriendships(),
   ])

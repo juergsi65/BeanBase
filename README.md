@@ -14,9 +14,12 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 - **Suche & Filter** nach Bohne, Röstgrad, Bewertung und Freitext
 - **JSON-Export** als Backup
 - **Hardware-Presets**: ~25 Maschinen/Brühmethoden und ~22 Mühlen zum Auswählen (Suche tolerant gegenüber Tippfehlern). Füllt Typ, Skala und Notizen vor; Maschinen liefern passende Startwerte (z. B. Dedica 14 g → 28 g, V60 15 g → 250 g). Eigene Geräte bleiben möglich, umbenennen ist erlaubt – die Modell-Verknüpfung (`preset_id`) bleibt.
+- **Packung, Bestand & Kosten** (privat, Tabelle `bean_stock`): Packungsgröße (250 g / 500 g / 1 kg oder frei) und Kaufpreis je Bohne → Preis pro 100 g, **Kosten pro Tasse**, Tassen pro Packung, **Restmenge** mit Füllstandsbalken („noch 232 g ≈ 12 Tassen“, Warnung „fast leer“), „Neue Packung angebrochen“, Kosten pro Bezug im Formular und im Log, **Kaffee-Ausgaben der letzten 30 Tage** auf dem Start-Bildschirm. Preise sieht nur der Besitzer – auch Freunde nicht.
+- **Fotos & Videos**: Foto oder Video (bis 60 s / 50 MB) zu jedem Bezug, sichtbar im Log und im Community-Feed; Fotos von Maschine und Mühle; Setup-Foto auf der Barista-Visitenkarte (Bucket `brew-media`).
+- **Bedienung**: zentraler „+ Bezug“-Knopf, haptisches Feedback (Android: Vibration, iPhone ab iOS 17.4: Taptic-Engine über den Safari-Switch), kurze Bestätigungen („Bezug gespeichert ☕“), Druck-Animationen, als App installierbar (PWA: „Zum Home-Bildschirm“), Export & Haptik-Schalter unter ⚙️.
 - **Bohnen-Foto**: Tüte mit der Handykamera fotografieren oder hochladen; das Foto wird verkleinert im Supabase Storage gespeichert (Demo-Modus: lokal).
 - **KI-Funktionen · TBA**: Etiketten-Erkennung per Gemini (Edge Function `analyze-bean-label`) und ein KI-Dial-In-Coach sind vorbereitet, aber noch nicht freigeschaltet (`AI_LABEL_ENABLED` in `src/lib/images.js`). In der App sind sie als „TBA“ gekennzeichnet.
-- **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung kaskadierend: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** → **UPCitemdb** (Trial-API, ~100 Abfragen/Tag/IP). **Strikter Kaffee-Filter**: Ist das Produkt laut Kategorien/Name kein Kaffee (Milch, Schokolade, Kaffeesahne, Filter …), wird nichts übernommen und „Kein Kaffee erkannt“ angezeigt. Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
+- **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung kaskadierend: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** → **UPCitemdb** (Trial-API, ~100 Abfragen/Tag; läuft über den Worker-Endpunkt `/api/upc/<code>`, da UPCitemdb keine Browser-Anfragen erlaubt, Treffer werden 7 Tage gecacht). **Strikter Kaffee-Filter**: Ist das Produkt laut Kategorien/Name kein Kaffee (Milch, Schokolade, Kaffeesahne, Filter …), wird nichts übernommen und „Kein Kaffee erkannt“ angezeigt. Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
 - **Social Barista**: Profil mit Username, Anzeigename, Bio und Profilbild (Bucket `avatars`), automatisch beim Registrieren angelegt (`barista_xxxxxx`, ohne Bezug zur E-Mail). Freunde per Username suchen, Anfragen senden/annehmen/ablehnen. **Community-Tab** mit Feed („Nur Freunde“ / „Alle Baristas“): Bezüge mit Bohne, Setup, Parametern, Bewertung und Notiz, ☕-Likes, Kommentare und „Rezept übernehmen“ (Mahlgrad nur, wenn man dieselbe Mühle besitzt). **Barista-Profile** zeigen Setup, aktuelle Bohnen und letzte Bezüge.
   - **Privat per Default**: Bohnen, Equipment und Bezüge sehen nur akzeptierte Freunde. Wer „Profil öffentlich“ einschaltet, erscheint für alle eingeloggten Nutzer (Feed „Alle Baristas“). Schreiben darf immer nur der Besitzer (RLS).
 - **Community-Sofort-Check**: Beim Anlegen einer Bohne und beim Bezug zeigt BeanBase anonymisierte Durchschnittswerte **und das bestbewertete Rezept** anderer Nutzer für dieselbe Bohne (Rösterei + Name, Schreibweise egal), getrennt nach Brühmethode – mit Mahlgrad, wenn die eigene Mühle mit demselben Modell verknüpft ist, und noch genauer bei gleicher Mühle **und** Maschine. „Rezept übernehmen“ bzw. „Ø übernehmen“ füllt den Bezug aus.
@@ -96,7 +99,7 @@ Netlify funktioniert identisch: Build-Befehl `npm run build`, Output-Verzeichnis
 
 ### Cloudflare Workers
 
-`wrangler.jsonc` ist vorkonfiguriert (statische Assets aus `dist`). In Cloudflare unter *Workers & Pages → Worker → Settings → Build*:
+`wrangler.jsonc` ist vorkonfiguriert: statische Assets aus `dist` (mit `public/_headers` für Caching), dazu `worker/index.js` für `/api/*` (UPCitemdb-Proxy). In Cloudflare unter *Workers & Pages → Worker → Settings → Build*:
 
 | Einstellung | Wert |
 |---|---|
@@ -143,6 +146,8 @@ src/
   components/BarcodeScanner.jsx Kamera-Scanner (BarcodeDetector / ZXing) + manuelle Eingabe
   components/FeedCard.jsx       Feed-Karte (Likes, Kommentare, Rezept übernehmen)
   pages/                Dashboard, Bezug, Log, Bohnen, Community, Profil, Barista-Profil, Setup, Login
+lib/cost.js / lib/media.js / lib/haptics.js / lib/toast.js   Kosten & Bestand · Fotos/Videos · Haptik · Bestätigungen
+worker/index.js         Cloudflare Worker: Assets + /api/upc-Proxy
 supabase/schema.sql     Tabellen, Row Level Security, Storage, Community-Funktion
 supabase/functions/analyze-bean-label/   Edge Function (Gemini Vision)
 ```

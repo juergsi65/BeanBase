@@ -12,7 +12,7 @@ export function useData(user) {
     if (!user) return
     setLoading(true)
     try {
-      const entries = await Promise.all(TABLES.map(async (t) => [t, await db.list(t)]))
+      const entries = await Promise.all(TABLES.map(async (t) => [t, (await db.list(t)) ?? []]))
       setData(Object.fromEntries(entries))
       setError(null)
     } catch (e) {
@@ -53,6 +53,7 @@ export function useData(user) {
       const next = { ...d, [table]: d[table].filter((r) => r.id !== id) }
       const fk = { beans: 'bean_id', machines: 'machine_id', grinders: 'grinder_id' }[table]
       if (fk) next.brews = next.brews.map((b) => (b[fk] === id ? { ...b, [fk]: null } : b))
+      if (table === 'beans') next.bean_stock = next.bean_stock.filter((st) => st.bean_id !== id)
       return next
     })
   })

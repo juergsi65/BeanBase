@@ -5,6 +5,10 @@ import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
 import { availableSources, buildPlan } from '../lib/dialin'
 import { ratio, fmtRatio, recipesForBean, SCALE_TYPES } from '../lib/coffee'
 import { findMachinePreset } from '../data/presets'
+import MediaPicker from '../components/MediaPicker'
+import { uploadMedia, deleteMedia } from '../lib/media'
+import { brewCost, beanUsage, fmtMoney, fmtGrams } from '../lib/cost'
+import { toast } from '../lib/toast'
 
 const DEFAULTS = { dose: 18, yield: 36, temperature: 93 }
 /** Startwerte einer Maschine (aus Preset), sonst Espresso-Standard */
@@ -49,6 +53,8 @@ export default function BrewPage({ data, go, preset }) {
     return base
   })
   const [saving, setSaving] = useState(false)
+  const [media, setMedia] = useState({ pending: null, removed: false })
+  const savedMedia = editing && src.media_url ? { url: src.media_url, type: src.media_type } : null
   const [community, setCommunity] = useState(null)
   const [guideSource, setGuideSource] = useState(null)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v?.target ? v.target.value : v }))
@@ -56,6 +62,8 @@ export default function BrewPage({ data, go, preset }) {
   const r = ratio(form.dose, form.yield)
   const prev = useMemo(() => (form.bean_id ? recipesForBean(data.brews, form.bean_id) : {}), [data.brews, form.bean_id])
   const grinder = lookup.grinders[form.grinder_id]
+  const cost = brewCost({ bean_id: form.bean_id, dose: form.dose }, data.bean_stock)
+  const usage = form.bean_id ? beanUsage(form.bean_id, data.bean_stock, data.brews) : null
   const bean = lookup.beans[form.bean_id]
   const machine = lookup.machines[form.machine_id]
 
@@ -103,11 +111,21 @@ export default function BrewPage({ data, go, preset }) {
       rating: form.rating,
       extraction: form.extraction,
       notes: form.notes.trim() || null,
+      ...(media.pending || media.removed ? { media_url: null, media_type: null } : {}),
     }
     try {
+      if (media.pending) {
+        const up = await uploadMedia(media.pending)
+        row.media_url = up.url
+        row.media_type = up.type
+      }
       if (editing) await data.update('brews', editing, row)
       else await data.add('brews', row)
+      if (savedMedia?.url && (media.pending || media.removed)) deleteMedia(savedMedia.url).catch(() => {})
+      toast(editing ? 'Bezug aktualisiert' : 'Bezug gespeichert ☕')
       go(editing ? 'history' : 'dashboard')
+    } catch (err) {
+      data.setError(err.message)
     } finally {
       setSaving(false)
     }
@@ -201,6 +219,12 @@ export default function BrewPage({ data, go, preset }) {
         </div>
         <div className="ratio-display">
           Brew-Ratio <strong>{fmtRatio(r)}</strong>
+          {cost && (
+            <span className="ratio-cost">
+              ≈ {fmtMoney(cost.value, cost.currency)}
+              {usage && ` · Rest danach ${fmtGrams(Math.max(0, usage.remaining - (editing ? 0 : Number(form.dose) || 0)))}`}
+            </span>
+          )}
         </div>
         <Field label="Mahlgrad" hint={grinder ? `${grinder.name} · ${SCALE_TYPES[grinder.scale_type] ?? ''}` : ''}>
           {grinder?.scale_type === 'stepless' ? (
@@ -236,6 +260,7 @@ export default function BrewPage({ data, go, preset }) {
 
       <section className="card">
         <h3 className="section-title">Bewertung</h3>
+        <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
         <Stars value={form.rating} onChange={set('rating')} />
         <Field label="Extraktion">
           <ExtractionSlider value={form.extraction} onChange={set('extraction')} />

@@ -107,9 +107,12 @@ async function lookupOpenFoodFacts(code) {
   })
 }
 
-/** UPCitemdb (Trial-API, ohne Key, ~100 Abfragen/Tag pro IP) – v. a. internationale/US-Produkte */
+/**
+ * UPCitemdb (Trial-API, ~100 Abfragen/Tag) – v. a. internationale/US-Produkte.
+ * Läuft über den eigenen Worker-Endpunkt /api/upc, weil UPCitemdb keine Browser-Anfragen (CORS) erlaubt.
+ */
 async function lookupUpcItemDb(code) {
-  const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`)
+  const res = await fetch(`/api/upc/${code}`)
   if (!res.ok) return null
   const json = await res.json()
   const item = json?.items?.[0]

@@ -56,6 +56,9 @@ export function dialInHint(brew) {
   return 'Sitzt! Diese Einstellung beibehalten.'
 }
 
+/** 1 Bezug / 2 Bezüge */
+export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+
 export const fmtDate = (iso) =>
   new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 

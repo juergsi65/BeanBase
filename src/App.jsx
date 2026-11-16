@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './lib/useAuth'
 import { useData } from './lib/useData'
 import { isLocalMode } from './lib/supabase'
+import { onToast } from './lib/toast'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import BrewPage from './pages/BrewPage'
@@ -11,25 +12,50 @@ import EquipmentPage from './pages/EquipmentPage'
 import CommunityPage from './pages/CommunityPage'
 import ProfilePage from './pages/ProfilePage'
 import UserPage from './pages/UserPage'
-import { exportAll } from './lib/db'
 
+// Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
 const TABS = [
   { id: 'dashboard', label: 'Start', icon: '☕' },
-  { id: 'brew', label: 'Bezug', icon: '⏱' },
-  { id: 'history', label: 'Log', icon: '📋' },
   { id: 'beans', label: 'Bohnen', icon: '🫘' },
+  { id: 'brew', label: 'Bezug', icon: '+', fab: true },
+  { id: 'history', label: 'Log', icon: '📋' },
   { id: 'community', label: 'Community', icon: '🌍' },
-  { id: 'equipment', label: 'Setup', icon: '⚙️' },
 ]
+const TAB_GROUP = { user: 'community', profile: 'community' }
+
+function Toaster() {
+  const [items, setItems] = useState([])
+  useEffect(
+    () =>
+      onToast((t) => {
+        setItems([t])
+        setTimeout(() => setItems((list) => list.filter((x) => x.id !== t.id)), 2400)
+      }),
+    [],
+  )
+  return (
+    <div className="toaster" aria-live="polite">
+      {items.map((t) => (
+        <div key={t.id} className={`toast ${t.tone}`}>
+          {t.text}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function App() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const data = useData(user)
-  const [tab, setTab] = useState('dashboard')
+  // Start-Tab aus dem PWA-Shortcut (?tab=brew)
+  const [tab, setTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return ['brew', 'beans', 'history', 'community'].includes(t) ? t : 'dashboard'
+  })
   const [brewPreset, setBrewPreset] = useState(null)
   const [userId, setUserId] = useState(null)
 
-  if (user === undefined) return <div className="splash">BeanBase lädt …</div>
+  if (user === undefined) return <div className="splash">☕ BeanBase lädt …</div>
   if (!user) return <AuthPage />
 
   // go('brew', { key, brew }) · go('user', { userId }) · go('<tab>')
@@ -37,38 +63,25 @@ export default function App() {
     if (t === 'user') setUserId(preset?.userId ?? null)
     else setBrewPreset(preset)
     setTab(t)
-    window.scrollTo(0, 0)
-  }
-
-  const download = async () => {
-    const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `beanbase-backup-${new Date().toISOString().slice(0, 10)}.json`,
-    })
-    a.click()
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   const props = { data, go }
+  const activeTab = TAB_GROUP[tab] ?? tab
 
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <button className="brand" onClick={() => go('dashboard')}>
           <span className="logo">🫘</span> BeanBase
-        </div>
+        </button>
         <div className="topbar-actions">
-          <button className="btn ghost sm" onClick={download} title="Daten als JSON exportieren">
-            Export
+          <button className={`icon-btn ${tab === 'equipment' ? 'on' : ''}`} onClick={() => go('equipment')} aria-label="Setup & Einstellungen">
+            ⚙️
           </button>
           {!isLocalMode && (
-            <button className={`btn ghost sm ${tab === 'profile' ? 'on' : ''}`} onClick={() => go('profile')} aria-label="Mein Profil">
+            <button className={`icon-btn ${tab === 'profile' ? 'on' : ''}`} onClick={() => go('profile')} aria-label="Mein Profil">
               👤
-            </button>
-          )}
-          {!isLocalMode && (
-            <button className="btn ghost sm" onClick={signOut}>
-              Logout
             </button>
           )}
         </div>
@@ -85,7 +98,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="content">
+      <main className="content" key={tab}>
         {tab === 'dashboard' && <Dashboard {...props} />}
         {tab === 'brew' && <BrewPage {...props} preset={brewPreset} key={brewPreset?.key ?? 'new'} />}
         {tab === 'history' && <HistoryPage {...props} />}
@@ -96,17 +109,22 @@ export default function App() {
         {tab === 'user' && <UserPage {...props} userId={userId} key={userId} />}
       </main>
 
+      <Toaster />
+
       <nav className="tabbar">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={tab === t.id || (t.id === 'community' && (tab === 'user' || tab === 'profile')) ? 'active' : ''}
-            onClick={() => go(t.id)}
-          >
-            <span className="tab-icon">{t.icon}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
+        {TABS.map((t) =>
+          t.fab ? (
+            <button key={t.id} className={`fab ${activeTab === t.id ? 'active' : ''}`} onClick={() => go(t.id)} aria-label="Neuer Bezug">
+              <span className="fab-circle">{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          ) : (
+            <button key={t.id} className={activeTab === t.id ? 'active' : ''} onClick={() => go(t.id)}>
+              <span className="tab-icon">{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          ),
+        )}
       </nav>
     </div>
   )

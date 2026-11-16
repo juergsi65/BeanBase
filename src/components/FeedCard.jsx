@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Avatar from './Avatar'
 import { Stars, Stat } from './ui'
+import { MediaView } from './MediaPicker'
 import { fmtDate, fmtRatio, ratio, extractionLabel, MACHINE_TYPES } from '../lib/coffee'
 import { toggleLike, listComments, addComment, deleteComment } from '../lib/social'
 
@@ -101,6 +102,7 @@ export default function FeedCard({ brew, me, onReuse, onOpenUser, showAuthor = t
         </div>
         <Stars value={brew.rating} size="sm" />
       </div>
+      {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="feed-media" />}
       <div className="stats">
         <Stat label="Dosis" value={brew.dose} unit="g" />
         <Stat label="Output" value={brew.yield} unit="g" />

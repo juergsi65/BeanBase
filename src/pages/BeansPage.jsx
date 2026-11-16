@@ -3,7 +3,10 @@ import { Field, TagInput, Segmented, Chip, Empty, Stars } from '../components/ui
 import CommunityTip from '../components/CommunityTip'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { lookupBarcode } from '../lib/barcode'
-import { PROCESSES, ROAST_LEVELS, daysSince, freshness, recipesForBean } from '../lib/coffee'
+import { BAG_SIZES, CURRENCIES, beanUsage, costPerGram, fmtGrams, fmtMoney, stockOf } from '../lib/cost'
+import StockBar from '../components/StockBar'
+import { toast } from '../lib/toast'
+import { PROCESSES, ROAST_LEVELS, daysSince, freshness, recipesForBean, plural } from '../lib/coffee'
 import { resizeImage, storeBeanImage, deleteBeanImage, analyzeLabel, canAnalyze } from '../lib/images'
 
 const blank = {
@@ -116,9 +119,13 @@ export default function BeansPage({ data, go }) {
                     </Chip>
                   ))}
                 </div>
+                {(() => {
+                  const u = beanUsage(b.id, data.bean_stock, data.brews)
+                  return u ? <StockBar usage={u} compact onArchive={b.active && u.remaining <= 0 ? () => data.update('beans', b.id, { active: false }) : null} /> : null
+                })()}
                 <div className="row small">
                   <span className="muted">
-                    {count} Bezüge{best ? ' · bestes: ' : ''}
+                    {plural(count, 'Bezug', 'Bezüge')}{best ? ' · bestes: ' : ''}
                   </span>
                   {best && <Stars value={best.rating} size="sm" />}
                   <span className="grow" />
@@ -153,6 +160,15 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
   const [scan, setScan] = useState({ status: 'idle' }) // idle | loading | found | unknown | existing
   const [scanning, setScanning] = useState(false)
   const [saving, setSaving] = useState(false)
+  const existingStock = bean ? stockOf(bean.id, data.bean_stock) : null
+  const [stock, setStock] = useState(() => ({
+    bag: existingStock?.bag_weight_g ?? '',
+    price: existingStock?.price ?? '',
+    currency: existingStock?.currency ?? 'EUR',
+    newBag: false,
+  }))
+  const usage = bean ? beanUsage(bean.id, data.bean_stock, data.brews) : null
+  const previewCpg = costPerGram({ price: stock.price === '' ? null : Number(stock.price), bag_weight_g: Number(stock.bag) })
   const cameraRef = useRef(null)
   const uploadRef = useRef(null)
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v?.target ? (v.target.type === 'checkbox' ? v.target.checked : v.target.value) : v }))
@@ -249,9 +265,21 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
         barcode: form.barcode || null,
         active: form.active,
       }
-      if (bean) await data.update('beans', bean.id, row)
-      else await data.add('beans', row)
+      const saved = bean ? await data.update('beans', bean.id, row) : await data.add('beans', row)
       if (bean?.image_url && bean.image_url !== image_url) deleteBeanImage(bean.image_url).catch(() => {})
+      // Packung & Preis (private Tabelle bean_stock)
+      const bag = Number(stock.bag)
+      const stockRow = {
+        bag_weight_g: bag > 0 ? bag : null,
+        price: stock.price === '' || stock.price == null ? null : Number(stock.price),
+        currency: stock.currency,
+      }
+      const hasStock = stockRow.bag_weight_g || stockRow.price != null
+      if (existingStock && !hasStock) await data.remove('bean_stock', existingStock.id)
+      else if (existingStock)
+        await data.update('bean_stock', existingStock.id, { ...stockRow, ...(stock.newBag ? { opened_at: new Date().toISOString() } : {}) })
+      else if (hasStock) await data.add('bean_stock', { ...stockRow, bean_id: saved.id, opened_at: new Date().toISOString() })
+      toast(bean ? 'Bohne gespeichert' : 'Bohne angelegt ☕')
       onDone()
     } catch (err) {
       data.setError(err.message)
@@ -393,6 +421,65 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
         <Field label="Geschmacksnoten" hint="Enter oder Komma zum Hinzufügen">
           <TagInput value={form.flavor_notes} onChange={set('flavor_notes')} placeholder="Blaubeere, Schokolade …" />
         </Field>
+      </section>
+
+      <section className="card">
+        <h3 className="section-title">Packung & Preis</h3>
+        <p className="muted small">Nur für dich sichtbar – auch Freunde sehen keine Preise.</p>
+        <Field label="Packungsgröße">
+          <div className="segmented">
+            {BAG_SIZES.map((g) => (
+              <button type="button" key={g} className={Number(stock.bag) === g ? 'on' : ''} onClick={() => setStock((s) => ({ ...s, bag: g }))}>
+                {fmtGrams(g)}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <div className="grid2">
+          <Field label="Gewicht (g)">
+            <input type="number" inputMode="decimal" min="1" value={stock.bag} placeholder="z. B. 250" onChange={(e) => setStock((s) => ({ ...s, bag: e.target.value }))} />
+          </Field>
+          <Field label="Kaufpreis">
+            <div className="money-input">
+              <input type="number" inputMode="decimal" min="0" step="0.01" value={stock.price} placeholder="z. B. 14.90" onChange={(e) => setStock((s) => ({ ...s, price: e.target.value }))} />
+              <select value={stock.currency} onChange={(e) => setStock((s) => ({ ...s, currency: e.target.value }))} aria-label="Währung">
+                {Object.keys(CURRENCIES).map((c) => (
+                  <option key={c} value={c}>
+                    {CURRENCIES[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Field>
+        </div>
+        {previewCpg != null && (
+          <div className="cost-preview">
+            <div>
+              <strong>{fmtMoney(previewCpg * 100, stock.currency)}</strong>
+              <span>pro 100 g</span>
+            </div>
+            <div>
+              <strong>{fmtMoney(previewCpg * (usage?.avgDose ?? 18), stock.currency)}</strong>
+              <span>pro Tasse ({Math.round((usage?.avgDose ?? 18) * 10) / 10} g)</span>
+            </div>
+            <div>
+              <strong>{Math.floor(Number(stock.bag) / (usage?.avgDose ?? 18))}</strong>
+              <span>Tassen pro Packung</span>
+            </div>
+          </div>
+        )}
+        {usage && !stock.newBag && (
+          <div className="stock-row">
+            <StockBar usage={usage} />
+            <button type="button" className="btn ghost sm" onClick={() => setStock((s) => ({ ...s, newBag: true }))}>
+              🔄 Neue Packung angebrochen
+            </button>
+          </div>
+        )}
+        {stock.newBag && <div className="banner info">Beim Speichern startet der Verbrauch der neuen Packung bei 0.</div>}
+      </section>
+
+      <section className="card">
         <label className="toggle">
           <input type="checkbox" checked={form.active} onChange={set('active')} />
           <span>{form.active ? 'Aktiv in der Mühle' : 'Aufgebraucht / Archiv'}</span>
@@ -414,3 +501,4 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
     </form>
   )
 }
+

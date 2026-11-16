@@ -81,7 +81,7 @@ export default function UserPage({ data, go, userId }) {
         <Empty>🔒 Dieses Profil ist privat. Sobald ihr befreundet seid, siehst du Bohnen, Setup und Bezüge.</Empty>
       ) : (
         <>
-          <SetupCard machines={view.machines} grinders={view.grinders} beansCount={view.beans.length} />
+          <SetupCard machines={view.machines} grinders={view.grinders} beansCount={view.beans.length} setupPhoto={p.setup_photo_url} />
           <section className="card">
             <h3 className="section-title">Aktuelle Bohnen</h3>
             {view.beans.length ? (
