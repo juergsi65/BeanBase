@@ -361,7 +361,7 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
         )}
         <div className="grid2">
           <button type="button" className="btn primary big" onClick={() => cameraRef.current.click()}>
-            📷 Foto aufnehmen
+            📷 Foto
           </button>
           <button type="button" className="btn ghost big" onClick={() => uploadRef.current.click()}>
             🖼 Hochladen
@@ -485,12 +485,12 @@ function BeanForm({ data, bean, onDone, onOpen, initialBarcode }) {
           <span>{form.active ? 'Aktiv in der Mühle' : 'Aufgebraucht / Archiv'}</span>
         </label>
       </section>
+      {bean && (
+        <button type="button" className="btn danger-ghost block" onClick={del}>
+          🗑 Bohne löschen
+        </button>
+      )}
       <div className="sticky-actions">
-        {bean && (
-          <button type="button" className="btn danger-ghost big" onClick={del}>
-            Löschen
-          </button>
-        )}
         <button type="button" className="btn ghost big" onClick={onDone}>
           Abbrechen
         </button>

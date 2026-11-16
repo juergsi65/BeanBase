@@ -12,6 +12,9 @@ import EquipmentPage from './pages/EquipmentPage'
 import CommunityPage from './pages/CommunityPage'
 import ProfilePage from './pages/ProfilePage'
 import UserPage from './pages/UserPage'
+import FeedbackPage from './pages/FeedbackPage'
+import AdminPage from './pages/AdminPage'
+import { getMyProfile } from './lib/social'
 
 // Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
 const TABS = [
@@ -21,7 +24,7 @@ const TABS = [
   { id: 'history', label: 'Log', icon: '📋' },
   { id: 'community', label: 'Community', icon: '🌍' },
 ]
-const TAB_GROUP = { user: 'community', profile: 'community' }
+const TAB_GROUP = { user: 'community', profile: 'community', admin: 'community', feedback: null }
 
 function Toaster() {
   const [items, setItems] = useState([])
@@ -54,6 +57,13 @@ export default function App() {
   })
   const [brewPreset, setBrewPreset] = useState(null)
   const [userId, setUserId] = useState(null)
+  const [prevTab, setPrevTab] = useState('dashboard')
+  const [me, setMe] = useState(null) // eigenes Profil (Rolle, Sperre)
+
+  useEffect(() => {
+    if (!user || isLocalMode) return
+    getMyProfile().then(setMe).catch(() => {})
+  }, [user])
 
   if (user === undefined) return <div className="splash">☕ BeanBase lädt …</div>
   if (!user) return <AuthPage />
@@ -62,20 +72,32 @@ export default function App() {
   const go = (t, preset = null) => {
     if (t === 'user') setUserId(preset?.userId ?? null)
     else setBrewPreset(preset)
+    if (t === 'feedback') setPrevTab(tab)
     setTab(t)
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const props = { data, go }
+  const props = { data, go, me }
   const activeTab = TAB_GROUP[tab] ?? tab
 
   return (
     <div className="app">
       <header className="topbar">
         <button className="brand" onClick={() => go('dashboard')}>
-          <span className="logo">🫘</span> BeanBase
+          <span className="logo">🫘</span> <span className="brand-name">BeanBase</span>
+          {!isLocalMode && <span className="beta-pill">BETA</span>}
         </button>
         <div className="topbar-actions">
+          {!isLocalMode && (
+            <button className={`icon-btn ${tab === 'feedback' ? 'on' : ''}`} onClick={() => go('feedback')} aria-label="Feedback geben">
+              💬
+            </button>
+          )}
+          {me?.role === 'admin' && (
+            <button className={`icon-btn ${tab === 'admin' ? 'on' : ''}`} onClick={() => go('admin')} aria-label="Admin-Bereich">
+              🛠
+            </button>
+          )}
           <button className={`icon-btn ${tab === 'equipment' ? 'on' : ''}`} onClick={() => go('equipment')} aria-label="Setup & Einstellungen">
             ⚙️
           </button>
@@ -92,6 +114,9 @@ export default function App() {
           Demo-Modus: Daten werden nur in diesem Browser gespeichert. Für Login & Cloud-Sync Supabase in <code>.env</code> konfigurieren.
         </div>
       )}
+      {me?.blocked && (
+        <div className="banner error">Dein Konto ist gesperrt. Du kannst deine Daten ansehen, aber nichts mehr speichern. Bei Fragen melde dich beim Admin.</div>
+      )}
       {data.error && (
         <div className="banner error" onClick={() => data.setError(null)}>
           Fehler: {data.error} (tippen zum Schließen)
@@ -107,6 +132,8 @@ export default function App() {
         {tab === 'community' && <CommunityPage {...props} />}
         {tab === 'profile' && <ProfilePage {...props} />}
         {tab === 'user' && <UserPage {...props} userId={userId} key={userId} />}
+        {tab === 'feedback' && <FeedbackPage {...props} fromTab={prevTab} />}
+        {tab === 'admin' && <AdminPage {...props} />}
       </main>
 
       <Toaster />

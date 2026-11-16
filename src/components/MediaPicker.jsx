@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { prepareMedia } from '../lib/media'
+import { useSettings } from '../lib/settings'
+import { isLocalMode } from '../lib/supabase'
 
 /** Anzeige eines gespeicherten Fotos/Videos */
 export function MediaView({ url, type, className = '' }) {
@@ -15,7 +17,10 @@ export function MediaView({ url, type, className = '' }) {
  * Auswahl + Vorschau. value: { url, type } (gespeichert) · pending: vorbereitete Datei
  * onChange({ pending, removed })
  */
-export default function MediaPicker({ value, pending, onChange, allowVideo = true, label = 'Foto' }) {
+export default function MediaPicker({ value, pending, onChange, allowVideo: wantsVideo = true, label = 'Foto' }) {
+  // Videos nur, wenn im Admin-Bereich freigeschaltet (Beta: gesperrt)
+  const settings = useSettings()
+  const allowVideo = wantsVideo && !isLocalMode && settings.video_uploads
   const camRef = useRef(null)
   const fileRef = useRef(null)
   const [err, setErr] = useState(null)
@@ -60,6 +65,11 @@ export default function MediaPicker({ value, pending, onChange, allowVideo = tru
       <input ref={fileRef} type="file" accept={accept} hidden onChange={onFile} data-testid="media-upload" />
       {busy && <p className="muted small">Wird vorbereitet …</p>}
       {allowVideo && !shown && <p className="muted small">Videos bis 60 s / 50 MB – z. B. den Durchlauf des Shots.</p>}
+      {wantsVideo && !allowVideo && !isLocalMode && !shown && (
+        <p className="tba-note">
+          <span className="tba">Video · bald</span> Video-Uploads sind in der Beta noch gesperrt.
+        </p>
+      )}
       {err && <p className="scanner-error">{err}</p>}
     </div>
   )

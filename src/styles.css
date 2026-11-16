@@ -499,3 +499,73 @@ video.media { object-fit: contain; }
 form.stack { padding-bottom: 84px; }
 .sticky-actions { z-index: 5; pointer-events: none; }
 .sticky-actions > * { pointer-events: auto; }
+
+/* ===== Layout-Härtung: nichts darf über den Rand ragen (auch bei 320 px) ===== */
+html, body { max-width: 100%; }
+.grid2 > *, .grid3 > *, .stats > *, .cost-preview > *, .num > *, .field, .row > *, .list-item > * { min-width: 0; }
+h1, h2, h3, strong, .recipe-note, .feed-bean-info, .list-item span { overflow-wrap: anywhere; }
+.btn { max-width: 100%; line-height: 1.2; }
+.btn.big { white-space: normal; }
+.row, .row-actions, .page-head, .feed-actions { flex-wrap: wrap; }
+.row-actions { gap: 6px; }
+.list-item .row.small { row-gap: 6px; }
+.list-item .row.small .btn { flex: 0 1 auto; }
+.tabbar { grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; }
+.tabbar button { min-width: 0; }
+.tabbar button > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.sticky-actions { flex-wrap: nowrap; }
+.sticky-actions .btn { min-width: 0; padding-left: 14px; padding-right: 14px; }
+.sticky-actions .btn.ghost { flex: 0 1 auto; }
+.topbar { gap: 8px; }
+.brand { min-width: 0; white-space: nowrap; }
+input, select, textarea { min-width: 0; max-width: 100%; }
+.money-input { grid-template-columns: minmax(0, 1fr) 76px; }
+.cost-preview strong { font-size: 1rem; overflow-wrap: anywhere; }
+.stock-text { flex-wrap: wrap; row-gap: 2px; }
+.recipe-meta, .muted.small { overflow-wrap: anywhere; }
+@media (max-width: 360px) {
+  .content { padding: 12px; }
+  .card { padding: 14px; }
+  .btn.big { font-size: 1rem; padding: 12px 14px; }
+  .num { grid-template-columns: 46px minmax(0, 1fr) 46px; }
+  .stats { gap: 6px; }
+  .stat-value { font-size: 1rem; }
+  .cost-preview { grid-template-columns: 1fr 1fr; }
+  .cost-preview > div:last-child { grid-column: span 2; }
+  .tabbar button { font-size: 0.66rem; }
+  .fab-circle { width: 52px; height: 52px; }
+}
+.extraction input[type='range'] { width: 100%; margin: 0; box-sizing: border-box; }
+.stars.lg { flex-wrap: nowrap; max-width: 100%; }
+.stars.lg button { font-size: clamp(2rem, 10.5vw, 2.6rem); padding: 0 2px; }
+
+/* Admin & Beta */
+.admin-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.admin-stats .stat { background: var(--surface); border: 1px solid var(--border); text-align: center; }
+.stat-sub { font-size: 0.65rem; color: var(--muted); }
+.admin-tabs .segmented button { flex: 1 1 30%; font-size: 0.85rem; min-height: 40px; }
+.admin-media { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.admin-media figure { margin: 0; }
+.admin-media .media { height: 140px; }
+.admin-media figcaption { font-size: 0.78rem; color: var(--muted); display: flex; justify-content: space-between; gap: 4px; flex-wrap: wrap; }
+.list-item.blocked { opacity: 0.6; border-style: dashed; }
+.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; }
+.feedback-text { white-space: pre-wrap; }
+.ua { font-size: 0.68rem; }
+.beta-pill { font-size: 0.62rem; font-weight: 800; letter-spacing: .05em; color: var(--accent-text); background: var(--accent); border-radius: 999px; padding: 2px 6px; margin-left: 4px; }
+@media (max-width: 360px) { .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Header kompakt: bis zu 4 Symbol-Knöpfe + Logo passen auch auf 320 px */
+.topbar { padding-left: 12px; padding-right: 12px; }
+.topbar-actions { gap: 6px; flex-shrink: 0; }
+.icon-btn { width: 40px; height: 40px; font-size: 1.05rem; border-radius: 11px; }
+.brand { font-size: 1.15rem; gap: 6px; overflow: hidden; }
+.brand .beta-pill { flex-shrink: 0; }
+@media (max-width: 400px) {
+  .brand { font-size: 1.02rem; }
+  .brand .logo { font-size: 1.1rem; }
+  .beta-pill { font-size: 0.56rem; padding: 2px 5px; margin-left: 2px; }
+  .icon-btn { width: 38px; height: 38px; font-size: 1rem; }
+}
+@media (max-width: 340px) {
+  .brand-name { display: none; }
+}

@@ -1,6 +1,7 @@
 // Fotos & Videos für Bezüge und Setup (Bucket brew-media, öffentlich lesbar über zufällige URL)
 import { supabase } from './supabase'
 import { resizeImage } from './images'
+import { loadSettings } from './settings'
 
 const BUCKET = 'brew-media'
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
@@ -27,6 +28,7 @@ function videoDuration(file) {
 export async function prepareMedia(file) {
   if (file.type.startsWith('video/')) {
     if (!supabase) throw new Error('Videos können nur mit Konto (Supabase) gespeichert werden.')
+    if (!(await loadSettings()).video_uploads) throw new Error('Video-Uploads sind in der Beta noch gesperrt – bitte ein Foto verwenden.')
     if (file.size > MAX_VIDEO_BYTES) throw new Error(`Video ist zu groß (max. ${MAX_VIDEO_BYTES / 1024 / 1024} MB). Kürze es in der Fotos-App.`)
     const d = await videoDuration(file)
     if (d && d > MAX_VIDEO_SECONDS + 1) throw new Error(`Video ist ${Math.round(d)} s lang – bitte max. ${MAX_VIDEO_SECONDS} s.`)
