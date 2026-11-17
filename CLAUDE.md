@@ -31,7 +31,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 
 **Navigation:** React Router (data mode: `createBrowserRouter` in `src/App.tsx`, no loaders — data stays in TanStack Query). Routes `/`, `/<tab>`, `/users/:userId`; `Layout` holds auth gates + app shell and passes shared page props via `<Outlet context>`. Pages navigate through `go(tab, params)` (wraps `navigate`); brew presets travel in history state. Old `?tab=` links redirect to `/<tab>`; `?invite=CODE` and `?recovery=1` drive registration / password reset.
 
-**Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
+**Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/grind.ts` (grinder scales per manual: notation parse/format, corrections in real grinder units, canonical `brews.grind_pos` for community averages; scale definitions live on `GRINDER_PRESETS`), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
 
 **Presets:** `src/data/presets.ts` — curated machines/grinders. `preset_id` values are stored in the DB and used for community matching — **never change existing ids**.
 

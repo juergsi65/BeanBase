@@ -2,6 +2,7 @@ import { ArrowRight, Check, X } from 'lucide-react'
 import { Empty, useLookup } from '../components/ui'
 import { adjustGrind, correction, fmtRange } from '../lib/dialin'
 import { extractionLabel, fmtRatio, ratio } from '../lib/coffee'
+import { grinderScale } from '../data/presets'
 import type { BrewPreset, PageProps } from '../types'
 
 const TONE = {
@@ -27,14 +28,14 @@ export default function DialInPage({ data, go, preset }: PageProps & { preset: B
   const c = correction({
     extraction: brew.extraction,
     grind: brew.grind_setting,
-    scaleType: grinder?.scale_type,
+    scale: grinderScale(grinder),
     temperature: brew.temperature,
     brewTime: brew.brew_time,
     targetTime: target,
     type: machine?.type,
   })
   const tone = TONE[c.tone]
-  const adj = adjustGrind(brew.grind_setting, brew.extraction, grinder?.scale_type)
+  const adj = adjustGrind(brew.grind_setting, brew.extraction, grinderScale(grinder))
   const nextGrind = c.tone !== 'good' && adj.value != null && adj.steps ? adj.value : null
   const time = brew.brew_time ?? null
   // Zeitskala: 0 bis 4/3 des Zielendes (wie die Stoppuhr)

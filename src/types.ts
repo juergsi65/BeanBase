@@ -52,6 +52,8 @@ export interface Brew extends Row {
   dose: number | null
   yield: number | null
   grind_setting: string | null
+  /** Kanonische Mahlgrad-Position (siehe lib/grind.ts) für Community-Vergleiche */
+  grind_pos: number | null
   temperature: number | null
   brew_time: number | null
   preinfusion: number | null

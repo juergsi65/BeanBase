@@ -5,8 +5,10 @@ import { Field, NumberInput, Stars, TasteSegments, Stopwatch, RecipeCard, RatioR
 import CommunityTip from '../components/CommunityTip'
 import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
 import { availableSources, buildPlan } from '../lib/dialin'
-import { ratio, fmtRatio, recipesForBean, SCALE_TYPES, daysSince, freshness, fmtDate } from '../lib/coffee'
-import { findMachinePreset } from '../data/presets'
+import { ratio, fmtRatio, recipesForBean, daysSince, freshness, fmtDate } from '../lib/coffee'
+import { findMachinePreset, grinderScale } from '../data/presets'
+import { grindPos, parseGrind, scaleHint } from '../lib/grind'
+import GrindInput from '../components/GrindInput'
 import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { brewCost, beanUsage, fmtMoney, fmtGrams } from '../lib/cost'
@@ -99,6 +101,12 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
     [data.brews, form.bean_id],
   )
   const grinder = lookup.grinders(form.grinder_id)
+  /** Mühle wechseln: Mahlgrad leeren, wenn er nicht zur Skala der neuen Mühle passt */
+  const changeGrinder = (id: string) =>
+    setForm((f) => {
+      const keep = parseGrind(grinderScale(lookup.grinders(id)), f.grind_setting) != null
+      return { ...f, grinder_id: id, grind_setting: keep ? f.grind_setting : '' }
+    })
   const cost = brewCost({ bean_id: form.bean_id, dose: Number(form.dose) || null }, data.bean_stock)
   const usage = form.bean_id ? beanUsage(form.bean_id, data.bean_stock, data.brews) : null
   const bean = lookup.beans(form.bean_id)
@@ -150,6 +158,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       dose: n(form.dose),
       yield: n(form.yield),
       grind_setting: String(form.grind_setting ?? '').trim() || null,
+      grind_pos: grindPos(grinderScale(grinder), form.grind_setting),
       temperature: n(form.temperature),
       brew_time: n(form.brew_time),
       preinfusion: n(form.preinfusion),
@@ -239,7 +248,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             </label>
             <label className={rowCls}>
               <span className="lbl w-18 shrink-0">Mühle</span>
-              <select className={rowSelect} value={form.grinder_id} onChange={set('grinder_id')}>
+              <select className={rowSelect} value={form.grinder_id} onChange={(e) => changeGrinder(e.target.value)}>
                 <option value="">—</option>
                 {data.grinders.map((g) => (
                   <option key={g.id} value={g.id}>
@@ -297,11 +306,15 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
               </span>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-2.5">
-            <label className={tile}>
-              <span className="lbl truncate">Mahlgrad</span>
-              <input className={tileInput} inputMode={grinder?.scale_type === 'stepless' ? 'text' : 'decimal'} value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="–" />
-            </label>
+          {/* Mahlgrad volle Breite: die Eingabe richtet sich nach der Skala der Mühle (Ring, Makro/Mikro, Klicks …) */}
+          <div className={tile}>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="lbl">Mahlgrad</span>
+              {grinder && <span className="truncate text-xs text-muted">{grinder.name} · {scaleHint(grinderScale(grinder))}</span>}
+            </div>
+            <GrindInput scale={grinderScale(grinder)} value={form.grind_setting} onChange={set('grind_setting')} />
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
             <label className={tile}>
               <span className="lbl truncate">Temp. °C</span>
               <input className={tileInput} type="number" inputMode="decimal" step={0.5} min={0} max={100} value={form.temperature ?? ''} onChange={num('temperature')} placeholder="–" />
@@ -311,7 +324,6 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
               <input className={tileInput} type="number" inputMode="numeric" min={0} value={form.preinfusion ?? ''} onChange={num('preinfusion')} placeholder="–" />
             </label>
           </div>
-          {grinder && <p className="-mt-2 text-xs text-muted">{grinder.name} · {SCALE_TYPES[grinder.scale_type] ?? ''}</p>}
         </section>
 
         {!editing && bean && (
