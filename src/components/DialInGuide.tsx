@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Segmented } from './ui'
 import { SOURCE_LABELS, correction, fmtRange, prepText } from '../lib/dialin'
 import { fmtRatio } from '../lib/coffee'
+import { grinderScale } from '../data/presets'
+import { scaleHint } from '../lib/grind'
 import type { ReactNode } from 'react'
 import type { Plan, Source } from '../lib/dialin'
 import type { BrewForm } from '../pages/BrewPage'
@@ -43,7 +45,7 @@ export function CorrectionHint({
   const c = correction({
     extraction: form.extraction,
     grind: form.grind_setting,
-    scaleType: grinder?.scale_type,
+    scale: grinderScale(grinder),
     temperature: form.temperature,
     brewTime: form.brew_time,
     targetTime,
@@ -124,11 +126,11 @@ export default function DialInGuide({
           ) : plan.grind != null ? (
             <p>
               Stelle deine <strong>{grinderName}</strong> auf <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.grind}</span>
-              <span className="text-muted text-sm"> (kleinere Zahl = feiner bei den meisten Mühlen)</span>
             </p>
-          ) : (
-            <p>{plan.grindNote}</p>
-          )}
+          ) : null}
+          {grinder && plan.grind != null && plan.grindNote && <p className="text-muted text-sm">{plan.grindNote}</p>}
+          {grinder && plan.grind == null && <p>{plan.grindNote}</p>}
+          {grinder && <p className="text-muted text-sm">{scaleHint(grinderScale(grinder))}</p>}
           <p className="text-muted text-sm">
             Nach dem Verstellen 1–2 g Bohnen durchmahlen und verwerfen (Totraum/Purge) – sonst landet noch Mehl der alten Einstellung im Sieb.
           </p>

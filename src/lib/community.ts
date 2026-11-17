@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import { isNotDefined } from 'only-utils'
-import type { MachineType, ScaleType } from '../types'
+import { formatGrind, type GrindScale } from './grind'
+import type { MachineType } from '../types'
 
 /** Zeile aus get_community_recipes (supabase/schema.sql) */
 export interface CommunityRow {
@@ -27,7 +28,7 @@ export interface CommunityValues {
   dose: number | null
   yield: number | null
   temperature: number | null
-  grind_setting: number | null
+  grind_setting: string | null
   time: number | null
 }
 
@@ -66,13 +67,10 @@ export async function fetchCommunity({
 /** Spezifischster verfügbarer Datensatz: gleiche Mühle+Maschine > gleiche Mühle > alle */
 export const bestScope = (c: Community | null | undefined): CommunityRow | null => c?.setup ?? c?.grinder ?? c?.all ?? null
 
-/** Mahlgrad passend zum Skalentyp runden */
-export function roundGrind(value: unknown, scaleType: ScaleType | null | undefined) {
+/** Community-Mittelwert (Position) in die Notation der Mühle bringen */
+export function roundGrind(value: unknown, scale: GrindScale) {
   if (isNotDefined(value)) return null
-  const v = Number(value)
-  if (scaleType === 'clicks') return Math.round(v)
-  if (scaleType === 'numbers') return v < 5 ? Math.round(v * 10) / 10 : Math.round(v * 2) / 2
-  return Math.round(v * 10) / 10
+  return formatGrind(scale, Number(value))
 }
 
 const num = (v: unknown) => (isNotDefined(v) ? null : Number(v))
@@ -81,7 +79,7 @@ const num = (v: unknown) => (isNotDefined(v) ? null : Number(v))
 export function communityValues(
   row: CommunityRow | null | undefined,
   kind: 'avg' | 'best',
-  scaleType: ScaleType | null | undefined,
+  scale: GrindScale,
 ): CommunityValues | null {
   if (!row) return null
   const hasGrind = row.scope !== 'all'
@@ -90,14 +88,14 @@ export function communityValues(
         dose: num(row.best_dose),
         yield: num(row.best_yield),
         temperature: num(row.best_temp),
-        grind_setting: hasGrind ? roundGrind(row.best_grind, scaleType) : null,
+        grind_setting: hasGrind ? roundGrind(row.best_grind, scale) : null,
         time: num(row.best_time),
       }
     : {
         dose: num(row.avg_dose),
         yield: num(row.avg_yield),
         temperature: num(row.avg_temp),
-        grind_setting: hasGrind ? roundGrind(row.avg_grind, scaleType) : null,
+        grind_setting: hasGrind ? roundGrind(row.avg_grind, scale) : null,
         time: num(row.avg_time),
       }
 }

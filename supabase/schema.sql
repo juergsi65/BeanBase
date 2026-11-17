@@ -107,6 +107,9 @@ $$;
 
 create index if not exists beans_match_idx on public.beans (public.normalize_key(roaster), public.normalize_key(name));
 
+-- Kanonische Mahlgrad-Position (Notation der Mühle → Zahl, siehe src/lib/grind.ts)
+alter table public.brews add column if not exists grind_pos numeric;
+
 -- Liefert anonymisierte Durchschnittswerte gut bewerteter Bezüge (≥ 4 Sterne)
 -- ANDERER Nutzer für dieselbe Bohne (Rösterei + Name), plus die Werte des
 -- bestbewerteten Bezugs (ohne Nutzerbezug).
@@ -160,8 +163,11 @@ as $$
   pool as (
     select b.user_id, b.rating, b.extraction, b.created_at, b.dose, b.yield, b.brew_time, b.temperature,
            g.preset_id as grinder_preset, m.preset_id as machine_preset,
-           case when b.grind_setting ~ '^\s*-?\d+([.,]\d+)?\s*$'
-                then replace(trim(b.grind_setting), ',', '.')::numeric end as grind
+           -- grind_pos: von der App aus der Mühlen-Notation berechnet (z. B. Sette "9E" → 9.44);
+           -- ältere Bezüge ohne grind_pos: reine Zahl aus grind_setting
+           coalesce(b.grind_pos,
+             case when b.grind_setting ~ '^\s*-?\d+([.,]\d+)?\s*$'
+                  then replace(trim(b.grind_setting), ',', '.')::numeric end) as grind
     from public.brews b
     join public.beans bn on bn.id = b.bean_id
     left join public.grinders g on g.id = b.grinder_id

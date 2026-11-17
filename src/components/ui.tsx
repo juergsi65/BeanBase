@@ -3,14 +3,16 @@ import type { Brew, Data, Grinder, Machine, Bean } from '../types'
 import { extractionLabel, fmtRatio, ratio, dialInHint, fmtDate } from '../lib/coffee'
 import { haptic } from '../lib/haptics'
 
-export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+/** group: mehrere Eingaben → <div role="group"> statt <label> (Klick aufs Label löst sonst den ersten Button aus) */
+export function Field({ label, hint, children, group }: { label: ReactNode; hint?: ReactNode; children: ReactNode; group?: boolean }) {
+  const Tag = group ? 'div' : 'label'
   return (
-    <label className="fieldset gap-1.5 p-0 min-w-0">
+    <Tag className="fieldset gap-1.5 p-0 min-w-0" {...(group ? { role: 'group' } : {})}>
       <span className="fieldset-legend justify-start flex-wrap gap-x-1 gap-y-0 p-0 text-sm">
         {label} {hint && <em className="font-normal not-italic text-muted">{hint}</em>}
       </span>
       {children}
-    </label>
+    </Tag>
   )
 }
 

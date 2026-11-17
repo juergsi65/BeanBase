@@ -1,8 +1,9 @@
 // Dial-In-Assistent: Zielwerte bestimmen und Korrekturen vorschlagen.
 // Faustregeln – bewusst einfach gehalten, keine Garantie für jede Bohne.
-import { findMachinePreset, findGrinderPreset } from '../data/presets'
 import { bestScope, communityValues, type Community } from './community'
-import type { Bean, Brew, Grinder, Machine, MachineType, RoastLevel, ScaleType } from '../types'
+import { findMachinePreset, findGrinderPreset, grinderScale } from '../data/presets'
+import { scaleHint, shiftGrind, stepLabel, type GrindScale } from './grind'
+import type { Bean, Brew, Grinder, Machine, MachineType, RoastLevel } from '../types'
 
 type Range = [number, number]
 interface Base {
@@ -65,21 +66,20 @@ const toNum = (v: unknown): number | null => {
   return isNaN(n) ? null : n
 }
 
-/** Schrittweite einer Mühle (Annahme: kleinere Zahl = feiner) */
-function grindStep(value: number | null, scaleType: ScaleType | null | undefined) {
-  if (scaleType === 'clicks') return 1
-  if (value != null && Math.abs(value) < 5) return 0.1 // z. B. Umdrehungen (1Zpresso, Eureka)
-  return scaleType === 'numbers' ? 0.5 : 1
+/** Mahlgrad anhand der Extraktion verschieben: sauer → feiner, bitter → gröber (in Einheiten der Mühle) */
+export function adjustGrind(grind: unknown, extraction: number | null | undefined, scale: GrindScale) {
+  const steps = extraction ? (Math.abs(extraction) >= 3 ? 2 : 1) : 0
+  const r = steps ? shiftGrind(scale, grind, Math.sign(extraction!) * steps) : null
+  if (!r) return { value: null, steps: 0, label: '', atLimit: false }
+  if (!r.ticks) return { value: null, steps: 0, label: '', atLimit: true }
+  return { value: r.value, steps, label: stepLabel(scale, r.ticks), atLimit: false }
 }
 
-/** Mahlgrad anhand der Extraktion verschieben: sauer → feiner, bitter → gröber */
-export function adjustGrind(grind: unknown, extraction: number | null | undefined, scaleType: ScaleType | null | undefined) {
-  const g = toNum(grind)
-  if (g == null || !extraction) return { value: g, steps: 0 }
-  const steps = Math.abs(extraction) >= 3 ? 2 : 1
-  const step = grindStep(g, scaleType)
-  const value = Math.round((g + Math.sign(extraction) * steps * step) * 100) / 100
-  return { value, steps, step }
+/** Startwert laut Handbuch für die Brühmethode */
+function manualStart(grinder: Pick<Grinder, 'preset_id'> | null | undefined, type: MachineType | null) {
+  const start = findGrinderPreset(grinder?.preset_id)?.start
+  if (!start || !type) return null
+  return (type === 'espresso' ? start.espresso : type === 'moka' ? null : start.filter) ?? null
 }
 
 /**
@@ -120,7 +120,7 @@ export function buildPlan({
   const roast: RoastLevel = bean?.roast_level ?? 'medium'
   const base = type ? (BASE[type]?.[roast] ?? null) : null
   const presetDefaults = findMachinePreset(machine?.preset_id)?.defaults
-  const scale = grinder?.scale_type
+  const scale = grinderScale(grinder)
   const plan: Plan = { type, roast, source, note: null, grindNote: null, dose: null, yield: null, temp: null, time: null, grind: null, ratio: null }
   const goodBest = own?.best && (own.best.rating ?? 0) >= 4 ? own.best : null
   const ref = goodBest ?? own?.last
@@ -133,7 +133,7 @@ export function buildPlan({
     const adj = adjustGrind(ref.grind_setting, ref.extraction, scale)
     plan.grind = adj.value ?? (ref.grind_setting || null)
     if (adj.steps) {
-      plan.note = `Dein ${goodBest ? 'bester' : 'letzter'} Bezug war ${(ref.extraction ?? 0) < 0 ? 'zu sauer' : 'zu bitter'} (Mahlgrad ${ref.grind_setting}) → diesmal ${adj.steps} Stufe${adj.steps > 1 ? 'n' : ''} ${(ref.extraction ?? 0) < 0 ? 'feiner' : 'gröber'}.`
+      plan.note = `Dein ${goodBest ? 'bester' : 'letzter'} Bezug war ${(ref.extraction ?? 0) < 0 ? 'zu sauer' : 'zu bitter'} (Mahlgrad ${ref.grind_setting}) → diesmal ${adj.label} ${(ref.extraction ?? 0) < 0 ? 'feiner' : 'gröber'}.`
     } else {
       plan.note = goodBest ? `Basierend auf deinem besten Bezug (${goodBest.rating}★).` : 'Basierend auf deinem letzten Bezug.'
     }
@@ -154,7 +154,8 @@ export function buildPlan({
     plan.yield = base ? Math.round(dose * base.ratio * 2) / 2 : (presetDefaults?.yield ?? null)
     plan.temp = base?.temp ?? presetDefaults?.temperature ?? null
     plan.time = base?.time ?? null
-    plan.grind = null
+    plan.grind = manualStart(grinder, type)
+    if (plan.grind != null) plan.grindNote = 'Startwert laut Handbuch des Herstellers.'
     plan.note = base
       ? `Faustregel für ${ROAST_TEXT[roast]}${bean?.roast_level ? '' : ' (Röstgrad unbekannt)'}: Ratio 1:${base.ratio}, ${base.temp} °C.`
       : 'Für diese Brühmethode gibt es keine Basiswerte – trage deine eigenen ein.'
@@ -162,7 +163,7 @@ export function buildPlan({
 
   if (plan.grind == null && !plan.grindNote) {
     const presetNote = findGrinderPreset(grinder?.preset_id)?.notes
-    plan.grindNote = presetNote ? `Startpunkt laut Modell: ${presetNote}` : 'Starte in der Mitte des Bereichs deiner Mühle für diese Methode.'
+    plan.grindNote = presetNote ? `Hinweis zum Modell: ${presetNote}` : `Starte in der Mitte des Bereichs deiner Mühle für diese Methode (${scaleHint(scale)}).`
   }
   plan.ratio = plan.dose && plan.yield ? plan.yield / plan.dose : null
   return plan
@@ -175,7 +176,7 @@ export function buildPlan({
 export function correction({
   extraction,
   grind,
-  scaleType,
+  scale,
   temperature,
   brewTime,
   targetTime,
@@ -183,7 +184,7 @@ export function correction({
 }: {
   extraction: number | null | undefined
   grind: unknown
-  scaleType?: ScaleType | null
+  scale: GrindScale
   temperature?: unknown
   brewTime?: unknown
   targetTime?: Range | null
@@ -203,11 +204,13 @@ export function correction({
   }
 
   const sour = extraction < 0
-  const adj = adjustGrind(grind, extraction, scaleType)
+  const adj = adjustGrind(grind, extraction, scale)
   const dir = sour ? 'feiner' : 'gröber'
   tips.push(
-    adj.value != null
-      ? `Mahlgrad ${adj.steps} Stufe${adj.steps > 1 ? 'n' : ''} ${dir}: ${grind} → ${adj.value}`
+    adj.atLimit
+      ? `Mahlgrad steht schon am ${sour ? 'feinen' : 'groben'} Ende der Skala${scale.kind === 'number' && scale.ring ? ` – Innenring um 1 ${dir} stellen (laut Handbuch immer nur 1 Schritt)` : ''}`
+      : adj.value != null
+      ? `Mahlgrad ${adj.label} ${dir}: ${grind} → ${adj.value}`
       : `Mahlgrad ${Math.abs(extraction) >= 3 ? '2' : '1'} Stufe(n) ${dir} stellen`,
   )
   if (t) tips.push(`oder Temperatur ${sour ? '+1' : '−1'} °C → ${Math.round((t + (sour ? 1 : -1)) * 10) / 10} °C`)

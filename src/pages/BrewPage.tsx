@@ -4,8 +4,10 @@ import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, use
 import CommunityTip from '../components/CommunityTip'
 import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
 import { availableSources, buildPlan } from '../lib/dialin'
-import { ratio, fmtRatio, recipesForBean, SCALE_TYPES } from '../lib/coffee'
-import { findMachinePreset } from '../data/presets'
+import { ratio, fmtRatio, recipesForBean } from '../lib/coffee'
+import { findMachinePreset, grinderScale } from '../data/presets'
+import { grindPos, parseGrind, scaleHint } from '../lib/grind'
+import GrindInput from '../components/GrindInput'
 import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { brewCost, beanUsage, fmtMoney, fmtGrams } from '../lib/cost'
@@ -93,6 +95,12 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
     [data.brews, form.bean_id],
   )
   const grinder = lookup.grinders(form.grinder_id)
+  /** Mühle wechseln: Mahlgrad leeren, wenn er nicht zur Skala der neuen Mühle passt */
+  const changeGrinder = (id: string) =>
+    setForm((f) => {
+      const keep = parseGrind(grinderScale(lookup.grinders(id)), f.grind_setting) != null
+      return { ...f, grinder_id: id, grind_setting: keep ? f.grind_setting : '' }
+    })
   const cost = brewCost({ bean_id: form.bean_id, dose: Number(form.dose) || null }, data.bean_stock)
   const usage = form.bean_id ? beanUsage(form.bean_id, data.bean_stock, data.brews) : null
   const bean = lookup.beans(form.bean_id)
@@ -144,6 +152,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       dose: n(form.dose),
       yield: n(form.yield),
       grind_setting: String(form.grind_setting ?? '').trim() || null,
+      grind_pos: grindPos(grinderScale(grinder), form.grind_setting),
       temperature: n(form.temperature),
       brew_time: n(form.brew_time),
       preinfusion: n(form.preinfusion),
@@ -217,7 +226,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             </select>
           </Field>
           <Field label="Mühle">
-            <select className="select w-full" value={form.grinder_id} onChange={set('grinder_id')}>
+            <select className="select w-full" value={form.grinder_id} onChange={(e) => changeGrinder(e.target.value)}>
               <option value="">—</option>
               {data.grinders.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -284,19 +293,8 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             </span>
           )}
         </div>
-        <Field label="Mahlgrad" hint={grinder ? `${grinder.name} · ${SCALE_TYPES[grinder.scale_type] ?? ''}` : ''}>
-          {grinder?.scale_type === 'stepless' ? (
-            <input value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="z. B. 2.4 oder ‚zwischen 2 und 3‘" className="input w-full big-input" />
-          ) : (
-            <NumberInput
-              value={form.grind_setting === '' || form.grind_setting == null || isNaN(Number(form.grind_setting)) ? '' : Number(form.grind_setting)}
-              onChange={set('grind_setting')}
-              step={grinder?.scale_type === 'numbers' ? 0.5 : 1}
-              decimals={grinder?.scale_type === 'numbers' ? 1 : 0}
-              unit={grinder?.scale_type === 'clicks' ? 'Klicks' : ''}
-              placeholder="–"
-            />
-          )}
+        <Field group label="Mahlgrad" hint={grinder ? `${grinder.name} · ${scaleHint(grinderScale(grinder))}` : ''}>
+          <GrindInput scale={grinderScale(grinder)} value={form.grind_setting} onChange={set('grind_setting')} />
         </Field>
         <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
           <Field label="Temperatur">
