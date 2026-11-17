@@ -155,10 +155,6 @@ export default function FeedCard({
         {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="mt-1 max-h-[480px] rounded-2xl border border-base-300" />}
 
         <footer className="-mx-2 mt-0.5 flex items-center gap-1">
-          <button type="button" className={`${css.action} ${comments ? css.on : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
-            <MessageCircle size={18} className={css.icon} aria-hidden />
-            <span>{commentCount}</span>
-          </button>
           <button
             type="button"
             className={`${css.action} ${css.like} ${liked ? css.liked : ''} ${pop ? css.pop : ''}`}
@@ -167,12 +163,16 @@ export default function FeedCard({
             aria-label="Gefällt mir"
           >
             <Heart size={18} className={css.icon} fill={liked ? "currentColor" : "none"} aria-hidden />
-            <span>{likes}</span>
+            <span className="num">{likes}</span>
+          </button>
+          <button type="button" className={`${css.action} ${comments ? css.on : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
+            <MessageCircle size={18} className={css.icon} aria-hidden />
+            <span className="num">{commentCount}</span>
           </button>
           {!own && onReuse && (
             <button type="button" className={`${css.action} ${css.reuse} ml-auto`} onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
-              <Repeat2 size={18} className={css.icon} aria-hidden />
-              <span>Rezept übernehmen</span>
+              <Repeat2 size={16} className={css.icon} aria-hidden />
+              <span>Nachbrühen</span>
             </button>
           )}
         </footer>

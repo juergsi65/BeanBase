@@ -1,6 +1,6 @@
 /* Community: Feed im Stil eines Kurznachrichten-Dienstes (genutzt von FeedCard, CommunityPage, UserPage) */
 @layer components {
-  .feedPage { display: flex; flex-direction: column; margin: -16px -16px 0; }
+  .feedPage { display: flex; flex-direction: column; margin: 0 -16px; }
   .feedTabs { position: sticky; top: calc(64px + env(safe-area-inset-top)); z-index: 8; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); }
   .feedPage > :global(.empty), .feedPage > :global(.alert), .feedPage > :global(.btn) { margin: 16px; }
   .post {
@@ -16,7 +16,9 @@
   .action:hover, .action.on { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
   .action.like:hover, .action.liked { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, transparent); }
   .action.liked { font-weight: 700; }
-  .action.reuse:hover { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  /* „Nachbrühen“: umrandete Pille rechts (Design) */
+  .action.reuse { border: 1px solid var(--line-strong); color: var(--text); padding: 8px 12px; }
+  .action.reuse:hover { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
   .action.pop .icon { animation: like-pop .4s var(--bb-ease); }
   @keyframes like-pop { 0% { transform: scale(1); } 40% { transform: scale(1.45) rotate(-12deg); } 100% { transform: scale(1); } }
   :global(.page-user) .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
@@ -24,13 +26,13 @@
   @media (max-width: 360px) {
     .post { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 12px; }
     .action.reuse span:last-child { display: none; }
-    .feedPage { margin: -12px -12px 0; }
+    .feedPage { margin: 0 -12px; }
   }
   @media (min-width: 700px) {
     .feedPage { margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: clip; }
   }
   @media (min-width: 960px) {
-    :global(.page-community) > .feedPage { max-width: 700px; }
+    .feedPage { flex: 1; min-width: 0; max-width: 700px; }
     .feedTabs { top: 0; }
   }
 }
