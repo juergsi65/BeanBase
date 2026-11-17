@@ -29,7 +29,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 - Social/community/admin data (`social.ts`, `community.ts`, `admin.ts`, `barcode.ts`) talk to Supabase directly (tables + `security definer` RPCs like `get_community_recipes`, `lookup_bean_by_barcode`), not through `db.ts`.
 - Row types live in `src/types.ts` (`TableMap`, `Data`).
 
-**Navigation:** no router. `src/App.tsx` holds a `tab` state and a `go(tab, params)` helper; pages in `src/pages/` receive shared props. Initial tab can come from `?tab=` (PWA shortcuts); `?invite=CODE` and `?recovery=1` drive registration / password reset.
+**Navigation:** React Router (data mode: `createBrowserRouter` in `src/App.tsx`, no loaders — data stays in TanStack Query). Routes `/`, `/<tab>`, `/users/:userId`; `Layout` holds auth gates + app shell and passes shared page props via `<Outlet context>`. Pages navigate through `go(tab, params)` (wraps `navigate`); brew presets travel in history state. Old `?tab=` links redirect to `/<tab>`; `?invite=CODE` and `?recovery=1` drive registration / password reset.
 
 **Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
 

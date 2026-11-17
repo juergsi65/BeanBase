@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useLocation, useNavigate, useOutletContext, useParams } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { useStore } from '@tanstack/react-store'
 import { useAuth } from './lib/useAuth'
 import { useData } from './lib/useData'
@@ -12,7 +14,8 @@ import { useTheme } from './lib/theme'
 import { Bean, House, MessageSquare, Moon, Plus, ScrollText, SlidersHorizontal, Sun, User, Users, Wrench, X, type LucideIcon } from 'lucide-react'
 import Logo from './components/Logo'
 import Avatar from './components/Avatar'
-import type { BrewPreset, Go, Tab } from './types'
+import { Empty } from './components/ui'
+import type { BrewPreset, Go, PageProps, Tab } from './types'
 
 // Start-Seite sofort, alle anderen Seiten erst beim ersten Öffnen laden (kleinerer Start-Chunk)
 const AuthPage = lazy(() => import('./pages/AuthPage'))
@@ -72,18 +75,68 @@ function Toaster() {
   )
 }
 
+// URL ↔ Tab: '/' = dashboard, '/users/:userId' = user, sonst '/<tab>'
+const tabFromPath = (pathname: string): Tab => {
+  const seg = pathname.split('/')[1]
+  return seg === '' ? 'dashboard' : seg === 'users' ? 'user' : (seg as Tab)
+}
+
+// Seite zur Route; Bezug-Vorlage kommt aus dem History-State, Nutzer-ID aus der URL
+function Page({ tab }: { tab: Tab }) {
+  const props = useOutletContext<PageProps>()
+  const state = useLocation().state as (BrewPreset & { from?: Tab }) | null
+  const { userId = null } = useParams()
+  switch (tab) {
+    case 'dashboard': return <Dashboard {...props} />
+    case 'brew': return <BrewPage {...props} preset={state} key={state?.key ?? 'new'} />
+    case 'dialin': return <DialInPage {...props} preset={state} />
+    case 'history': return <HistoryPage {...props} />
+    case 'beans': return <BeansPage {...props} />
+    case 'equipment': return <EquipmentPage {...props} />
+    case 'community': return <CommunityPage {...props} />
+    case 'profile': return <ProfilePage {...props} />
+    case 'user': return <UserPage {...props} userId={userId} key={userId} />
+    case 'feedback': {
+      const from = state?.from ?? 'dashboard'
+      return <FeedbackPage {...props} fromTab={from === 'user' ? 'community' : from} />
+    }
+    case 'admin': return <AdminPage {...props} />
+  }
+}
+
+function NotFound() {
+  const { go } = useOutletContext<PageProps>()
+  return (
+    <Empty action={<button className="btn btn-primary" onClick={() => go('dashboard')}>Zur Startseite</button>}>
+      Diese Seite gibt es nicht (mehr).
+    </Empty>
+  )
+}
+
+const PAGE_TABS =['brew', 'dialin', 'history', 'beans', 'equipment', 'community', 'profile', 'feedback', 'admin'] as const
+const router = createBrowserRouter([
+  {
+    element: <Layout />,
+    children: [
+      { index: true, element: <Page tab="dashboard" /> },
+      ...PAGE_TABS.map((t) => ({ path: t, element: <Page tab={t} /> })),
+      { path: 'users/:userId', element: <Page tab="user" /> },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
+])
+
 export default function App() {
+  return <RouterProvider router={router} />
+}
+
+function Layout() {
   const { user, recovery, endRecovery } = useAuth()
   const theme = useTheme()
   const data = useData(user)
-  // Start-Tab aus dem PWA-Shortcut (?tab=brew)
-  const [tab, setTab] = useState<Tab>(() => {
-    const t = new URLSearchParams(window.location.search).get('tab')
-    return isStartTab(t) ? t : 'dashboard'
-  })
-  const [brewPreset, setBrewPreset] = useState<BrewPreset | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [prevTab, setPrevTab] = useState<Tab>('dashboard')
+  const navigate = useNavigate()
+  const { pathname, search } = useLocation()
+  const tab = tabFromPath(pathname)
   // eigenes Profil (Rolle, Sperre)
   const { data: me = null } = useQuery({ queryKey: ['me', user?.id], queryFn: getMyProfile, enabled: !!user && !isLocalMode })
   const [demoHint, setDemoHint] = useLocalStorage<boolean>('beanbase:demo-hint', true)
@@ -92,12 +145,15 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement
       if (e.key !== 'n' || e.ctrlKey || e.metaKey || e.altKey || el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
-      setBrewPreset(null)
-      setTab('brew')
+      void navigate('/brew')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [navigate])
+
+  // Alte PWA-Shortcuts (?tab=brew) auf die echte Route umleiten
+  const startTab = new URLSearchParams(search).get('tab')
+  if (isStartTab(startTab)) return <Navigate to={`/${startTab}`} replace />
 
   if (user === undefined) return <div className="splash gap-3"><span className="loading loading-dots loading-lg text-primary" /> BeanBase lädt …</div>
   if (!user) return <Suspense fallback={pageLoading}><AuthPage /></Suspense>
@@ -105,14 +161,11 @@ export default function App() {
 
   // go('brew', { key, brew }) · go('user', { userId }) · go('<tab>')
   const go: Go = (t: Tab, preset: BrewPreset | { userId: string } | null = null) => {
-    if (t === 'user') setUserId(preset && 'userId' in preset ? preset.userId : null)
-    else setBrewPreset(preset && !('userId' in preset) ? preset : null)
-    if (t === 'feedback') setPrevTab(tab)
-    setTab(t)
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    if (t === 'user') void navigate(preset && 'userId' in preset ? `/users/${preset.userId}` : '/community')
+    else void navigate(t === 'dashboard' ? '/' : `/${t}`, { state: t === 'feedback' ? { from: tab } : preset })
   }
 
-  const props = { data, go, me, theme }
+  const props: PageProps = { data, go, me, theme }
   const activeTab = TAB_GROUP[tab] ?? tab
   const beta = !isLocalMode && <span className="num shrink-0 rounded-md border border-primary/45 px-1.5 py-px text-[10px] font-semibold tracking-widest text-accent-strong">BETA</span>
   // Desktop-Seitenleiste: Zähler neben den Tabs, Konto-Links darunter
@@ -184,21 +237,12 @@ export default function App() {
 
       <main className={`content page-${tab}`} key={tab}>
         <Suspense fallback={pageLoading}>
-        {tab === 'dashboard' && <Dashboard {...props} />}
-        {tab === 'brew' && <BrewPage {...props} preset={brewPreset} key={brewPreset?.key ?? 'new'} />}
-        {tab === 'dialin' && <DialInPage {...props} preset={brewPreset} />}
-        {tab === 'history' && <HistoryPage {...props} />}
-        {tab === 'beans' && <BeansPage {...props} />}
-        {tab === 'equipment' && <EquipmentPage {...props} />}
-        {tab === 'community' && <CommunityPage {...props} />}
-        {tab === 'profile' && <ProfilePage {...props} />}
-        {tab === 'user' && <UserPage {...props} userId={userId} key={userId} />}
-        {tab === 'feedback' && <FeedbackPage {...props} fromTab={prevTab === 'user' ? 'community' : prevTab} />}
-        {tab === 'admin' && <AdminPage {...props} />}
+          <Outlet context={props} />
         </Suspense>
       </main>
 
       <Toaster />
+      <ScrollRestoration />
 
       {/* Mobil/Tablet: untere Leiste mit zentralem Bezug-Knopf */}
       <nav className="dock dock-lg z-10 max-w-[640px] min-[700px]:max-w-[760px] mx-auto bg-base-100 border-t border-base-300 min-[700px]:border-x min-[700px]:rounded-t-[18px] desk:hidden">
