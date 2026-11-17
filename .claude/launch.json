@@ -4,8 +4,8 @@
     {
       "name": "beanbase-dev",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--port", "5173", "--strictPort"],
-      "port": 5173
+      "runtimeArgs": ["vite", "--port", "5180", "--strictPort"],
+      "port": 5180
     }
   ]
 }
