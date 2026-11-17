@@ -194,10 +194,6 @@
 
 
   /* Rezept ----------------------------------------------------------------- */
-  .recipe-grind {
-    display: flex; flex-direction: column; align-items: center; padding: 10px; border-radius: 12px;
-    background: var(--bg); border: 1px solid var(--line);
-  }
   .age {
     display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
     min-width: 56px; padding: 6px 10px; border-radius: 12px; line-height: 1;

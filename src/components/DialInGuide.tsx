@@ -41,7 +41,7 @@ export function CorrectionHint({
   targetTime?: Plan['time']
   onNote?: (text: string) => void
 }) {
-  if (form.extraction == null) return <p className="text-muted text-sm">Nach dem Probieren den Extraktions-Regler einstellen – hier erscheint dann die Korrektur für den nächsten Versuch.</p>
+  if (form.extraction == null) return <p className="text-muted text-sm">Nach dem Probieren den Geschmack wählen – hier erscheint dann die Korrektur für den nächsten Versuch.</p>
   const c = correction({
     extraction: form.extraction,
     grind: form.grind_setting,

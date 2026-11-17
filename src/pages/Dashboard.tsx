@@ -1,9 +1,26 @@
 import { useMemo, useState } from 'react'
-import { RecipeCard, Empty, Chip, Stars, Stat, FreshnessScale, useLookup, pressable } from '../components/ui'
+import { RefreshCw } from 'lucide-react'
+import { RecipeCard, Empty, Chip, Stat, FreshnessScale, useLookup, pressable } from '../components/ui'
 import { daysSince, freshness, recipesForBean, ROAST_LEVELS, fmtRatio, ratio, fmtDate, plural } from '../lib/coffee'
 import { beanUsage, spending, fmtMoney } from '../lib/cost'
 import StockBar from '../components/StockBar'
 import type { Brew, PageProps } from '../types'
+
+/** Desktop-Überschrift aus dem Frische-Status (siehe freshness() in lib/coffee) */
+const HEADLINE: Partial<Record<string, string>> = { good: 'ist im Optimum.', info: 'ruht noch.', warn: 'lässt nach.', bad: 'ist über dem Zenit.' }
+const headline = (name: string, tone?: string) => (tone && HEADLINE[tone] ? `${name} ${HEADLINE[tone]}` : name)
+const todayLabel = () => new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
+
+/** Bezüge pro Kalendertag der letzten `days` Tage, ältester zuerst, heute zuletzt */
+function brewsPerDay(brews: Brew[], days: number) {
+  const today = new Date().setHours(0, 0, 0, 0)
+  const counts: number[] = Array(days).fill(0)
+  for (const b of brews) {
+    const ago = Math.round((today - new Date(b.created_at).setHours(0, 0, 0, 0)) / 864e5)
+    if (ago >= 0 && ago < days) counts[days - 1 - ago]++
+  }
+  return counts
+}
 
 export default function Dashboard({ data, go }: PageProps) {
   const lookup = useLookup(data)
@@ -37,6 +54,14 @@ export default function Dashboard({ data, go }: PageProps) {
 
   return (
     <div className="flex flex-col gap-4 desk:grid desk:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)] desk:items-start desk:gap-7">
+     {/* Desktop: Seitenkopf mit Datum und Frische-Status der gewählten Bohne */}
+     <header className="hidden desk:col-span-2 desk:flex flex-wrap items-end gap-4">
+       <div className="min-w-65 flex-1">
+         <span className="lbl">{todayLabel()}</span>
+         <h2 className="mt-1.5 text-[34px] tracking-[-0.025em]">{selected ? headline(selected.name, fresh?.tone) : 'Willkommen zurück'}</h2>
+       </div>
+       <button className="btn btn-primary h-11 rounded-[12px] px-4.5" onClick={() => go('brew')}>Bezug starten</button>
+     </header>
      <div className="flex flex-col gap-4">
       <section>
         <h3 className="lbl">Aktive Bohnen</h3>
@@ -94,13 +119,22 @@ export default function Dashboard({ data, go }: PageProps) {
             )
           })()}
           {count ? (
-            <>
-              <RecipeCard title="Letzter Bezug" brew={last} lookup={lookup} onReuse={reuse} />
-              {best && best.id !== last?.id && (
-                <RecipeCard title="Bestbewertet" brew={best} lookup={lookup} onReuse={reuse} />
-              )}
-              <p className="text-muted text-sm">{plural(count, 'Bezug', 'Bezüge')} mit dieser Bohne</p>
-            </>
+            <div className="flex flex-col gap-3 border-t border-base-300 pt-3.5">
+              <RecipeCard title="Letzter Bezug" brew={last} lookup={lookup} />
+              <div className="flex flex-wrap items-center gap-2">
+                {last && (
+                  <button className="btn btn-primary h-12.5 grow gap-2 rounded-[13px] desk:grow-0" onClick={() => reuse(last)}>
+                    <RefreshCw size={18} strokeWidth={2} aria-hidden /> Rezept übernehmen
+                  </button>
+                )}
+                {best && best.id !== last?.id && (
+                  <button className="btn h-12.5 rounded-[13px] border-(--line-strong) bg-transparent font-medium" onClick={() => reuse(best)}>
+                    Bestes{best.rating ? ` (${best.rating})` : ''}
+                  </button>
+                )}
+                <span className="basis-full text-sm text-muted desk:ml-auto desk:basis-auto">{plural(count, 'Bezug', 'Bezüge')} mit dieser Bohne</span>
+              </div>
+            </div>
           ) : (
             <Empty
               action={
@@ -120,6 +154,8 @@ export default function Dashboard({ data, go }: PageProps) {
       {(() => {
         const sp = spending(data.brews, data.bean_stock, 30)
         if (!sp.count) return null
+        const perDay = brewsPerDay(data.brews, 30)
+        const max = Math.max(...perDay)
         return (
           <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
             <h3 className="lbl">Letzte 30 Tage</h3>
@@ -127,6 +163,15 @@ export default function Dashboard({ data, go }: PageProps) {
               <Stat className="bg-base-200" label="Bezüge" value={sp.count} />
               <Stat className="bg-base-200" label="Kaffee-Kosten" value={sp.priced ? fmtMoney(sp.total, sp.currency) : '–'} />
               <Stat className="bg-base-200" label="Ø pro Tasse" value={sp.perCup != null ? fmtMoney(sp.perCup, sp.currency) : '–'} />
+            </div>
+            <div className="flex h-11 items-end gap-[3px]" aria-hidden>
+              {perDay.map((c, i) => (
+                <span
+                  key={i}
+                  className={`flex-1 rounded-[2px] ${i === 29 ? 'bg-primary' : c ? 'bg-base-content/25' : 'bg-base-300'}`}
+                  style={{ height: c ? `${Math.max(20, (c / max) * 100)}%` : 3 }}
+                />
+              ))}
             </div>
             {sp.priced < sp.count && (
               <p className="text-muted text-sm">
@@ -149,7 +194,7 @@ export default function Dashboard({ data, go }: PageProps) {
                     {fmtDate(b.created_at)} · {b.dose ?? '–'}→{b.yield ?? '–'} g · {fmtRatio(ratio(b.dose, b.yield))} · {b.brew_time ?? '–'} s
                   </span>
                 </div>
-                <Stars value={b.rating} size="sm" />
+                {b.rating != null && <span className="num shrink-0 font-semibold text-accent-strong">{b.rating.toFixed(1)}</span>}
               </li>
             ))}
           </ul>

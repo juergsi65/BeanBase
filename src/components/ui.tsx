@@ -31,6 +31,8 @@ export function NumberInput({
   unit,
   decimals = 0,
   placeholder,
+  compact,
+  label,
 }: {
   value: NumValue
   onChange: (v: number | '') => void
@@ -40,6 +42,10 @@ export function NumberInput({
   unit?: string
   decimals?: number
   placeholder?: string
+  /** Kachel-Variante (Rezept): kleine Knöpfe, Wert ohne Feldrahmen */
+  compact?: boolean
+  /** Name für Screenreader (Knöpfe „… verringern/erhöhen“) */
+  label?: string
 }) {
   const num = value === '' || value == null ? null : Number(value)
   const bump = (dir: number) => {
@@ -47,6 +53,33 @@ export function NumberInput({
     if (min != null) next = Math.max(min, next)
     if (max != null) next = Math.min(max, next)
     onChange(Number(next.toFixed(decimals)))
+  }
+  const change = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))
+  if (compact) {
+    const btn = 'btn btn-square size-11 min-h-0 shrink-0 rounded-[11px] border-(--line-strong) bg-base-100 px-0'
+    return (
+      <div className="flex items-center justify-between gap-1">
+        <button type="button" className={btn} onClick={() => bump(-1)} aria-label={label ? `${label} verringern` : 'weniger'}>
+          <Minus size={18} aria-hidden />
+        </button>
+        <span className="flex min-w-0 items-baseline justify-center gap-1">
+          <input
+            type="number"
+            className="num-input num w-[4.5ch] min-w-0 bg-transparent text-right text-2xl font-semibold outline-none"
+            inputMode={decimals ? 'decimal' : 'numeric'}
+            step={step}
+            value={value ?? ''}
+            placeholder={placeholder}
+            onChange={change}
+            aria-label={label}
+          />
+          {unit && <span className="text-xs text-muted">{unit}</span>}
+        </span>
+        <button type="button" className={btn} onClick={() => bump(1)} aria-label={label ? `${label} erhöhen` : 'mehr'}>
+          <Plus size={18} aria-hidden />
+        </button>
+      </div>
+    )
   }
   return (
     <div className="join num w-full">
@@ -61,7 +94,7 @@ export function NumberInput({
           step={step}
           value={value ?? ''}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))}
+          onChange={change}
         />
         {unit && <span className="text-xs text-muted">{unit}</span>}
       </label>
@@ -92,7 +125,7 @@ export function Stars({
       </div>
     )
   return (
-    <div className={`rating justify-center w-full ${size === 'lg' ? 'rating-xl gap-1' : 'rating-sm'}`}>
+    <div className={`rating ${size === 'lg' ? 'rating-lg gap-1.5' : 'rating-sm'}`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <input
           key={n}
@@ -109,40 +142,36 @@ export function Stars({
   )
 }
 
-/** null = noch nicht bewertet (Daumen bleibt blass, bis der Regler berührt wird) */
-export function ExtractionSlider({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
-  const unset = value == null
-  const v = value ?? 0
-  const tone = unset ? 'text-muted font-normal' : v < 0 ? 'text-(--sour)' : v > 0 ? 'text-accent-strong' : 'text-success'
+/** Geschmack in 5 Stufen. Werte −3/−1/0/1/3 passen zu extractionLabel() und adjustGrind() (ab |3| zwei Stufen Korrektur) */
+const TASTES = [
+  { v: -3, label: 'Sauer', dot: 'bg-(--sour)' },
+  { v: -1, label: 'Säuerl.', dot: 'bg-(--sour)' },
+  { v: 0, label: 'Balance', dot: 'bg-success' },
+  { v: 1, label: 'Herb', dot: 'bg-(--bitter)' },
+  { v: 3, label: 'Bitter', dot: 'bg-(--bitter)' },
+]
+/** Ältere Bezüge haben Werte −5…5: auf die nächste Stufe abbilden */
+const tasteIndex = (v: number | null | undefined) => (v == null ? -1 : v <= -3 ? 0 : v < 0 ? 1 : v === 0 ? 2 : v < 3 ? 3 : 4)
+
+/** null = noch nicht bewertet; erneutes Tippen auf die gewählte Stufe hebt die Auswahl auf */
+export function TasteSegments({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
+  const name = useId()
+  const on = tasteIndex(value)
   return (
-    <div>
-      <input
-        type="range"
-        className={`range range-lg w-full rounded-full text-base-content [--range-bg:transparent] [--range-fill:0] bg-[linear-gradient(90deg,var(--sour),var(--color-success)_50%,var(--bitter))] ${unset ? '[&::-webkit-slider-thumb]:opacity-40 [&::-moz-range-thumb]:opacity-40' : ''}`}
-        min={-5}
-        max={5}
-        step={1}
-        value={v}
-        onChange={(e) => onChange(Number(e.target.value))}
-        // Tippen auf die Mitte löst kein change aus → als "ausgewogen" werten
-        onPointerUp={() => unset && onChange(0)}
-        aria-label="Extraktion"
-        aria-valuetext={unset ? 'Nicht bewertet' : extractionLabel(v)}
-      />
-      <div className="flex justify-between text-xs text-muted mt-1.5">
-        <span>Sauer</span>
-        <span>Ausgewogen</span>
-        <span>Bitter</span>
-      </div>
-      <div className={`flex items-center justify-center gap-2 font-bold mt-1 ${tone}`}>
-        {unset ? 'Nicht bewertet' : extractionLabel(v)}
-        {!unset && (
-          <button type="button" className="btn btn-ghost btn-xs font-normal text-muted" onClick={() => onChange(null)}>
-            Zurücksetzen
-          </button>
-        )}
-      </div>
-    </div>
+    <fieldset className="grid grid-cols-5 gap-1 rounded-[14px] border border-base-300 bg-page p-1">
+      <legend className="sr-only">Extraktion</legend>
+      {TASTES.map((t, i) => (
+        <label
+          key={t.v}
+          title={extractionLabel(t.v)}
+          className={`flex h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] text-xs font-semibold has-focus-visible:outline-2 has-focus-visible:outline-primary ${i === on ? 'bg-base-300 text-base-content' : 'text-muted'}`}
+        >
+          <input type="radio" name={name} className="sr-only" checked={i === on} onChange={() => {}} onClick={() => onChange(i === on ? null : t.v)} />
+          <span className={`size-2 rounded-full ${t.dot}`} aria-hidden />
+          {t.label}
+        </label>
+      ))}
+    </fieldset>
   )
 }
 
@@ -453,57 +482,53 @@ export type RecipeBrew = Pick<
   | 'temperature' | 'preinfusion' | 'created_at' | 'extraction' | 'notes'
 >
 
-export function RecipeCard<B extends RecipeBrew>({
-  title,
-  brew,
-  lookup,
-  onReuse,
-}: {
-  title: ReactNode
-  brew: B | null | undefined
-  lookup: Lookup
-  onReuse?: (brew: B) => void
-}) {
+/** Ein Messwert im Readout-Raster (Haarlinien zwischen den Zellen kommen vom Grid-Hintergrund) */
+function Readout({ label, value, unit, big, className = '' }: { label: string; value: ReactNode; unit?: string; big?: boolean; className?: string }) {
+  const empty = value == null || value === ''
+  return (
+    <div className="min-w-0 bg-page px-2.5 py-2.5">
+      <div className="lbl truncate">{label}</div>
+      <div className={`num mt-0.5 ${big ? 'text-[19px] font-semibold' : 'text-base font-medium'} ${className}`}>
+        {empty ? '–' : value}
+        {!empty && unit && <span className="text-xs font-normal text-muted"> {unit}</span>}
+      </div>
+    </div>
+  )
+}
+
+/** Extraktion als Abweichung: ±0 = ausgewogen, minus = sauer, plus = bitter */
+const fmtExtraction = (v: number | null) => (v == null ? null : v === 0 ? '±0' : v > 0 ? `+${v}` : `−${-v}`)
+const extractionTone = (v: number | null) => (v == null ? '' : v === 0 ? 'text-success' : v < 0 ? 'text-warning' : 'text-(--bitter)')
+
+/** Rezept eines Bezugs als kompaktes Readout (Design „Espresso-Instrument“) */
+export function RecipeCard<B extends RecipeBrew>({ title, brew, lookup }: { title: ReactNode; brew: B | null | undefined; lookup: Lookup }) {
   if (!brew) return null
   const r = ratio(brew.dose, brew.yield)
-  const grinder = lookup.grinders(brew.grinder_id)
-  const machine = lookup.machines(brew.machine_id)
+  const setup = [lookup.machines(brew.machine_id)?.name, lookup.grinders(brew.grinder_id)?.name].filter(Boolean).join(' · ')
   const hint = dialInHint(brew)
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-base-200 p-3.5">
-      <div className="flex items-center justify-between">
-        <span className="lbl">{title}</span>
-        {brew.rating && <Stars value={brew.rating} size="sm" />}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="lbl">{title} · {fmtDate(brew.created_at)}</span>
+        {brew.rating ? <Stars value={brew.rating} size="sm" /> : null}
       </div>
-      <div className="recipe-grind">
-        <span className="lbl">Mahlgrad</span>
-        <span className="num text-[2.6rem] font-semibold leading-tight text-accent-strong">{brew.grind_setting || '–'}</span>
-        {grinder && <span className="text-xs text-muted">{grinder.name}</span>}
+      <div className="grid grid-cols-4 gap-px overflow-hidden rounded-[12px] border border-base-300 bg-base-300">
+        <Readout big label="Dosis" value={brew.dose} unit="g" />
+        <Readout big label="Output" value={brew.yield} unit="g" />
+        <Readout big label="Ratio" value={r ? fmtRatio(r) : null} className="text-accent-strong" />
+        <Readout big label="Zeit" value={brew.brew_time} unit="s" />
+        <Readout label="Mahlgrad" value={brew.grind_setting} />
+        <Readout label="Temp." value={brew.temperature} unit="°C" />
+        <Readout label="Pre-Inf." value={brew.preinfusion} unit="s" />
+        <Readout label="Extr." value={fmtExtraction(brew.extraction)} className={extractionTone(brew.extraction)} />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="Dosis" value={brew.dose} unit="g" />
-        <Stat label="Output" value={brew.yield} unit="g" />
-        <Stat label="Ratio" value={fmtRatio(r)} />
-        <Stat label="Zeit" value={brew.brew_time} unit="s" />
-        <Stat label="Temp" value={brew.temperature} unit="°C" />
-        <Stat label="Pre-Inf." value={brew.preinfusion} unit="s" />
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted [overflow-wrap:anywhere]">
-        {machine && <span>{machine.name}</span>}
-        <span>{fmtDate(brew.created_at)}</span>
-        {brew.extraction != null && <span>{extractionLabel(brew.extraction)}</span>}
-      </div>
+      {setup && <p className="text-xs text-muted [overflow-wrap:anywhere]">{setup}</p>}
       {brew.notes && <p className="italic [overflow-wrap:anywhere]">„{brew.notes}“</p>}
       {hint && (
         <p className="flex gap-1.5 text-sm text-muted">
           <Lightbulb size={16} className="mt-0.5 shrink-0" aria-hidden />
           {hint}
         </p>
-      )}
-      {onReuse && (
-        <button className="btn btn-primary btn-block" onClick={() => onReuse(brew)}>
-          Mit diesen Werten neuen Bezug starten
-        </button>
       )}
     </div>
   )

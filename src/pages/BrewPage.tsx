@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, RatioRuler, useLookup } from '../components/ui'
+import { ChevronLeft } from 'lucide-react'
+import { Field, NumberInput, Stars, TasteSegments, Stopwatch, RecipeCard, RatioRuler, useLookup } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
 import { availableSources, buildPlan } from '../lib/dialin'
-import { ratio, fmtRatio, recipesForBean, SCALE_TYPES } from '../lib/coffee'
+import { ratio, fmtRatio, recipesForBean, SCALE_TYPES, daysSince, freshness, fmtDate } from '../lib/coffee'
 import { findMachinePreset } from '../data/presets'
 import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
@@ -15,7 +16,11 @@ import type { Source } from '../lib/dialin'
 import type { MediaChange } from '../components/MediaPicker'
 import type { NumValue } from '../components/ui'
 import type { Brew, BrewPreset, Machine, PageProps } from '../types'
-import css from './BrewPage.module.css'
+
+/** z. B. „Di., 17.11., 07:42“ */
+const nowLabel = () => new Date().toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+// Eigene Funktion, weil oxlints purity-Regel Date.now() im Submit-Handler fälschlich als Render-Aufruf meldet
+const freshKey = () => Date.now()
 
 export interface BrewForm {
   bean_id: string
@@ -164,7 +169,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       if (savedMedia?.url && (media.pending || media.removed)) deleteMedia(savedMedia.url).catch(() => {})
       toast(editing ? 'Bezug aktualisiert' : 'Bezug gespeichert')
       if (editing) go('history')
-      else if (row.extraction != null) go('dialin', { key: Date.now(), brew: row, target: plan?.time ?? null })
+      else if (row.extraction != null) go('dialin', { key: freshKey(), brew: row, target: plan?.time ?? null })
       else go('dashboard')
     } catch (err) {
       data.setError(errMsg(err))
@@ -173,30 +178,77 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
     }
   }
 
-  return (
-    <form className={`${css.form} flex flex-col gap-4 pb-21 desk:grid desk:gap-x-6 desk:pb-6`} onSubmit={save}>
-      <h2 className={css.title}>{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
+  const cancel = () => go(editing ? 'history' : 'dashboard')
+  const days = daysSince(bean?.roast_date)
+  const rowCls = 'flex min-h-13 min-w-0 items-center gap-3 bg-base-100 px-4 focus-within:bg-base-200'
+  const rowSelect = 'select grow min-w-0 border-0 bg-transparent px-0 shadow-none outline-none'
+  const tile = 'flex min-w-0 flex-col gap-1.5 rounded-[14px] bg-base-200 px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary'
+  const tileInput = 'num num-input w-full min-w-0 bg-transparent text-xl font-semibold outline-none'
+  const num = (k: 'temperature' | 'preinfusion') => (e: React.ChangeEvent<HTMLInputElement>) =>
+    set(k)(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))
 
-      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.bean}`}>
-        <Field label="Bohne">
-          <select
-            id="brew-bean"
-            className={`select w-full ${beanError ? 'select-error' : ''}`}
-            value={form.bean_id}
-            onChange={set('bean_id')}
-            onBlur={() => setBeanTouched(true)}
-            aria-invalid={beanError}
-            aria-describedby={beanError ? 'brew-bean-err' : undefined}
-          >
-            <option value="">Bohne wählen …</option>
-            {data.beans.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-                {b.roaster ? ` (${b.roaster})` : ''}
-                {b.active ? '' : ' · Archiv'}
-              </option>
-            ))}
-          </select>
+  // Handy: eine Spalte in Design-Reihenfolge (order-*). Desktop: links Bohne/Rezept/Tipp, rechts Stoppuhr/Bewertung
+  return (
+    <form className="flex flex-col gap-4 pb-21 desk:grid desk:grid-cols-2 desk:items-start desk:gap-6 desk:pb-6" onSubmit={save}>
+      <header className="flex items-center gap-2 desk:col-span-2">
+        <button type="button" className="btn btn-square size-11 rounded-[12px] border-base-300 bg-base-100 desk:hidden" onClick={cancel} aria-label="Zurück">
+          <ChevronLeft size={20} strokeWidth={1.75} aria-hidden />
+        </button>
+        <h2 className="text-xl desk:text-[34px] desk:tracking-[-0.025em]">{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
+        <span className="num ml-auto text-xs text-muted desk:hidden">{editing && src.created_at ? fmtDate(src.created_at) : nowLabel()}</span>
+        <button type="button" className="btn ml-auto hidden h-11 rounded-[12px] border-base-300 bg-base-100 font-normal desk:inline-flex" onClick={cancel}>
+          Abbrechen
+        </button>
+      </header>
+
+      <div className="contents desk:flex desk:flex-col desk:gap-4">
+        <section className="order-1 flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-[16px] border border-base-300 bg-base-300 desk:grid-cols-2">
+            <label className={`${rowCls} desk:col-span-2`}>
+              <span className="lbl w-18 shrink-0">Bohne</span>
+              <select
+                id="brew-bean"
+                className={`${rowSelect} font-semibold ${beanError ? 'text-error' : ''}`}
+                value={form.bean_id}
+                onChange={set('bean_id')}
+                onBlur={() => setBeanTouched(true)}
+                aria-invalid={beanError}
+                aria-describedby={beanError ? 'brew-bean-err' : undefined}
+              >
+                <option value="">Bohne wählen …</option>
+                {data.beans.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                    {b.roaster ? ` (${b.roaster})` : ''}
+                    {b.active ? '' : ' · Archiv'}
+                  </option>
+                ))}
+              </select>
+              {days != null && days >= 0 && <span className={`num shrink-0 text-xs ${freshness(days)?.tone === 'good' ? 'text-success' : 'text-warning'}`}>{days} T</span>}
+            </label>
+            <label className={rowCls}>
+              <span className="lbl w-18 shrink-0">Maschine</span>
+              <select className={rowSelect} value={form.machine_id} onChange={changeMachine}>
+                <option value="">—</option>
+                {data.machines.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={rowCls}>
+              <span className="lbl w-18 shrink-0">Mühle</span>
+              <select className={rowSelect} value={form.grinder_id} onChange={set('grinder_id')}>
+                <option value="">—</option>
+                {data.grinders.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           {beanError && (
             <span id="brew-bean-err" className="text-sm text-error">
               {data.beans.length ? 'Wähle die Bohne für diesen Bezug.' : 'Leg zuerst eine Bohne an.'}{' '}
@@ -207,140 +259,117 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
               )}
             </span>
           )}
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Maschine / Methode">
-            <select className="select w-full" value={form.machine_id} onChange={changeMachine}>
-              <option value="">—</option>
-              {data.machines.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Mühle">
-            <select className="select w-full" value={form.grinder_id} onChange={set('grinder_id')}>
-              <option value="">—</option>
-              {data.grinders.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        {!editing && bean && (
-          <CommunityTip
-            roaster={bean.roaster}
-            name={bean.name}
-            grinder={grinder}
-            machineType={machine?.type}
-            onApply={applyValues}
-            onData={setCommunity}
-            machine={machine}
-          />
-        )}
-        {!editing && prev.last && (
-          <details className="collapse collapse-arrow rounded-none">
-            <summary className="collapse-title min-h-0 py-1 pl-0 pr-8 text-sm text-muted after:top-3! [&_strong]:text-accent-strong">
-              Letzter Bezug dieser Bohne: Mahlgrad <strong>{prev.last.grind_setting || '–'}</strong> · {prev.last.dose ?? '–'}g →{' '}
-              {prev.last.yield ?? '–'}g · {prev.last.brew_time ?? '–'}s
-            </summary>
-            <div className="collapse-content px-0 pt-2.5">
-              <RecipeCard title="Letzter Bezug" brew={prev.last} lookup={lookup} />
+          {!editing && prev.last && (
+            <details className="collapse collapse-arrow rounded-none">
+              <summary className="collapse-title min-h-0 py-1 pl-0 pr-8 text-sm text-muted after:top-3! [&_strong]:text-accent-strong">
+                Letzter Bezug dieser Bohne: Mahlgrad <strong>{prev.last.grind_setting || '–'}</strong> · {prev.last.dose ?? '–'}g →{' '}
+                {prev.last.yield ?? '–'}g · {prev.last.brew_time ?? '–'}s
+              </summary>
+              <div className="collapse-content px-0 pt-2.5">
+                <RecipeCard title="Letzter Bezug" brew={prev.last} lookup={lookup} />
+              </div>
+            </details>
+          )}
+        </section>
+
+        <section className="order-4 card gap-4 border border-base-300 bg-base-100 p-4 desk:p-5">
+          <h3 className="lbl">Rezept</h3>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className={tile}>
+              <span className="lbl">Dosis · Mehl</span>
+              <NumberInput compact label="Dosis" value={form.dose} onChange={set('dose')} step={0.1} decimals={1} min={0} unit="g" />
             </div>
-          </details>
+            <div className={tile}>
+              <span className="lbl">Output · Getränk</span>
+              <NumberInput compact label="Output" value={form.yield} onChange={set('yield')} step={0.5} decimals={1} min={0} unit="g" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-baseline justify-between">
+              <span className="lbl">Verhältnis</span>
+              <strong className="num text-[1.4rem] font-semibold text-accent-strong">{fmtRatio(r)}</strong>
+            </div>
+            <RatioRuler value={r} />
+            {cost && (
+              <span className="num block text-xs text-muted">
+                ≈ {fmtMoney(cost.value, cost.currency)}
+                {usage && ` · Rest danach ${fmtGrams(Math.max(0, usage.remaining - (editing ? 0 : Number(form.dose) || 0)))}`}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <label className={tile}>
+              <span className="lbl truncate">Mahlgrad</span>
+              <input className={tileInput} inputMode={grinder?.scale_type === 'stepless' ? 'text' : 'decimal'} value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="–" />
+            </label>
+            <label className={tile}>
+              <span className="lbl truncate">Temp. °C</span>
+              <input className={tileInput} type="number" inputMode="decimal" step={0.5} min={0} max={100} value={form.temperature ?? ''} onChange={num('temperature')} placeholder="–" />
+            </label>
+            <label className={tile}>
+              <span className="lbl truncate">Pre-Inf. s</span>
+              <input className={tileInput} type="number" inputMode="numeric" min={0} value={form.preinfusion ?? ''} onChange={num('preinfusion')} placeholder="–" />
+            </label>
+          </div>
+          {grinder && <p className="-mt-2 text-xs text-muted">{grinder.name} · {SCALE_TYPES[grinder.scale_type] ?? ''}</p>}
+        </section>
+
+        {!editing && bean && (
+          <div className="order-5">
+            <CommunityTip
+              roaster={bean.roaster}
+              name={bean.name}
+              grinder={grinder}
+              machineType={machine?.type}
+              onApply={applyValues}
+              onData={setCommunity}
+              machine={machine}
+            />
+          </div>
         )}
-      </section>
+      </div>
+
+      <div className="contents desk:flex desk:flex-col desk:gap-4">
+        <section className="order-3 card gap-3.5 border border-base-300 bg-base-100 p-4 desk:p-5" aria-label="Stoppuhr">
+          <Stopwatch onStop={set('brew_time')} target={plan?.time ?? undefined} />
+          <Field label="Brühzeit">
+            <NumberInput value={form.brew_time} onChange={set('brew_time')} step={1} min={0} unit="s" placeholder="–" />
+          </Field>
+        </section>
+
+        <section className="order-6 card gap-3.5 border border-base-300 bg-base-100 p-4 desk:p-5">
+          <h3 className="lbl">Geschmack &amp; Bewertung</h3>
+          <TasteSegments value={form.extraction} onChange={set('extraction')} />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-muted">Bewertung</span>
+            <Stars value={form.rating} onChange={set('rating')} />
+          </div>
+          <CorrectionHint form={form} grinder={grinder} machine={machine} targetTime={plan?.time} onNote={addNote} />
+          <Field label="Notiz für den nächsten Versuch">
+            <textarea className="textarea w-full" rows={2} value={form.notes} onChange={set('notes')} placeholder="z. B. Crema heller, leicht nussig" />
+          </Field>
+          <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
+        </section>
+      </div>
 
       {!editing && plan && (
-        <DialInGuide
-          key={form.bean_id}
-          plan={plan}
-          sources={sources}
-          source={source}
-          onSource={setGuideSource}
-          form={form}
-          grinder={grinder}
-          machine={machine}
-          onApply={applyValues}
-        />
+        <div className="order-2 desk:order-none desk:col-span-2 desk:row-start-2">
+          <DialInGuide
+            key={form.bean_id}
+            plan={plan}
+            sources={sources}
+            source={source}
+            onSource={setGuideSource}
+            form={form}
+            grinder={grinder}
+            machine={machine}
+            onApply={applyValues}
+          />
+        </div>
       )}
 
-      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.recipe}`}>
-        <h3 className="lbl">Rezept</h3>
-        <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
-          <Field label="Dosis (Mehl)">
-            <NumberInput value={form.dose} onChange={set('dose')} step={0.1} decimals={1} min={0} unit="g" />
-          </Field>
-          <Field label="Output (Getränk)">
-            <NumberInput value={form.yield} onChange={set('yield')} step={0.5} decimals={1} min={0} unit="g" />
-          </Field>
-        </div>
-        <div className="flex flex-col gap-2 rounded-xl border border-base-300 bg-base-200 px-3.5 pt-3 pb-2.5">
-          <div className="flex items-baseline justify-between">
-            <span className="lbl">Verhältnis</span>
-            <strong className="num text-[1.4rem] font-semibold text-accent-strong">{fmtRatio(r)}</strong>
-          </div>
-          <RatioRuler value={r} />
-          {cost && (
-            <span className="num block text-xs text-muted">
-              ≈ {fmtMoney(cost.value, cost.currency)}
-              {usage && ` · Rest danach ${fmtGrams(Math.max(0, usage.remaining - (editing ? 0 : Number(form.dose) || 0)))}`}
-            </span>
-          )}
-        </div>
-        <Field label="Mahlgrad" hint={grinder ? `${grinder.name} · ${SCALE_TYPES[grinder.scale_type] ?? ''}` : ''}>
-          {grinder?.scale_type === 'stepless' ? (
-            <input value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="z. B. 2.4 oder ‚zwischen 2 und 3‘" className="input w-full big-input" />
-          ) : (
-            <NumberInput
-              value={form.grind_setting === '' || form.grind_setting == null || isNaN(Number(form.grind_setting)) ? '' : Number(form.grind_setting)}
-              onChange={set('grind_setting')}
-              step={grinder?.scale_type === 'numbers' ? 0.5 : 1}
-              decimals={grinder?.scale_type === 'numbers' ? 1 : 0}
-              unit={grinder?.scale_type === 'clicks' ? 'Klicks' : ''}
-              placeholder="–"
-            />
-          )}
-        </Field>
-        <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
-          <Field label="Temperatur">
-            <NumberInput value={form.temperature} onChange={set('temperature')} step={0.5} decimals={1} min={0} max={100} unit="°C" />
-          </Field>
-          <Field label="Pre-Infusion">
-            <NumberInput value={form.preinfusion} onChange={set('preinfusion')} step={1} min={0} unit="s" placeholder="–" />
-          </Field>
-        </div>
-      </section>
-
-      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.timer}`}>
-        <h3 className="lbl">Durchlaufzeit</h3>
-        <Stopwatch onStop={set('brew_time')} target={plan?.time ?? undefined} />
-        <Field label="Brühzeit">
-          <NumberInput value={form.brew_time} onChange={set('brew_time')} step={1} min={0} unit="s" placeholder="–" />
-        </Field>
-      </section>
-
-      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.rating}`}>
-        <h3 className="lbl">Bewertung</h3>
-        <Stars value={form.rating} onChange={set('rating')} />
-        <Field label="Extraktion">
-          <ExtractionSlider value={form.extraction} onChange={set('extraction')} />
-        </Field>
-        <CorrectionHint form={form} grinder={grinder} machine={machine} targetTime={plan?.time} onNote={addNote} />
-        <Field label="Notiz für den nächsten Versuch">
-          <textarea className="textarea w-full" rows={3} value={form.notes} onChange={set('notes')} placeholder="z. B. Nächstes Mal 2 Klicks feiner mahlen" />
-        </Field>
-        <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
-      </section>
-
-      <div className={`sticky-actions ${css.actions}`}>
-        <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => go(editing ? 'history' : 'dashboard')}>
-          Abbrechen
-        </button>
-        <button className="btn btn-primary btn-lg grow desk:grow-0 desk:basis-80" disabled={saving}>
+      <div className="sticky-actions order-7 desk:order-none desk:col-span-2">
+        <button className="btn btn-primary btn-lg grow rounded-[14px] desk:grow-0 desk:basis-80" disabled={saving}>
           {saving ? 'Speichere …' : editing ? 'Änderungen speichern' : 'Bezug speichern'}
         </button>
       </div>
