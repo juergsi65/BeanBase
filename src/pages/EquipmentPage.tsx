@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, Empty, Chip, Segmented } from '../components/ui'
+import { Field, Empty, Chip, Segmented, ConfirmButton } from '../components/ui'
 import { MACHINE_TYPES, SCALE_TYPES } from '../lib/coffee'
 import { MACHINE_PRESETS, GRINDER_PRESETS, searchPresets } from '../data/presets'
 import MediaPicker from '../components/MediaPicker'
@@ -179,7 +179,7 @@ function EquipmentSection({
     }
   }
   const del = async (r: EquipRow) => {
-    if (confirm(`„${r.name}“ löschen?`)) await data.remove(table, r.id)
+    await data.remove(table, r.id)
   }
   const pick = (p: Preset) => setForm((f) => ({ ...f, name: p.name, type: typeOf(p), notes: p.notes ?? '', preset_id: p.id }))
 
@@ -259,9 +259,9 @@ function EquipmentSection({
                 >
                   ✎
                 </button>
-                <button className="btn btn-outline btn-error btn-sm" onClick={() => del(r)}>
+                <ConfirmButton question={`„${r.name}“ löschen?`} confirmLabel="Löschen" onConfirm={() => del(r)} ariaLabel={`${r.name} löschen`}>
                   ✕
-                </button>
+                </ConfirmButton>
               </div>
             </li>
           ))}

@@ -337,6 +337,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .content { animation: none !important; }
-  * { transition: none !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Klickbare Listenzeilen (role=button) brauchen einen sichtbaren Tastatur-Fokus */
+[role='button']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }

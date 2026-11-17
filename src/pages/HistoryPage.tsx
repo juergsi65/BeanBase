@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Stars, Stat, Empty, useLookup } from '../components/ui'
+import { Stars, Stat, Empty, useLookup, ConfirmButton, pressable } from '../components/ui'
 import { fmtDate, fmtRatio, ratio, extractionLabel, ROAST_LEVELS } from '../lib/coffee'
 import { brewCost, fmtMoney } from '../lib/cost'
 import { MediaView } from '../components/MediaPicker'
@@ -33,7 +33,6 @@ export default function HistoryPage({ data, go }: PageProps) {
   }, [data.brews, lookup, q, bean, roast, minRating])
 
   const del = async (id: string) => {
-    if (!confirm('Diesen Bezug wirklich löschen?')) return
     const b = data.brews.find((x) => x.id === id)
     await data.remove('brews', id)
     if (b?.media_url) deleteMedia(b.media_url).catch(() => {})
@@ -44,7 +43,7 @@ export default function HistoryPage({ data, go }: PageProps) {
     <div className="flex flex-col gap-4">
       <h2>Brew-Log</h2>
       <div className="flex flex-col gap-2">
-        <input className="input w-full" type="search" placeholder="Suchen (Bohne, Rösterei, Notiz …)" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input w-full" type="search" aria-label="Bezüge durchsuchen" placeholder="Suchen (Bohne, Rösterei, Notiz …)" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="grid grid-cols-2 min-[421px]:grid-cols-3 gap-2">
           <select className="select w-full" value={bean} onChange={(e) => setBean(e.target.value)}>
             <option value="">Alle Bohnen</option>
@@ -85,7 +84,7 @@ export default function HistoryPage({ data, go }: PageProps) {
             const cost = brewCost(b, data.bean_stock)
             return (
               <li key={b.id} className={`item col ${isOpen ? 'open' : ''}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2.5" onClick={() => setOpen(isOpen ? null : b.id)}>
+                <div className="flex flex-wrap items-center justify-between gap-2.5 cursor-pointer" {...pressable(() => setOpen(isOpen ? null : b.id), isOpen)}>
                   <div>
                     <strong>{bn?.name ?? 'Unbekannte Bohne'}</strong>
                     <span className="text-muted text-sm">
@@ -115,9 +114,13 @@ export default function HistoryPage({ data, go }: PageProps) {
                       <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => go('brew', { key: Date.now(), brew: b, editId: b.id })}>
                         Bearbeiten
                       </button>
-                      <button className="btn btn-outline btn-error btn-sm" onClick={() => del(b.id)}>
+                      <ConfirmButton
+                        question={`Bezug vom ${fmtDate(b.created_at)} (${bn?.name ?? 'Unbekannte Bohne'}) löschen? Das lässt sich nicht rückgängig machen.`}
+                        confirmLabel="Bezug löschen"
+                        onConfirm={() => del(b.id)}
+                      >
                         Löschen
-                      </button>
+                      </ConfirmButton>
                     </div>
                   </div>
                 )}

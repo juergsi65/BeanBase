@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { RecipeCard, Empty, Chip, Stars, Stat, useLookup } from '../components/ui'
+import { RecipeCard, Empty, Chip, Stars, Stat, useLookup, pressable } from '../components/ui'
 import { daysSince, freshness, recipesForBean, ROAST_LEVELS, fmtRatio, ratio, fmtDate, plural } from '../lib/coffee'
 import { beanUsage, spending, fmtMoney } from '../lib/cost'
 import StockBar from '../components/StockBar'
@@ -20,7 +20,7 @@ export default function Dashboard({ data, go }: PageProps) {
 
   const reuse = (brew: Brew) => go('brew', { key: Date.now(), brew })
 
-  if (data.loading) return <p className="text-muted">Lade Daten …</p>
+  if (data.loading) return <p className="flex items-center gap-2 text-muted"><span className="loading loading-dots loading-sm" /> Lade Daten …</p>
 
   if (!data.beans.length)
     return (
@@ -110,10 +110,6 @@ export default function Dashboard({ data, go }: PageProps) {
      </div>
 
      <aside className="dash-side flex flex-col gap-4">
-      <button className="btn btn-primary btn-lg btn-block desk:hidden" onClick={() => go('brew', { key: Date.now(), brew: last ?? { bean_id: selected?.id } })}>
-        + Neuer Bezug
-      </button>
-
       {(() => {
         const sp = spending(data.brews, data.bean_stock, 30)
         if (!sp.count) return null
@@ -139,7 +135,7 @@ export default function Dashboard({ data, go }: PageProps) {
           <h3 className="text-xs uppercase tracking-widest text-muted">Zuletzt</h3>
           <ul className="items">
             {data.brews.slice(0, 5).map((b) => (
-              <li key={b.id} className="item" onClick={() => go('history')}>
+              <li key={b.id} className="item cursor-pointer" {...pressable(() => go('history'))}>
                 <div>
                   <strong>{lookup.beans(b.bean_id)?.name ?? 'Unbekannte Bohne'}</strong>
                   <span className="text-muted text-sm">

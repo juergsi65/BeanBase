@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn } from '../components/ui'
+import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn, ConfirmButton, pressable } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { lookupBarcode } from '../lib/barcode'
@@ -45,6 +45,15 @@ export default function BeansPage({ data, go }: PageProps) {
   const [view, setView] = useState<View>('active')
   const [q, setQ] = useState('')
   const [roast, setRoast] = useState('')
+
+  // Archivieren/Reaktivieren mit Rückgängig im Toast (ein Fehltipp soll nichts kosten)
+  const toggleActive = async (b: Bean) => {
+    await data.update('beans', b.id, { active: !b.active })
+    toast(b.active ? `„${b.name}“ ins Archiv verschoben` : `„${b.name}“ wieder aktiv`, {
+      tone: 'info',
+      action: { label: 'Rückgängig', run: () => data.update('beans', b.id, { active: b.active }) },
+    })
+  }
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -93,7 +102,7 @@ export default function BeansPage({ data, go }: PageProps) {
       {scanning && <BarcodeScanner onResult={onScan} onClose={() => setScanning(false)} />}
       <Segmented options={{ active: 'In der Mühle', archived: 'Archiv', all: 'Alle' }} value={view} onChange={(v) => setView(v ?? 'all')} />
       <div className="grid grid-cols-2 gap-3">
-        <input className="input w-full" type="search" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input w-full" type="search" aria-label="Bohnen durchsuchen" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="select w-full" value={roast} onChange={(e) => setRoast(e.target.value)}>
           <option value="">Jeder Röstgrad</option>
           {Object.entries(ROAST_LEVELS).map(([k, v]) => (
@@ -114,11 +123,11 @@ export default function BeansPage({ data, go }: PageProps) {
             const { best, count } = recipesForBean(data.brews, b.id)
             return (
               <li key={b.id} className="item col">
-                <div className="flex flex-nowrap items-center justify-between gap-2.5" onClick={() => setEditing(b)}>
+                <div className="flex flex-nowrap items-center justify-between gap-2.5 cursor-pointer" {...pressable(() => setEditing(b))} aria-label={`${b.name} bearbeiten`}>
                   {b.image_url && <img className="thumb" src={b.image_url} alt="" loading="lazy" />}
                   <div className="grow">
                     <strong>{b.name}</strong>
-                    <span className="text-muted text-sm">{[b.roaster, b.origin, b.variety].filter(Boolean).join(' · ') || '—'}</span>
+                    {[b.roaster, b.origin, b.variety].some(Boolean) && <span className="text-muted text-sm">{[b.roaster, b.origin, b.variety].filter(Boolean).join(' · ')}</span>}
                   </div>
                   {days != null && (
                     <div className={`age sm ${fresh?.tone}`}>
@@ -138,7 +147,7 @@ export default function BeansPage({ data, go }: PageProps) {
                 </div>
                 {(() => {
                   const u = beanUsage(b.id, data.bean_stock, data.brews)
-                  return u ? <StockBar usage={u} compact onArchive={b.active && u.remaining <= 0 ? () => void data.update('beans', b.id, { active: false }) : undefined} /> : null
+                  return u ? <StockBar usage={u} compact onArchive={b.active && u.remaining <= 0 ? () => void toggleActive(b) : undefined} /> : null
                 })()}
                 <div className="flex flex-wrap items-center justify-between gap-2.5 text-sm">
                   <span className="text-muted">
@@ -146,7 +155,7 @@ export default function BeansPage({ data, go }: PageProps) {
                   </span>
                   {best && <Stars value={best.rating} size="sm" />}
                   <span className="grow" />
-                  <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => data.update('beans', b.id, { active: !b.active })}>
+                  <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => toggleActive(b)}>
                     {b.active ? 'Aufgebraucht' : 'Reaktivieren'}
                   </button>
                   {b.active && (
@@ -327,11 +336,9 @@ function BeanForm({
   }
   const del = async () => {
     if (!bean) return
-    if (confirm(`„${bean.name}“ löschen? Bezüge bleiben erhalten, verlieren aber die Zuordnung.`)) {
-      await data.remove('beans', bean.id)
-      deleteBeanImage(bean.image_url).catch(() => {})
-      onDone()
-    }
+    await data.remove('beans', bean.id)
+    deleteBeanImage(bean.image_url).catch(() => {})
+    onDone()
   }
 
   return (
@@ -525,9 +532,14 @@ function BeanForm({
         </label>
       </section>
       {bean && (
-        <button type="button" className="btn btn-outline btn-error btn-block" onClick={del}>
+        <ConfirmButton
+          className="btn btn-outline btn-error btn-block"
+          question={`„${bean.name}“ löschen? Bezüge bleiben erhalten, verlieren aber die Zuordnung zur Bohne.`}
+          confirmLabel="Bohne löschen"
+          onConfirm={del}
+        >
           🗑 Bohne löschen
-        </button>
+        </ConfirmButton>
       )}
       <div className="sticky-actions">
         <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={onDone}>

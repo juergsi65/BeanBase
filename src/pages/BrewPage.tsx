@@ -67,15 +67,17 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       brew_time: '',
       preinfusion: '',
       rating: null,
-      extraction: 0,
+      extraction: null,
       notes: '',
     }
     for (const f of FIELDS) if (src[f] != null && src[f] !== '') (base as unknown as Record<string, unknown>)[f] = src[f]
-    if (editing) Object.assign(base, { rating: src.rating ?? null, extraction: src.extraction ?? 0, notes: src.notes ?? '' })
+    if (editing) Object.assign(base, { rating: src.rating ?? null, extraction: src.extraction ?? null, notes: src.notes ?? '' })
     if (!editing) base.brew_time = '' // Zeit wird neu gemessen
     return base
   })
   const [saving, setSaving] = useState(false)
+  const [beanTouched, setBeanTouched] = useState(false)
+  const beanError = beanTouched && !form.bean_id
   const [media, setMedia] = useState<MediaChange>({ pending: null, removed: false })
   const savedMedia = editing && src.media_url ? { url: src.media_url, type: src.media_type } : null
   const [community, setCommunity] = useState<Community | null>(null)
@@ -128,6 +130,11 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.bean_id) {
+      setBeanTouched(true)
+      document.getElementById('brew-bean')?.focus()
+      return
+    }
     setSaving(true)
     const n = (v: unknown) => (v === '' || v == null ? null : Number(v))
     const row: Partial<Brew> = {
@@ -169,8 +176,16 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-bean">
         <Field label="Bohne">
-          <select className="select w-full" value={form.bean_id} onChange={set('bean_id')}>
-            <option value="">— keine —</option>
+          <select
+            id="brew-bean"
+            className={`select w-full ${beanError ? 'select-error' : ''}`}
+            value={form.bean_id}
+            onChange={set('bean_id')}
+            onBlur={() => setBeanTouched(true)}
+            aria-invalid={beanError}
+            aria-describedby={beanError ? 'brew-bean-err' : undefined}
+          >
+            <option value="">Bohne wählen …</option>
             {data.beans.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -179,6 +194,16 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
               </option>
             ))}
           </select>
+          {beanError && (
+            <span id="brew-bean-err" className="text-sm text-error">
+              {data.beans.length ? 'Wähle die Bohne für diesen Bezug.' : 'Leg zuerst eine Bohne an.'}{' '}
+              {!data.beans.length && (
+                <button type="button" className="link link-primary" onClick={() => go('beans')}>
+                  Bohne anlegen
+                </button>
+              )}
+            </span>
+          )}
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Maschine / Methode">
@@ -237,7 +262,6 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
           grinder={grinder}
           machine={machine}
           onApply={applyValues}
-          defaultOpen={!prev.count}
         />
       )}
 
@@ -294,7 +318,6 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-rating">
         <h3 className="text-xs uppercase tracking-widest text-muted">Bewertung</h3>
-        <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
         <Stars value={form.rating} onChange={set('rating')} />
         <Field label="Extraktion">
           <ExtractionSlider value={form.extraction} onChange={set('extraction')} />
@@ -303,6 +326,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         <Field label="Notiz für den nächsten Versuch">
           <textarea className="textarea w-full" rows={3} value={form.notes} onChange={set('notes')} placeholder="z. B. Nächstes Mal 2 Klicks feiner mahlen" />
         </Field>
+        <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
       </section>
 
       <div className="sticky-actions">

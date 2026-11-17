@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, Empty, Chip } from '../components/ui'
+import { Field, Empty, Chip, ConfirmButton } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { SocialUnavailable } from './CommunityPage'
 import { MACHINE_TYPES, SCALE_TYPES, plural } from '../lib/coffee'
@@ -266,10 +266,12 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         <button className="btn btn-ghost border-base-300 btn-block" onClick={() => supabase?.auth.signOut()}>
           Abmelden
         </button>
-        <button
+        <ConfirmButton
           className="btn btn-outline btn-error btn-block"
-          onClick={async () => {
-            if (prompt('Konto und ALLE Daten (Bohnen, Bezüge, Fotos-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen:') !== 'LÖSCHEN') return
+          question="Konto und alle Daten (Bohnen, Bezüge, Foto-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen."
+          confirmLabel="Konto endgültig löschen"
+          typeToConfirm="LÖSCHEN"
+          onConfirm={async () => {
             try {
               await deleteMyAccount()
               await supabase?.auth.signOut()
@@ -279,7 +281,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
           }}
         >
           Konto löschen
-        </button>
+        </ConfirmButton>
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
@@ -330,15 +332,14 @@ export default function ProfilePage({ data, go, me }: PageProps) {
           <ul className="items">
             {rel.friends.map(({ friendship, profile: p }) => (
               <PersonRow key={friendship.id} profile={p} onOpen={open}>
-                <button
-                  className="btn btn-outline btn-error btn-sm"
-                  onClick={act(async () => {
-                    if (confirm(`Freundschaft mit @${p.username} beenden?`)) await removeFriendship(friendship.id)
-                  })}
-                  aria-label="Freund entfernen"
+                <ConfirmButton
+                  question={`Freundschaft mit @${p.username} beenden?`}
+                  confirmLabel="Freundschaft beenden"
+                  onConfirm={act(() => removeFriendship(friendship.id))}
+                  ariaLabel={`Freundschaft mit @${p.username} beenden`}
                 >
                   ✕
-                </button>
+                </ConfirmButton>
               </PersonRow>
             ))}
           </ul>

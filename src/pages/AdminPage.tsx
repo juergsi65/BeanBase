@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
-import { Segmented, Empty, Field, Chip, statCls, statValueCls, statTitleCls } from '../components/ui'
+import { Segmented, Empty, Field, Chip, statCls, statValueCls, statTitleCls, ConfirmButton } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { MediaView } from '../components/MediaPicker'
 import { fmtDate, plural } from '../lib/coffee'
@@ -42,7 +42,7 @@ const act = (fn: () => Promise<unknown>, reload?: (() => Promise<unknown>) | nul
 }
 
 function Loading<T>({ state, children }: { state: LoadState<T>; children: (data: T) => ReactNode }) {
-  if (state.loading && !state.data) return <p className="text-muted">Lade …</p>
+  if (state.loading && !state.data) return <p className="flex items-center gap-2 text-muted"><span className="loading loading-dots loading-sm" /> Lade …</p>
   if (state.error) return <div className="alert alert-soft block alert-error">{state.error}</div>
   if (state.data === undefined) return null
   return <>{children(state.data)}</>
@@ -114,20 +114,14 @@ function Users({ me }: { me: MyProfile }) {
                       <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => adminSetBlocked(u.id, !u.blocked), reload, u.blocked ? 'Entsperrt' : 'Gesperrt')}>
                         {u.blocked ? '🔓 Entsperren' : '🔒 Sperren'}
                       </button>
-                      <button
-                        className="btn btn-outline btn-error btn-sm"
-                        onClick={act(
-                          async () => {
-                            if (prompt(`Konto @${u.username} mit allen Daten endgültig löschen? Zum Bestätigen den Username eintippen:`) === u.username)
-                              await adminDeleteUser(u.id)
-                            else throw new Error('Abgebrochen')
-                          },
-                          reload,
-                          'Konto gelöscht',
-                        )}
+                      <ConfirmButton
+                        question={`Konto @${u.username} mit allen Daten endgültig löschen? Zum Bestätigen den Username eintippen.`}
+                        confirmLabel="Konto löschen"
+                        typeToConfirm={u.username}
+                        onConfirm={act(() => adminDeleteUser(u.id), reload, 'Konto gelöscht')}
                       >
                         🗑 Löschen
-                      </button>
+                      </ConfirmButton>
                     </div>
                   )}
                 </li>
@@ -253,9 +247,9 @@ function FeedbackInbox() {
                     <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => setFeedbackStatus(f.id, f.status === 'neu' ? 'erledigt' : 'neu'), reload)}>
                       {f.status === 'neu' ? '✅ Erledigt' : '↩︎ Wieder öffnen'}
                     </button>
-                    <button className="btn btn-outline btn-error btn-sm" onClick={act(() => deleteFeedback(f.id), reload, 'Gelöscht')}>
+                    <ConfirmButton question="Dieses Feedback löschen?" confirmLabel="Feedback löschen" onConfirm={act(() => deleteFeedback(f.id), reload, 'Feedback gelöscht')} ariaLabel="Feedback löschen">
                       🗑
-                    </button>
+                    </ConfirmButton>
                   </div>
                 </li>
               ))}

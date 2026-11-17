@@ -4,7 +4,8 @@ import { useStore } from '@tanstack/react-store'
 import { useAuth } from './lib/useAuth'
 import { useData } from './lib/useData'
 import { isLocalMode } from './lib/supabase'
-import { toastStore } from './lib/toast'
+import { toastStore, dismissToast } from './lib/toast'
+import { useLocalStorage } from 'use-storage-hook'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import BrewPage from './pages/BrewPage'
@@ -45,6 +46,17 @@ function Toaster() {
       {items.map((t) => (
         <div key={t.id} className={`alert rounded-full py-2.5 px-4.5 font-semibold text-[0.92rem] shadow-lg ${TOAST_TONE[t.tone]}`}>
           {t.text}
+          {t.action && (
+            <button
+              className="btn btn-sm btn-ghost pointer-events-auto underline underline-offset-2"
+              onClick={() => {
+                dismissToast(t.id)
+                t.action!.run()
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -65,6 +77,7 @@ export default function App() {
   const [prevTab, setPrevTab] = useState<Tab>('dashboard')
   // eigenes Profil (Rolle, Sperre)
   const { data: me = null } = useQuery({ queryKey: ['me', user?.id], queryFn: getMyProfile, enabled: !!user && !isLocalMode })
+  const [demoHint, setDemoHint] = useLocalStorage<boolean>('beanbase:demo-hint', true)
 
   if (user === undefined) return <div className="splash gap-3"><span className="loading loading-dots loading-lg text-primary" /> BeanBase lädt …</div>
   if (!user) return <AuthPage />
@@ -94,42 +107,48 @@ export default function App() {
             className={iconBtn(false)}
             onClick={theme.toggle}
             aria-label={theme.isDark ? 'Helles Design' : 'Dunkles Design'}
-            title={theme.isDark ? 'Zu hell wechseln' : 'Zu dunkel wechseln'}
+            title={`${theme.isDark ? 'Zu hell wechseln' : 'Zu dunkel wechseln'} („Automatisch“ unter Setup)`}
           >
             {theme.isDark ? '☀️' : '🌙'}
           </button>
           {!isLocalMode && (
-            <button className={iconBtn(tab === 'feedback')} onClick={() => go('feedback')} aria-label="Feedback geben">
+            <button className={iconBtn(tab === 'feedback')} onClick={() => go('feedback')} aria-label="Feedback geben" title="Feedback geben">
               💬
             </button>
           )}
           {me?.role === 'admin' && (
-            <button className={iconBtn(tab === 'admin')} onClick={() => go('admin')} aria-label="Admin-Bereich">
+            <button className={iconBtn(tab === 'admin')} onClick={() => go('admin')} aria-label="Admin-Bereich" title="Admin-Bereich">
               🛠
             </button>
           )}
-          <button className={iconBtn(tab === 'equipment')} onClick={() => go('equipment')} aria-label="Setup & Einstellungen">
+          <button className={iconBtn(tab === 'equipment')} onClick={() => go('equipment')} aria-label="Setup & Einstellungen" title="Setup & Einstellungen">
             ⚙️
           </button>
           {!isLocalMode && (
-            <button className={iconBtn(tab === 'profile')} onClick={() => go('profile')} aria-label="Mein Profil">
+            <button className={iconBtn(tab === 'profile')} onClick={() => go('profile')} aria-label="Mein Profil" title="Mein Profil">
               👤
             </button>
           )}
         </div>
       </header>
 
-      {isLocalMode && (
-        <div className="alert alert-soft block">
-          Demo-Modus: Daten werden nur in diesem Browser gespeichert. Für Login & Cloud-Sync Supabase in <code>.env</code> konfigurieren.
+      {isLocalMode && demoHint && (
+        <div className="alert alert-soft flex items-start justify-between gap-2">
+          <span>Demo-Modus: Daten werden nur in diesem Browser gespeichert. Für Login & Cloud-Sync Supabase in <code>.env</code> konfigurieren.</span>
+          <button className="btn btn-ghost btn-sm btn-square -my-1" onClick={() => setDemoHint(false)} aria-label="Hinweis ausblenden" title="Hinweis ausblenden">
+            ✕
+          </button>
         </div>
       )}
       {me?.blocked && (
         <div className="alert alert-soft block alert-error">Dein Konto ist gesperrt. Du kannst deine Daten ansehen, aber nichts mehr speichern. Bei Fragen melde dich beim Admin.</div>
       )}
       {data.error && (
-        <div className="alert alert-soft block alert-error cursor-pointer" onClick={() => data.setError(null)}>
-          Fehler: {data.error} (tippen zum Schließen)
+        <div className="alert alert-soft alert-error flex items-start justify-between gap-2" role="alert">
+          <span>Das hat nicht geklappt: {data.error}</span>
+          <button className="btn btn-ghost btn-sm btn-square -my-1" onClick={() => data.setError(null)} aria-label="Fehlermeldung schließen">
+            ✕
+          </button>
         </div>
       )}
 

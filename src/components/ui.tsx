@@ -107,27 +107,134 @@ export function Stars({
   )
 }
 
-export function ExtractionSlider({ value, onChange }: { value: number | null | undefined; onChange: (v: number) => void }) {
+/** null = noch nicht bewertet (Daumen bleibt blass, bis der Regler berührt wird) */
+export function ExtractionSlider({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
+  const unset = value == null
   const v = value ?? 0
-  const tone = v < 0 ? 'text-(--sour)' : v > 0 ? 'text-accent-strong' : 'text-success'
+  const tone = unset ? 'text-muted font-normal' : v < 0 ? 'text-(--sour)' : v > 0 ? 'text-accent-strong' : 'text-success'
   return (
     <div>
       <input
         type="range"
-        className="range range-lg w-full rounded-full text-base-content [--range-bg:transparent] [--range-fill:0] bg-[linear-gradient(90deg,var(--sour),var(--color-success)_50%,var(--bitter))]"
+        className={`range range-lg w-full rounded-full text-base-content [--range-bg:transparent] [--range-fill:0] bg-[linear-gradient(90deg,var(--sour),var(--color-success)_50%,var(--bitter))] ${unset ? '[&::-webkit-slider-thumb]:opacity-40 [&::-moz-range-thumb]:opacity-40' : ''}`}
         min={-5}
         max={5}
         step={1}
         value={v}
         onChange={(e) => onChange(Number(e.target.value))}
+        // Tippen auf die Mitte löst kein change aus → als "ausgewogen" werten
+        onPointerUp={() => unset && onChange(0)}
         aria-label="Extraktion"
+        aria-valuetext={unset ? 'Nicht bewertet' : extractionLabel(v)}
       />
       <div className="flex justify-between text-xs text-muted mt-1.5">
         <span>Sauer</span>
         <span>Ausgewogen</span>
         <span>Bitter</span>
       </div>
-      <div className={`text-center font-bold mt-1 ${tone}`}>{extractionLabel(v)}</div>
+      <div className={`flex items-center justify-center gap-2 font-bold mt-1 ${tone}`}>
+        {unset ? 'Nicht bewertet' : extractionLabel(v)}
+        {!unset && (
+          <button type="button" className="btn btn-ghost btn-xs font-normal text-muted" onClick={() => onChange(null)}>
+            Zurücksetzen
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Klickbare Nicht-Button-Elemente (Listenzeilen) tastatur- und screenreaderfähig machen */
+export const pressable = (fn: () => void, expanded?: boolean) => ({
+  role: 'button',
+  tabIndex: 0,
+  'aria-expanded': expanded,
+  onClick: fn,
+  onKeyDown: (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      fn()
+    }
+  },
+})
+
+/**
+ * Löschen & Co. mit Inline-Bestätigung statt confirm()/prompt().
+ * typeToConfirm: Wort, das zur Bestätigung eingetippt werden muss (für endgültige Aktionen).
+ */
+export function ConfirmButton({
+  children,
+  question,
+  confirmLabel,
+  onConfirm,
+  typeToConfirm,
+  className = 'btn btn-outline btn-error btn-sm',
+  ariaLabel,
+}: {
+  children: ReactNode
+  question: ReactNode
+  confirmLabel: string
+  onConfirm: () => unknown
+  typeToConfirm?: string
+  className?: string
+  ariaLabel?: string
+}) {
+  const [asking, setAsking] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const close = () => {
+    setAsking(false)
+    setTyped('')
+  }
+  if (!asking)
+    return (
+      <button type="button" className={className} onClick={() => setAsking(true)} aria-label={ariaLabel}>
+        {children}
+      </button>
+    )
+  const ok = !typeToConfirm || typed === typeToConfirm
+  return (
+    <div
+      role="alertdialog"
+      aria-label={typeof question === 'string' ? question : confirmLabel}
+      className="flex w-full basis-full flex-col gap-2 rounded-xl border border-error/40 bg-error/8 p-3 text-sm"
+      onKeyDown={(e) => e.key === 'Escape' && close()}
+    >
+      <span>{question}</span>
+      {typeToConfirm && (
+        <input
+          className="input input-sm w-full"
+          autoFocus
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          placeholder={typeToConfirm}
+          aria-label={`Zum Bestätigen „${typeToConfirm}“ eintippen`}
+          autoComplete="off"
+        />
+      )}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className="btn btn-error btn-sm"
+          disabled={!ok || busy}
+          autoFocus={!typeToConfirm}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await onConfirm()
+            } finally {
+              setBusy(false)
+              close()
+            }
+          }}
+        >
+          {busy ? '…' : confirmLabel}
+        </button>
+        <button type="button" className="btn btn-ghost border-base-300 btn-sm" onClick={close}>
+          Abbrechen
+        </button>
+      </div>
     </div>
   )
 }
