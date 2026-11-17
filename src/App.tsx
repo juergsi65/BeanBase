@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import { useAuth } from './lib/useAuth'
@@ -6,21 +6,25 @@ import { useData } from './lib/useData'
 import { isLocalMode } from './lib/supabase'
 import { toastStore, dismissToast } from './lib/toast'
 import { useLocalStorage } from 'use-storage-hook'
-import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
-import BrewPage from './pages/BrewPage'
-import HistoryPage from './pages/HistoryPage'
-import BeansPage from './pages/BeansPage'
-import EquipmentPage from './pages/EquipmentPage'
-import CommunityPage from './pages/CommunityPage'
-import ProfilePage from './pages/ProfilePage'
-import UserPage from './pages/UserPage'
-import FeedbackPage from './pages/FeedbackPage'
-import AdminPage from './pages/AdminPage'
-import SetPasswordPage from './pages/SetPasswordPage'
 import { getMyProfile } from './lib/social'
 import { useTheme } from './lib/theme'
 import type { BrewPreset, Go, Tab } from './types'
+
+// Start-Seite sofort, alle anderen Seiten erst beim ersten Öffnen laden (kleinerer Start-Chunk)
+const AuthPage = lazy(() => import('./pages/AuthPage'))
+const BrewPage = lazy(() => import('./pages/BrewPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const BeansPage = lazy(() => import('./pages/BeansPage'))
+const EquipmentPage = lazy(() => import('./pages/EquipmentPage'))
+const CommunityPage = lazy(() => import('./pages/CommunityPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const UserPage = lazy(() => import('./pages/UserPage'))
+const FeedbackPage = lazy(() => import('./pages/FeedbackPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'))
+
+const pageLoading = <div className="flex justify-center p-8"><span className="loading loading-dots loading-lg text-primary" aria-label="Seite lädt" /></div>
 
 // Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
 const TABS: { id: Exclude<Tab, 'user'>; label: string; icon: string; fab?: boolean }[] = [
@@ -80,8 +84,8 @@ export default function App() {
   const [demoHint, setDemoHint] = useLocalStorage<boolean>('beanbase:demo-hint', true)
 
   if (user === undefined) return <div className="splash gap-3"><span className="loading loading-dots loading-lg text-primary" /> BeanBase lädt …</div>
-  if (!user) return <AuthPage />
-  if (recovery) return <SetPasswordPage onDone={endRecovery} />
+  if (!user) return <Suspense fallback={pageLoading}><AuthPage /></Suspense>
+  if (recovery) return <Suspense fallback={pageLoading}><SetPasswordPage onDone={endRecovery} /></Suspense>
 
   // go('brew', { key, brew }) · go('user', { userId }) · go('<tab>')
   const go: Go = (t: Tab, preset: BrewPreset | { userId: string } | null = null) => {
@@ -153,6 +157,7 @@ export default function App() {
       )}
 
       <main className={`content page-${tab}`} key={tab}>
+        <Suspense fallback={pageLoading}>
         {tab === 'dashboard' && <Dashboard {...props} />}
         {tab === 'brew' && <BrewPage {...props} preset={brewPreset} key={brewPreset?.key ?? 'new'} />}
         {tab === 'history' && <HistoryPage {...props} />}
@@ -163,6 +168,7 @@ export default function App() {
         {tab === 'user' && <UserPage {...props} userId={userId} key={userId} />}
         {tab === 'feedback' && <FeedbackPage {...props} fromTab={prevTab === 'user' ? 'community' : prevTab} />}
         {tab === 'admin' && <AdminPage {...props} />}
+        </Suspense>
       </main>
 
       <Toaster />
