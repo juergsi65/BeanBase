@@ -33,7 +33,7 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 
 | Teil | Wahl |
 |---|---|
-| Frontend | React 19 + Vite (reines CSS, kein UI-Framework) |
+| Frontend | React 19 + Vite + TypeScript, Tailwind CSS 4 + daisyUI 5, TanStack Query |
 | Auth & DB | [Supabase](https://supabase.com) (Postgres + Auth, kostenloser Tarif reicht) |
 | Hosting | beliebiges Static Hosting (Vercel, Netlify, Cloudflare Pages, GitHub Pages) |
 
