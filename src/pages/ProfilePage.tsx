@@ -205,7 +205,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
           <label className="relative inline-block cursor-pointer" title="Profilbild ändern">
             <Avatar profile={profile} size={72} />
-            <span className="avatar-edit">📷</span>
+            <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full border-2 border-base-100 bg-accent text-[0.85rem]">📷</span>
             <input type="file" accept="image/*" hidden onChange={onAvatar} data-testid="avatar-upload" />
           </label>
           <div>

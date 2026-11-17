@@ -50,12 +50,12 @@ export function haptic(kind: HapticKind = 'light') {
 
 /** Globales leichtes Feedback für alle Buttons/Tabs (einmal in main.tsx registriert) */
 export function installGlobalHaptics() {
-  const SELECTOR = '.btn, .num-btn, .tabbar button, .stars button, .segmented button, .bean-picker button, .guide-check, .fab'
+  const SELECTOR = '.btn, .num-btn, .dock button, .sidebar .menu button, .stars button, .segmented button, .bean-picker button, .guide-check, .fab'
   document.addEventListener(
     'click',
     (e) => {
       const el = e.target instanceof Element ? e.target.closest<HTMLElement>(SELECTOR) : null
-      if (el && !(el as HTMLButtonElement).disabled && !el.dataset.noHaptic) haptic(el.classList.contains('primary') || el.classList.contains('fab') ? 'medium' : 'light')
+      if (el && !(el as HTMLButtonElement).disabled && !el.dataset.noHaptic) haptic(['btn-primary', 'fab', 'dock-fab'].some((c) => el.classList.contains(c)) ? 'medium' : 'light')
     },
     { capture: true },
   )
