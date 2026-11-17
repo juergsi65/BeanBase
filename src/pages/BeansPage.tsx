@@ -1,6 +1,8 @@
+import { Camera, Image, PackageOpen, Plus, ScanBarcode, Trash2, X } from 'lucide-react'
+import BeanDetail from '../components/BeanDetail'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn, ConfirmButton, pressable } from '../components/ui'
+import { Field, TagInput, Segmented, Chip, Empty, segBtn, segWrap, ConfirmButton, FreshnessScale } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { lookupBarcode } from '../lib/barcode'
@@ -14,7 +16,7 @@ import type { Bean, Currency, PageProps } from '../types'
 
 type BeanFormState = Omit<Bean, 'id' | 'user_id' | 'created_at' | 'roast_date'> & { roast_date: string }
 type Editing = null | 'new' | { mode: 'new'; barcode: string } | Bean
-type View = 'active' | 'archived' | 'all'
+type View = 'active' | 'archived'
 type FieldEvent = React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
 const isEvent = (v: unknown): v is FieldEvent => typeof v === 'object' && v !== null && 'target' in v
 /** Nur leere Formularfelder mit erkannten Werten füllen */
@@ -43,6 +45,7 @@ export default function BeansPage({ data, go }: PageProps) {
   const [editing, setEditing] = useState<Editing>(null)
   const [scanning, setScanning] = useState(false)
   const [view, setView] = useState<View>('active')
+  const [selected, setSelected] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [roast, setRoast] = useState('')
 
@@ -59,7 +62,7 @@ export default function BeansPage({ data, go }: PageProps) {
     const needle = q.trim().toLowerCase()
     return data.beans.filter(
       (b) =>
-        (view === 'all' || b.active === (view === 'active')) &&
+        b.active === (view === 'active') &&
         (!roast || b.roast_level === roast) &&
         (!needle || [b.name, b.roaster, b.origin, b.variety, ...(b.flavor_notes ?? [])].join(' ').toLowerCase().includes(needle)),
     )
@@ -86,22 +89,41 @@ export default function BeansPage({ data, go }: PageProps) {
     )
   }
 
+  const activeCount = data.beans.filter((b) => b.active).length
+  const archivedCount = data.beans.length - activeCount
+  // Desktop zeigt immer eine Bohne rechts (gewählt oder die erste); Handy nur nach Antippen
+  const current = data.beans.find((b) => b.id === selected) ?? rows[0]
+  const open = (id: string | null) => {
+    setSelected(id)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2>Bohnen</h2>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button className="btn btn-ghost border-base-300" onClick={() => setScanning(true)} aria-label="Barcode scannen">
-            ▦ Scan
-          </button>
-          <button className="btn btn-primary" onClick={() => setEditing('new')}>
-            + Bohne
-          </button>
+      <header className={`flex items-center gap-2 desk:items-end desk:gap-4 ${selected ? 'hidden desk:flex' : ''}`}>
+        <div className="grow">
+          <span className="lbl hidden desk:inline">{activeCount} aktiv · {archivedCount} im Archiv</span>
+          <h2 className="text-[26px] desk:mt-1.5 desk:text-[34px] desk:tracking-[-0.025em]">Bohnen</h2>
         </div>
-      </div>
+        <button className="btn h-11 w-11 rounded-[12px] border-base-300 bg-base-100 px-0 desk:w-auto desk:px-4 desk:font-normal" onClick={() => setScanning(true)} aria-label="Barcode scannen">
+          <ScanBarcode size={20} strokeWidth={1.75} aria-hidden /> <span className="hidden desk:inline">Scannen</span>
+        </button>
+        <button className="btn btn-primary h-11 w-11 rounded-[12px] px-0 desk:w-auto desk:px-4.5" onClick={() => setEditing('new')} aria-label="Bohne hinzufügen">
+          <Plus size={20} strokeWidth={2.2} aria-hidden /> <span className="hidden desk:inline">Bohne</span>
+        </button>
+      </header>
       {scanning && <BarcodeScanner onResult={onScan} onClose={() => setScanning(false)} />}
-      <Segmented options={{ active: 'In der Mühle', archived: 'Archiv', all: 'Alle' }} value={view} onChange={(v) => setView(v ?? 'all')} />
-      <div className="grid grid-cols-2 gap-3">
+
+      <div className="flex flex-col gap-4 desk:flex-row desk:items-start desk:gap-6">
+      <div className={`flex flex-col gap-3 desk:w-[360px] desk:shrink-0 ${selected ? 'hidden desk:flex' : ''}`}>
+      <div className={`${segWrap} grid grid-cols-2 bg-base-100`} role="tablist" aria-label="Bohnen-Ansicht">
+        {([['active', 'Aktiv', activeCount], ['archived', 'Archiv', archivedCount]] as const).map(([k, label, n]) => (
+          <button key={k} role="tab" aria-selected={view === k} className={segBtn(view === k)} onClick={() => setView(k)}>
+            {label} <span className="num text-muted">{n}</span>
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
         <input className="input w-full" type="search" aria-label="Bohnen durchsuchen" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="select w-full" value={roast} onChange={(e) => setRoast(e.target.value)}>
           <option value="">Jeder Röstgrad</option>
@@ -113,62 +135,78 @@ export default function BeansPage({ data, go }: PageProps) {
         </select>
       </div>
 
+      <div className="flex flex-wrap gap-3.5 text-xs text-muted" aria-hidden>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3.5 rounded-[2px] bg-(--scale-rest)" />Ruht</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3.5 rounded-[2px] bg-(--scale-good)" />Optimum</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-3.5 rounded-[2px] bg-(--scale-fade)" />Lässt nach</span>
+      </div>
+
       {!rows.length ? (
         <Empty>{data.beans.length ? 'Keine Bohnen in dieser Ansicht.' : 'Noch keine Bohnen angelegt.'}</Empty>
       ) : (
-        <ul className="items">
+        <ul className="flex flex-col gap-2.5">
           {rows.map((b) => {
             const days = daysSince(b.roast_date)
             const fresh = freshness(days)
-            const { best, count } = recipesForBean(data.brews, b.id)
+            const { count } = recipesForBean(data.brews, b.id)
+            const u = beanUsage(b.id, data.bean_stock, data.brews)
+            const meta = [b.roaster, b.origin, b.process && PROCESSES[b.process], b.roast_level && ROAST_LEVELS[b.roast_level]].filter(Boolean).join(' · ')
             return (
-              <li key={b.id} className="item col">
-                <div className="flex flex-nowrap items-center justify-between gap-2.5 cursor-pointer" {...pressable(() => setEditing(b))} aria-label={`${b.name} bearbeiten`}>
-                  {b.image_url && <img className="thumb" src={b.image_url} alt="" loading="lazy" />}
-                  <div className="grow">
-                    <strong>{b.name}</strong>
-                    {[b.roaster, b.origin, b.variety].some(Boolean) && <span className="text-muted text-sm">{[b.roaster, b.origin, b.variety].filter(Boolean).join(' · ')}</span>}
+              <li key={b.id}>
+                <button
+                  className={`flex w-full cursor-pointer flex-col gap-3 rounded-[18px] border bg-base-100 p-4 text-left ${current?.id === b.id ? 'border-base-300 desk:border-primary desk:ring-1 desk:ring-inset desk:ring-primary' : 'border-base-300'}`}
+                  onClick={() => open(b.id)}
+                  aria-current={current?.id === b.id ? 'true' : undefined}
+                >
+                  <div className="flex w-full justify-between gap-3">
+                    {b.image_url && <img className="thumb" src={b.image_url} alt="" loading="lazy" />}
+                    <div className="min-w-0 grow">
+                      <div className="text-lg font-semibold tracking-[-0.01em]">{b.name}</div>
+                      {meta && <div className="mt-0.5 text-[13px] text-muted">{meta}</div>}
+                    </div>
+                    {days != null && days >= 0 && (
+                      <div className="shrink-0 text-right">
+                        <div className={`num text-[22px] leading-none font-semibold ${fresh?.tone === 'good' ? 'text-success' : 'text-warning'}`}>{days}</div>
+                        <div className="lbl mt-1">Tage</div>
+                      </div>
+                    )}
                   </div>
-                  {days != null && (
-                    <div className={`age sm ${fresh?.tone}`}>
-                      <strong>{days}</strong>
-                      <span>Tage</span>
+                  {days != null && days >= 0 && <div className="w-full"><FreshnessScale days={days} /></div>}
+                  {b.flavor_notes?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 desk:hidden">
+                      {b.flavor_notes.map((t) => (
+                        <Chip key={t} tone="flavor">
+                          {t}
+                        </Chip>
+                      ))}
                     </div>
                   )}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {b.process && <Chip>{PROCESSES[b.process]}</Chip>}
-                  {b.roast_level && <Chip>{ROAST_LEVELS[b.roast_level]}</Chip>}
-                  {b.flavor_notes?.map((t) => (
-                    <Chip key={t} tone="flavor">
-                      {t}
-                    </Chip>
-                  ))}
-                </div>
-                {(() => {
-                  const u = beanUsage(b.id, data.bean_stock, data.brews)
-                  return u ? <StockBar usage={u} compact onArchive={b.active && u.remaining <= 0 ? () => void toggleActive(b) : undefined} /> : null
-                })()}
-                <div className="flex flex-wrap items-center justify-between gap-2.5 text-sm">
-                  <span className="text-muted">
-                    {plural(count, 'Bezug', 'Bezüge')}{best ? ' · bestes: ' : ''}
-                  </span>
-                  {best && <Stars value={best.rating} size="sm" />}
-                  <span className="grow" />
-                  <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => toggleActive(b)}>
-                    {b.active ? 'Aufgebraucht' : 'Reaktivieren'}
-                  </button>
-                  {b.active && (
-                    <button className="btn btn-primary btn-sm" onClick={() => go('brew', { key: Date.now(), brew: { bean_id: b.id } })}>
-                      Bezug
-                    </button>
-                  )}
-                </div>
+                  <div className="flex w-full items-center justify-between gap-2 border-t border-base-300 pt-2.5 text-[13px]">
+                    <span>{u ? <><span className="num font-semibold">{fmtGrams(u.remaining)}</span> <span className="text-muted">übrig</span></> : <span className="text-muted">Kein Vorrat</span>}</span>
+                    <span className="text-muted">{plural(count, 'Bezug', 'Bezüge')}</span>
+                    {u?.perCup != null && <span className="num text-accent-strong">{fmtMoney(u.perCup, u.currency)} / Tasse</span>}
+                  </div>
+                </button>
               </li>
             )
           })}
         </ul>
       )}
+      </div>
+
+      {current && (
+        <BeanDetail
+          key={current.id}
+          bean={current}
+          data={data}
+          go={go}
+          className={selected ? '' : 'hidden desk:flex'}
+          onBack={() => open(null)}
+          onEdit={() => setEditing(current)}
+          onToggleActive={() => void toggleActive(current)}
+        />
+      )}
+      </div>
     </div>
   )
 }
@@ -326,7 +364,7 @@ function BeanForm({
       else if (existingStock)
         await data.update('bean_stock', existingStock.id, { ...stockRow, ...(stock.newBag ? { opened_at: new Date().toISOString() } : {}) })
       else if (hasStock) await data.add('bean_stock', { ...stockRow, bean_id: saved.id, opened_at: new Date().toISOString() })
-      toast(bean ? 'Bohne gespeichert' : 'Bohne angelegt ☕')
+      toast(bean ? 'Bohne gespeichert' : 'Bohne angelegt')
       onDone()
     } catch (err) {
       data.setError(errMsg(err))
@@ -346,7 +384,7 @@ function BeanForm({
       <h2>{bean ? 'Bohne bearbeiten' : 'Neue Bohne'}</h2>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Schnell erfassen</h3>
+        <h3 className="lbl">Schnell erfassen</h3>
         <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => setScanning(true)}>
           ▦ Barcode scannen
         </button>
@@ -363,10 +401,10 @@ function BeanForm({
             </Chip>
           </div>
         )}
-        {scan.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Suche Bohne zum Barcode …</div>}
+        {scan.status === 'loading' && <div className="alert alert-soft block alert-info">Suche Bohne zum Barcode …</div>}
         {scan.status === 'found' && (
           <div className="alert alert-soft block alert-info">
-            ✨ {scan.text}
+            {scan.text}
           </div>
         )}
         {scan.status === 'notcoffee' && (
@@ -395,7 +433,7 @@ function BeanForm({
           <div className="photo">
             <img src={preview} alt="Kaffeetüte" />
             <button type="button" className="btn btn-ghost btn-sm absolute top-2 right-2 border-base-300 bg-page/75" onClick={removePhoto} aria-label="Foto entfernen">
-              ✕
+              <X size={18} aria-hidden />
             </button>
           </div>
         ) : (
@@ -407,10 +445,10 @@ function BeanForm({
         )}
         <div className="grid grid-cols-2 gap-3">
           <button type="button" className="btn btn-primary btn-lg" onClick={() => cameraRef.current?.click()}>
-            📷 Foto
+            <Camera size={16} aria-hidden /> Foto
           </button>
           <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => uploadRef.current?.click()}>
-            🖼 Hochladen
+            <Image size={16} aria-hidden /> Hochladen
           </button>
         </div>
         {!canAnalyze && (
@@ -422,11 +460,11 @@ function BeanForm({
         <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} data-testid="bean-upload" />
         {canAnalyze && (
           <p className="text-muted text-sm">
-            💡 Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
+            Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
           </p>
         )}
-        {ai.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Etikett wird erkannt …</div>}
-        {ai.status === 'done' && <div className="alert alert-soft block alert-info">✨ {ai.text}</div>}
+        {ai.status === 'loading' && <div className="alert alert-soft block alert-info">Etikett wird erkannt …</div>}
+        {ai.status === 'done' && <div className="alert alert-soft block alert-info">{ai.text}</div>}
         {ai.status === 'error' && (
           <div className="alert alert-soft block alert-error">
             {ai.text}{' '}
@@ -470,10 +508,10 @@ function BeanForm({
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Packung & Preis</h3>
+        <h3 className="lbl">Packung & Preis</h3>
         <p className="text-muted text-sm">Nur für dich sichtbar – auch Freunde sehen keine Preise.</p>
         <Field label="Packungsgröße">
-          <div className="flex flex-wrap gap-1.5">
+          <div className={segWrap}>
             {BAG_SIZES.map((g) => (
               <button type="button" key={g} className={segBtn(Number(stock.bag) === g)} onClick={() => setStock((s) => ({ ...s, bag: g }))}>
                 {fmtGrams(g)}
@@ -518,7 +556,7 @@ function BeanForm({
           <div className="flex flex-col gap-2.5">
             <StockBar usage={usage} />
             <button type="button" className="btn btn-ghost border-base-300 btn-sm" onClick={() => setStock((s) => ({ ...s, newBag: true }))}>
-              🔄 Neue Packung angebrochen
+              <PackageOpen size={16} aria-hidden /> Neue Packung angebrochen
             </button>
           </div>
         )}
@@ -538,7 +576,7 @@ function BeanForm({
           confirmLabel="Bohne löschen"
           onConfirm={del}
         >
-          🗑 Bohne löschen
+          <Trash2 size={16} aria-hidden /> Bohne löschen
         </ConfirmButton>
       )}
       <div className="sticky-actions">

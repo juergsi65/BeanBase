@@ -1,0 +1,13 @@
+/* Dial-In-Assistent */
+@layer components {
+  .step.done .body > strong { text-decoration: line-through; color: var(--muted); }
+  .correction { border-left: 4px solid var(--line); }
+  .correction.sour { border-left-color: var(--sour); background: color-mix(in srgb, var(--sour) 8%, var(--surface)); }
+  .correction.bitter { border-left-color: var(--bitter); background: color-mix(in srgb, var(--bitter) 9%, var(--surface)); }
+  .correction.good { border-left-color: var(--good); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+  /* Zielwert im Fließtext */
+  .val {
+    display: inline-block; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent-strong);
+  }
+}

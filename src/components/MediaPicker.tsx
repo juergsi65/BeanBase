@@ -1,3 +1,4 @@
+import { Camera, Image, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { prepareMedia, type PreparedMedia } from '../lib/media'
@@ -69,16 +70,16 @@ export default function MediaPicker({
         <div className="photo">
           <MediaView url={shown.url} type={shown.type} />
           <button type="button" className="btn btn-ghost btn-sm absolute top-2 right-2 border-base-300 bg-page/75" onClick={() => onChange({ pending: null, removed: true })} aria-label={`${label} entfernen`}>
-            ✕
+            <X size={18} aria-hidden />
           </button>
         </div>
       ) : null}
       <div className="grid grid-cols-2 gap-3">
         <button type="button" className="btn btn-ghost border-base-300" onClick={() => camRef.current?.click()} disabled={busy}>
-          📷 {allowVideo ? 'Foto / Video' : 'Foto'}
+          <Camera size={16} aria-hidden /> {allowVideo ? 'Foto / Video' : 'Foto'}
         </button>
         <button type="button" className="btn btn-ghost border-base-300" onClick={() => fileRef.current?.click()} disabled={busy}>
-          🖼 Aus Galerie
+          <Image size={16} aria-hidden /> Aus Galerie
         </button>
       </div>
       <input ref={camRef} type="file" accept={accept} capture="environment" hidden onChange={onFile} />

@@ -23,7 +23,7 @@ export function applyTheme(t: Theme) {
   else root.setAttribute('data-theme', t)
   // Statusleiste/Browser-Leiste passend einfärben
   const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', resolvedTheme(t) === 'dark' ? '#16110e' : '#f6efe6')
+  if (meta) meta.setAttribute('content', resolvedTheme(t) === 'dark' ? '#0e0c0b' : '#f7f3ee')
 }
 
 export function useTheme() {

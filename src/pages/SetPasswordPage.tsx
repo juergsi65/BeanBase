@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react'
 import { useState } from 'react'
 import { requireSupabase } from '../lib/supabase'
 import { Field } from '../components/ui'
@@ -27,7 +28,7 @@ export function PasswordForm({ onDone, submitLabel = 'Passwort speichern' }: { o
     setPw('')
     setPw2('')
     setMsg(null)
-    toast('Passwort geändert 🔒')
+    toast('Passwort geändert')
     onDone?.()
   }
 
@@ -55,7 +56,7 @@ export default function SetPasswordPage({ onDone }: { onDone: () => void }) {
   return (
     <div className="grid min-h-dvh place-items-center p-5">
       <div className="card w-full max-w-[380px] desk:max-w-[420px] gap-3.5 rounded-[20px] border border-base-300 bg-base-100 px-5.5 py-7 text-center desk:px-8 desk:py-9">
-        <div className="text-5xl">🔒</div>
+        <Lock size={48} strokeWidth={1.5} className="text-accent-strong" aria-hidden />
         <h1>Neues Passwort</h1>
         <p className="text-muted">Wähle ein neues Passwort für dein BeanBase-Konto.</p>
         <PasswordForm onDone={onDone} submitLabel="Passwort speichern & weiter" />

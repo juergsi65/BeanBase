@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { Brew, Data, Grinder, Machine, Bean } from '../types'
 import { extractionLabel, fmtRatio, ratio, dialInHint, fmtDate } from '../lib/coffee'
 import { haptic } from '../lib/haptics'
+import { Lightbulb, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react'
+import sw from './Stopwatch.module.css'
 
 /** group: mehrere Eingaben → <div role="group"> statt <label> (Klick aufs Label löst sonst den ersten Button aus) */
 export function Field({ label, hint, children, group }: { label: ReactNode; hint?: ReactNode; children: ReactNode; group?: boolean }) {
@@ -20,7 +22,7 @@ export function Field({ label, hint, children, group }: { label: ReactNode; hint
 /** '' = leer (Eingabefeld gelöscht) */
 export type NumValue = number | '' | null | undefined
 
-const numBtn = 'btn join-item h-(--tap) w-(--tap) min-w-11 px-0 text-2xl font-normal active:btn-primary'
+const numBtn = 'btn join-item h-(--tap) w-(--tap) min-w-11 px-0 bg-base-200 border-base-300 active:btn-primary'
 
 export function NumberInput({
   value,
@@ -31,6 +33,8 @@ export function NumberInput({
   unit,
   decimals = 0,
   placeholder,
+  compact,
+  label,
 }: {
   value: NumValue
   onChange: (v: number | '') => void
@@ -40,6 +44,10 @@ export function NumberInput({
   unit?: string
   decimals?: number
   placeholder?: string
+  /** Kachel-Variante (Rezept): kleine Knöpfe, Wert ohne Feldrahmen */
+  compact?: boolean
+  /** Name für Screenreader (Knöpfe „… verringern/erhöhen“) */
+  label?: string
 }) {
   const num = value === '' || value == null ? null : Number(value)
   const bump = (dir: number) => {
@@ -48,25 +56,52 @@ export function NumberInput({
     if (max != null) next = Math.min(max, next)
     onChange(Number(next.toFixed(decimals)))
   }
+  const change = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))
+  if (compact) {
+    const btn = 'btn btn-square size-11 min-h-0 shrink-0 rounded-[11px] border-(--line-strong) bg-base-100 px-0'
+    return (
+      <div className="flex items-center justify-between gap-1">
+        <button type="button" className={btn} onClick={() => bump(-1)} aria-label={label ? `${label} verringern` : 'weniger'}>
+          <Minus size={18} aria-hidden />
+        </button>
+        <span className="flex min-w-0 items-baseline justify-center gap-1">
+          <input
+            type="number"
+            className="num-input num w-[4.5ch] min-w-0 bg-transparent text-right text-2xl font-semibold outline-none"
+            inputMode={decimals ? 'decimal' : 'numeric'}
+            step={step}
+            value={value ?? ''}
+            placeholder={placeholder}
+            onChange={change}
+            aria-label={label}
+          />
+          {unit && <span className="text-xs text-muted">{unit}</span>}
+        </span>
+        <button type="button" className={btn} onClick={() => bump(1)} aria-label={label ? `${label} erhöhen` : 'mehr'}>
+          <Plus size={18} aria-hidden />
+        </button>
+      </div>
+    )
+  }
   return (
     <div className="join num w-full">
       <button type="button" className={numBtn} onClick={() => bump(-1)} aria-label="weniger">
-        −
+        <Minus size={20} aria-hidden />
       </button>
       <label className="input join-item h-(--tap) grow min-w-0 px-2">
         <input
           type="number"
-          className="num-input grow min-w-0 text-center text-[1.35rem] font-bold"
+          className="num-input num grow min-w-0 text-center text-[1.35rem] font-semibold"
           inputMode={decimals ? 'decimal' : 'numeric'}
           step={step}
           value={value ?? ''}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))}
+          onChange={change}
         />
         {unit && <span className="text-xs text-muted">{unit}</span>}
       </label>
       <button type="button" className={numBtn} onClick={() => bump(1)} aria-label="mehr">
-        +
+        <Plus size={20} aria-hidden />
       </button>
     </div>
   )
@@ -92,7 +127,7 @@ export function Stars({
       </div>
     )
   return (
-    <div className={`rating justify-center w-full ${size === 'lg' ? 'rating-xl gap-1' : 'rating-sm'}`}>
+    <div className={`rating ${size === 'lg' ? 'rating-lg gap-1.5' : 'rating-sm'}`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <input
           key={n}
@@ -109,40 +144,36 @@ export function Stars({
   )
 }
 
-/** null = noch nicht bewertet (Daumen bleibt blass, bis der Regler berührt wird) */
-export function ExtractionSlider({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
-  const unset = value == null
-  const v = value ?? 0
-  const tone = unset ? 'text-muted font-normal' : v < 0 ? 'text-(--sour)' : v > 0 ? 'text-accent-strong' : 'text-success'
+/** Geschmack in 5 Stufen. Werte −3/−1/0/1/3 passen zu extractionLabel() und adjustGrind() (ab |3| zwei Stufen Korrektur) */
+const TASTES = [
+  { v: -3, label: 'Sauer', dot: 'bg-(--sour)' },
+  { v: -1, label: 'Säuerl.', dot: 'bg-(--sour)' },
+  { v: 0, label: 'Balance', dot: 'bg-success' },
+  { v: 1, label: 'Herb', dot: 'bg-(--bitter)' },
+  { v: 3, label: 'Bitter', dot: 'bg-(--bitter)' },
+]
+/** Ältere Bezüge haben Werte −5…5: auf die nächste Stufe abbilden */
+const tasteIndex = (v: number | null | undefined) => (v == null ? -1 : v <= -3 ? 0 : v < 0 ? 1 : v === 0 ? 2 : v < 3 ? 3 : 4)
+
+/** null = noch nicht bewertet; erneutes Tippen auf die gewählte Stufe hebt die Auswahl auf */
+export function TasteSegments({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
+  const name = useId()
+  const on = tasteIndex(value)
   return (
-    <div>
-      <input
-        type="range"
-        className={`range range-lg w-full rounded-full text-base-content [--range-bg:transparent] [--range-fill:0] bg-[linear-gradient(90deg,var(--sour),var(--color-success)_50%,var(--bitter))] ${unset ? '[&::-webkit-slider-thumb]:opacity-40 [&::-moz-range-thumb]:opacity-40' : ''}`}
-        min={-5}
-        max={5}
-        step={1}
-        value={v}
-        onChange={(e) => onChange(Number(e.target.value))}
-        // Tippen auf die Mitte löst kein change aus → als "ausgewogen" werten
-        onPointerUp={() => unset && onChange(0)}
-        aria-label="Extraktion"
-        aria-valuetext={unset ? 'Nicht bewertet' : extractionLabel(v)}
-      />
-      <div className="flex justify-between text-xs text-muted mt-1.5">
-        <span>Sauer</span>
-        <span>Ausgewogen</span>
-        <span>Bitter</span>
-      </div>
-      <div className={`flex items-center justify-center gap-2 font-bold mt-1 ${tone}`}>
-        {unset ? 'Nicht bewertet' : extractionLabel(v)}
-        {!unset && (
-          <button type="button" className="btn btn-ghost btn-xs font-normal text-muted" onClick={() => onChange(null)}>
-            Zurücksetzen
-          </button>
-        )}
-      </div>
-    </div>
+    <fieldset className="grid grid-cols-5 gap-1 rounded-[14px] border border-base-300 bg-page p-1">
+      <legend className="sr-only">Extraktion</legend>
+      {TASTES.map((t, i) => (
+        <label
+          key={t.v}
+          title={extractionLabel(t.v)}
+          className={`flex h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] text-xs font-semibold has-focus-visible:outline-2 has-focus-visible:outline-primary ${i === on ? 'bg-base-300 text-base-content' : 'text-muted'}`}
+        >
+          <input type="radio" name={name} className="sr-only" checked={i === on} onChange={() => {}} onClick={() => onChange(i === on ? null : t.v)} />
+          <span className={`size-2 rounded-full ${t.dot}`} aria-hidden />
+          {t.label}
+        </label>
+      ))}
+    </fieldset>
   )
 }
 
@@ -244,8 +275,8 @@ export function ConfirmButton({
   )
 }
 
-/** Stoppuhr – übernimmt die gemessenen Sekunden ins Formular */
-export function Stopwatch({ onStop }: { onStop: (secs: number) => void }) {
+/** Stoppuhr – übernimmt die gemessenen Sekunden ins Formular. target = Zielfenster [von, bis] in s */
+export function Stopwatch({ onStop, target = [25, 30] }: { onStop: (secs: number) => void; target?: [number, number] }) {
   const [running, setRunning] = useState(false)
   const [ms, setMs] = useState(0)
   const start = useRef(0)
@@ -278,18 +309,81 @@ export function Stopwatch({ onStop }: { onStop: (secs: number) => void }) {
     setMs(0)
   }
   const s = ms / 1000
+  // Ring: voller Kreis = 4/3 des Zielendes (Espresso: 40 s)
+  const max = Math.round((target[1] * 4) / 3)
+  const inWin = s >= target[0] && s <= target[1]
+  const over = s > target[1]
+  const C = 2 * Math.PI * 90
+  const C2 = 2 * Math.PI * 102
+  const ticks = 40
   return (
-    <div className={`flex flex-col gap-3 ${running ? 'running' : ''}`}>
-      <div className="sw-time">
-        {Math.floor(s)}
-        <small>.{Math.floor((s % 1) * 10)} s</small>
+    <div className="flex flex-col gap-3">
+      <div className={sw.ring}>
+        <svg viewBox="0 0 240 240" aria-hidden>
+          {Array.from({ length: ticks }, (_, i) => {
+            const t = (i / ticks) * max
+            const win = t >= target[0] && t <= target[1]
+            return (
+              <line
+                key={i}
+                x1="120"
+                y1="4"
+                x2="120"
+                y2={i % 5 ? 9 : 14}
+                stroke={win ? 'var(--color-success)' : i % 5 ? 'var(--color-base-300)' : 'var(--line-strong)'}
+                strokeWidth="1.5"
+                transform={`rotate(${(i * 360) / ticks} 120 120)`}
+              />
+            )
+          })}
+          <circle
+            cx="120"
+            cy="120"
+            r="102"
+            fill="none"
+            stroke="var(--color-success)"
+            strokeWidth="4"
+            opacity="0.9"
+            strokeDasharray={`${(C2 * (target[1] - target[0])) / max} ${C2}`}
+            strokeDashoffset={(-C2 * target[0]) / max}
+            transform="rotate(-90 120 120)"
+          />
+          <circle cx="120" cy="120" r="90" fill="none" stroke="var(--color-base-200)" strokeWidth="10" />
+          <circle
+            className={sw.arc}
+            cx="120"
+            cy="120"
+            r="90"
+            fill="none"
+            strokeWidth="10"
+            strokeLinecap="round"
+            stroke={inWin ? 'var(--color-success)' : over ? 'var(--color-warning)' : 'var(--color-primary)'}
+            strokeDasharray={`${(Math.min(s, max) / max) * C} ${C}`}
+            transform="rotate(-90 120 120)"
+          />
+        </svg>
+        <div className={sw.face}>
+          <span className="lbl">{running ? 'Läuft' : inWin ? 'Im Zielfenster' : 'Brühzeit'}</span>
+          <span className={`${sw.time} num ${inWin ? sw.inWin : over ? sw.over : ''}`} role="timer">
+            {s.toFixed(1)}
+          </span>
+          <span className="num text-xs text-muted">
+            Ziel {target[0]}–{target[1]} s
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-[1fr_72px] gap-2">
-        <button type="button" className={`btn btn-lg h-16 text-xl ${running ? 'btn-error' : 'btn-primary'}`} onClick={toggle} data-no-haptic="1">
-          {running ? '■ Stopp' : ms ? '▶ Weiter' : '▶ Start'}
+      <div className="grid grid-cols-[1fr_56px] gap-2">
+        <button
+          type="button"
+          className={`btn btn-lg h-14 text-lg font-semibold ${running ? 'bg-base-content text-base-100 border-base-content' : 'btn-primary'}`}
+          onClick={toggle}
+          data-no-haptic="1"
+        >
+          {running ? <Pause size={20} aria-hidden /> : <Play size={20} aria-hidden />}
+          {running ? 'Stopp' : ms ? 'Weiter' : 'Start'}
         </button>
-        <button type="button" className="btn btn-lg btn-ghost border-base-300 h-16 text-xl" onClick={reset} disabled={running || !ms}>
-          ↺
+        <button type="button" className="btn btn-lg btn-ghost border-base-300 h-14 px-0" onClick={reset} disabled={running || !ms} aria-label="Stoppuhr zurücksetzen">
+          <RotateCcw size={20} aria-hidden />
         </button>
       </div>
     </div>
@@ -357,7 +451,10 @@ export function TagInput({
 }
 
 /** Klassen für einen Segment-Knopf (auch für eigene Segment-Leisten in Seiten) */
-export const segBtn = (on: boolean) => `btn grow min-h-11 ${on ? 'btn-primary' : 'font-normal'}`
+export const segBtn = (on: boolean) =>
+  `btn btn-ghost grow min-h-10 h-auto border-0 rounded-[9px] px-3 ${on ? 'bg-base-300 text-base-content font-semibold' : 'font-normal text-muted hover:text-base-content'}`
+/** Hülle für segBtn-Knöpfe */
+export const segWrap = 'flex flex-wrap gap-1 rounded-xl border border-base-300 bg-base-200 p-1'
 
 /** Auswahl-Knöpfe; nochmal tippen hebt die Auswahl auf */
 export function Segmented<K extends string>({
@@ -370,9 +467,9 @@ export function Segmented<K extends string>({
   onChange: (v: K | null) => void
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={segWrap}>
       {(Object.entries(options) as [K, ReactNode][]).map(([k, label]) => (
-        <button type="button" key={k} className={segBtn(value === k)} onClick={() => onChange(value === k ? null : k)}>
+        <button type="button" key={k} className={segBtn(value === k)} aria-pressed={value === k} onClick={() => onChange(value === k ? null : k)}>
           {label}
         </button>
       ))}
@@ -387,71 +484,104 @@ export type RecipeBrew = Pick<
   | 'temperature' | 'preinfusion' | 'created_at' | 'extraction' | 'notes'
 >
 
-export function RecipeCard<B extends RecipeBrew>({
-  title,
-  brew,
-  lookup,
-  onReuse,
-}: {
-  title: ReactNode
-  brew: B | null | undefined
-  lookup: Lookup
-  onReuse?: (brew: B) => void
-}) {
+/** Ein Messwert im Readout-Raster (Haarlinien zwischen den Zellen kommen vom Grid-Hintergrund) */
+function Readout({ label, value, unit, big, className = '' }: { label: string; value: ReactNode; unit?: string; big?: boolean; className?: string }) {
+  const empty = value == null || value === ''
+  return (
+    <div className="min-w-0 bg-page px-2.5 py-2.5">
+      <div className="lbl truncate">{label}</div>
+      <div className={`num mt-0.5 ${big ? 'text-[19px] font-semibold' : 'text-base font-medium'} ${className}`}>
+        {empty ? '–' : value}
+        {!empty && unit && <span className="text-xs font-normal text-muted"> {unit}</span>}
+      </div>
+    </div>
+  )
+}
+
+/** Extraktion als Abweichung: ±0 = ausgewogen, minus = sauer, plus = bitter */
+const fmtExtraction = (v: number | null) => (v == null ? null : v === 0 ? '±0' : v > 0 ? `+${v}` : `−${-v}`)
+const extractionTone = (v: number | null) => (v == null ? '' : v === 0 ? 'text-success' : v < 0 ? 'text-warning' : 'text-(--bitter)')
+
+/** Rezept eines Bezugs als kompaktes Readout (Design „Espresso-Instrument“) */
+export function RecipeCard<B extends RecipeBrew>({ title, brew, lookup }: { title: ReactNode; brew: B | null | undefined; lookup: Lookup }) {
   if (!brew) return null
   const r = ratio(brew.dose, brew.yield)
-  const grinder = lookup.grinders(brew.grinder_id)
-  const machine = lookup.machines(brew.machine_id)
+  const setup = [lookup.machines(brew.machine_id)?.name, lookup.grinders(brew.grinder_id)?.name].filter(Boolean).join(' · ')
   const hint = dialInHint(brew)
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-base-200 p-3.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-muted">{title}</span>
-        {brew.rating && <Stars value={brew.rating} size="sm" />}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="lbl">{title} · {fmtDate(brew.created_at)}</span>
+        {brew.rating ? <Stars value={brew.rating} size="sm" /> : null}
       </div>
-      <div className="recipe-grind">
-        <span className="text-xs uppercase tracking-widest text-muted">Mahlgrad</span>
-        <span className="text-[2.6rem] font-extrabold leading-tight text-accent-strong">{brew.grind_setting || '–'}</span>
-        {grinder && <span className="text-xs text-muted">{grinder.name}</span>}
+      <div className="grid grid-cols-4 gap-px overflow-hidden rounded-[12px] border border-base-300 bg-base-300">
+        <Readout big label="Dosis" value={brew.dose} unit="g" />
+        <Readout big label="Output" value={brew.yield} unit="g" />
+        <Readout big label="Ratio" value={r ? fmtRatio(r) : null} className="text-accent-strong" />
+        <Readout big label="Zeit" value={brew.brew_time} unit="s" />
+        <Readout label="Mahlgrad" value={brew.grind_setting} />
+        <Readout label="Temp." value={brew.temperature} unit="°C" />
+        <Readout label="Pre-Inf." value={brew.preinfusion} unit="s" />
+        <Readout label="Extr." value={fmtExtraction(brew.extraction)} className={extractionTone(brew.extraction)} />
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat label="Dosis" value={brew.dose} unit="g" />
-        <Stat label="Output" value={brew.yield} unit="g" />
-        <Stat label="Ratio" value={fmtRatio(r)} />
-        <Stat label="Zeit" value={brew.brew_time} unit="s" />
-        <Stat label="Temp" value={brew.temperature} unit="°C" />
-        <Stat label="Pre-Inf." value={brew.preinfusion} unit="s" />
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted [overflow-wrap:anywhere]">
-        {machine && <span>{machine.name}</span>}
-        <span>{fmtDate(brew.created_at)}</span>
-        {brew.extraction != null && <span>{extractionLabel(brew.extraction)}</span>}
-      </div>
+      {setup && <p className="text-xs text-muted [overflow-wrap:anywhere]">{setup}</p>}
       {brew.notes && <p className="italic [overflow-wrap:anywhere]">„{brew.notes}“</p>}
-      {hint && <p className="text-sm text-muted">💡 {hint}</p>}
-      {onReuse && (
-        <button className="btn btn-primary btn-block" onClick={() => onReuse(brew)}>
-          Mit diesen Werten neuen Bezug starten
-        </button>
+      {hint && (
+        <p className="flex gap-1.5 text-sm text-muted">
+          <Lightbulb size={16} className="mt-0.5 shrink-0" aria-hidden />
+          {hint}
+        </p>
       )}
     </div>
   )
 }
 
 /** Kennzahl-Kachel (daisyUI stat, kompakt) */
-export const statCls = 'stat place-items-center gap-0 rounded-[10px] bg-base-100 px-1 py-2 min-w-0'
-export const statValueCls = 'stat-value text-lg font-bold tabular-nums whitespace-normal'
-export const statTitleCls = 'stat-title text-[0.7rem] text-muted whitespace-normal text-center'
+export const statCls = 'stat place-items-start gap-1 rounded-[10px] bg-base-100 px-2.5 py-2.5 min-w-0'
+export const statValueCls = 'stat-value num text-lg font-semibold whitespace-normal'
+export const statTitleCls = 'stat-title lbl whitespace-normal'
 
 export function Stat({ label, value, unit, className = '' }: { label: ReactNode; value: ReactNode; unit?: string; className?: string }) {
   const empty = value == null || value === ''
   return (
     <div className={`${statCls} ${className}`}>
+      <span className={statTitleCls}>{label}</span>
       <span className={statValueCls}>
         {empty ? '–' : value}
-        {!empty && unit && <small className="ml-px text-xs font-normal text-muted">{unit}</small>}
+        {!empty && unit && <small className="ml-0.5 text-xs font-normal text-muted">{unit}</small>}
       </span>
-      <span className={statTitleCls}>{label}</span>
+    </div>
+  )
+}
+
+/** Frische-Skala (rein visuell, die Tage stehen daneben als Zahl): Ruhen 0–5 Tage · Optimum bis 30 · Nachlassend bis 60 (wie freshness() in lib/coffee) */
+export function FreshnessScale({ days }: { days: number }) {
+  const pos = Math.min(100, Math.max(0, (days / 60) * 100))
+  return (
+    <div className="scale" aria-hidden>
+      <span className="flex-5 bg-(--scale-rest)" />
+      <span className="flex-25 bg-(--scale-good)" />
+      <span className="flex-30 bg-(--scale-fade)" />
+      <span className="needle" style={{ left: `${pos}%` }} />
+    </div>
+  )
+}
+
+/** Ratio-Lineal 1:1.5 – 1:3.0 (Espresso); bei Filter-Ratios (> 1:5) ausgeblendet */
+export function RatioRuler({ value }: { value: number | null }) {
+  if (value == null || value > 5) return null
+  const pos = Math.min(100, Math.max(0, ((value - 1.5) / 1.5) * 100))
+  return (
+    <div aria-hidden>
+      <div className="ruler">
+        <span className="needle" style={{ left: `${pos}%` }} />
+      </div>
+      <div className="num relative mt-1.5 h-4 text-[11px] text-muted">
+        <span className="absolute left-0">1:1.5</span>
+        <span className="absolute left-1/3 -translate-x-1/2">1:2.0</span>
+        <span className="absolute left-2/3 -translate-x-1/2">1:2.5</span>
+        <span className="absolute right-0">1:3.0</span>
+      </div>
     </div>
   )
 }
