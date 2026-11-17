@@ -92,3 +92,12 @@ export async function exportAll() {
   for (const t of TABLES) (out as Record<TableName, unknown[]>)[t] = await db.list(t)
   return out as Data
 }
+
+/** Alle eigenen Daten als JSON-Datei herunterladen (Setup, Profil) */
+export async function downloadBackup() {
+  const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
+  Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: `beanbase-backup-${new Date().toISOString().slice(0, 10)}.json`,
+  }).click()
+}

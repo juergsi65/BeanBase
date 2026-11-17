@@ -1,7 +1,10 @@
-import { Camera, Coffee, Cog, Lock, MessageSquare, Wrench, X } from 'lucide-react'
+import { Camera, ChevronRight, Coffee, Cog, Download, Lock, MessageSquare, Wrench, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, Empty, Chip, ConfirmButton } from '../components/ui'
+import { Field, Empty, Chip, ConfirmButton, Segmented } from '../components/ui'
+import { THEME_LABEL } from '../lib/theme'
+import { spending, fmtMoney } from '../lib/cost'
+import { downloadBackup } from '../lib/db'
 import Avatar from '../components/Avatar'
 import { SocialUnavailable } from './CommunityPage'
 import { MACHINE_TYPES, SCALE_TYPES, plural } from '../lib/coffee'
@@ -104,8 +107,9 @@ function PersonRow({ profile, onOpen, children }: { profile: PublicProfile; onOp
   )
 }
 
-export default function ProfilePage({ data, go, me }: PageProps) {
+export default function ProfilePage({ data, go, me, theme }: PageProps) {
   const [profile, setProfile] = useState<PublicProfile | null>(null)
+  const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ProfileForm | null>(null)
   const [msg, setMsg] = useState<Msg | null>(null)
   const [saving, setSaving] = useState(false)
@@ -200,92 +204,168 @@ export default function ProfilePage({ data, go, me }: PageProps) {
     return null
   }
 
+  // Öffentlich/privat sofort speichern (Schalter in den Einstellungen)
+  const togglePublic = async () => {
+    try {
+      const p = await updateMyProfile({ is_public: !profile.is_public })
+      setProfile(p)
+      setForm((f) => f && { ...f, is_public: p.is_public })
+    } catch (err) {
+      setMsg({ tone: 'error', text: errMsg(err) })
+    }
+  }
+
+  const ratings = data.brews.map((b) => b.rating).filter((r): r is number => r != null)
+  const perCup = spending(data.brews, data.bean_stock, 36500).perCup
+  const stats: { k: string; v: string; accent?: boolean; desk?: boolean }[] = [
+    { k: 'Bezüge', v: String(data.brews.length) },
+    { k: 'Bohnen', v: String(data.beans.length) },
+    { k: 'Freunde', v: String(rel.friends.length) },
+    { k: 'Ø Wertung', v: ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : '–', accent: true },
+    { k: 'Ø pro Tasse', v: perCup != null ? fmtMoney(perCup) : '–', desk: true },
+  ]
+  const gear = [
+    ...data.machines.map((m) => ({ id: m.id, img: m.image_url, kind: `Maschine · ${MACHINE_TYPES[m.type]}`, name: m.name })),
+    ...data.grinders.map((g) => ({ id: g.id, img: g.image_url, kind: `Mühle · ${SCALE_TYPES[g.scale_type]}`, name: g.name })),
+  ]
+  const row = 'flex w-full cursor-pointer items-center justify-between gap-3 border-t border-base-300 px-4 py-3.5 text-left'
+
   return (
-    <div className={`${css.page} flex flex-col gap-4 desk:block`}>
-      <h2>Mein Profil</h2>
-      <form className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5" onSubmit={save}>
-        <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
-          <label className="relative inline-block cursor-pointer" title="Profilbild ändern">
-            <Avatar profile={profile} size={72} />
-            <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full border-2 border-base-100 bg-accent text-accent-content"><Camera size={14} aria-hidden /></span>
-            <input type="file" accept="image/*" hidden onChange={onAvatar} data-testid="avatar-upload" />
-          </label>
-          <div>
-            <strong>{profile.display_name || profile.username}</strong>
-            <span className="text-muted text-sm">@{profile.username}</span>
-            <span>{me?.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Beta-Tester</Chip>}</span>
-          </div>
-        </div>
-        <Field label="Username" hint="3–20 Zeichen: a–z, 0–9, _">
-          <input className="input w-full" value={form.username} onChange={set('username')} autoCapitalize="none" autoCorrect="off" maxLength={20} />
-        </Field>
-        <Field label="Anzeigename">
-          <input className="input w-full" value={form.display_name} onChange={set('display_name')} maxLength={40} placeholder="z. B. Jürgen" />
-        </Field>
-        <Field label="Bio">
-          <textarea className="textarea w-full" rows={2} value={form.bio} onChange={set('bio')} maxLength={280} placeholder="z. B. Espresso-Nerd, helle Röstungen, Lelit Bianca" />
-        </Field>
-        <label className="flex items-center gap-3 cursor-pointer font-semibold">
-          <input className="checkbox checkbox-primary" type="checkbox" checked={form.is_public} onChange={set('is_public')} />
-          <span>
-            Profil öffentlich
-            <span className="block text-sm font-normal text-muted">
-              {form.is_public
-                ? 'Alle BeanBase-Nutzer sehen deine Bohnen, dein Setup und deine Bezüge („Alle Baristas“).'
-                : 'Nur akzeptierte Freunde sehen deine Bohnen, dein Setup und deine Bezüge.'}
-            </span>
-          </span>
+    <div className="flex flex-col gap-5 desk:gap-6">
+      <header className="flex flex-wrap items-center gap-3.5 desk:gap-5">
+        <label className="relative inline-block shrink-0 cursor-pointer" title="Profilbild ändern">
+          <span className="desk:hidden"><Avatar profile={profile} size={76} /></span>
+          <span className="hidden desk:inline"><Avatar profile={profile} size={96} /></span>
+          <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full border-2 border-base-100 bg-accent text-accent-content"><Camera size={14} aria-hidden /></span>
+          <input type="file" accept="image/*" hidden onChange={onAvatar} data-testid="avatar-upload" aria-label="Profilbild ändern" />
         </label>
-        {msg && <div className={`alert alert-soft block alert-${msg.tone}`}>{msg.text}</div>}
-        <button className="btn btn-primary btn-block" disabled={saving}>
-          {saving ? 'Speichere …' : 'Profil speichern'}
+        <div className="min-w-0 grow basis-52">
+          <h2 className="text-2xl desk:text-[34px] desk:tracking-[-0.025em]">{profile.display_name || profile.username}</h2>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted desk:text-base">
+            <span>@{profile.username} · {profile.is_public ? 'öffentliches Profil' : 'nur für Freunde'}</span>
+            {me?.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Beta-Tester</Chip>}
+          </div>
+          {profile.bio && <p className="mt-2 text-base-content/80 [overflow-wrap:anywhere]">{profile.bio}</p>}
+        </div>
+        <button className="btn h-11 rounded-[12px] border-base-300 bg-base-100 font-normal" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
+          {editing ? 'Schließen' : 'Profil bearbeiten'}
         </button>
-      </form>
+      </header>
 
-      <SetupCard
-        machines={data.machines}
-        grinders={data.grinders}
-        beansCount={data.beans.filter((b) => b.active).length}
-        brewsCount={data.brews.length}
-        setupPhoto={profile.setup_photo_url}
-      >
-        <SetupPhotoEditor profile={profile} onSaved={setProfile} />
-      </SetupCard>
-
-      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        {me?.role === 'admin' && (
-          <button className="btn btn-primary btn-block" onClick={() => go('admin')}>
-            <Wrench size={16} aria-hidden /> Admin-Bereich
+      {editing && (
+        <form className="card gap-3.5 border border-base-300 bg-base-100 p-4 desk:max-w-xl desk:p-5" onSubmit={save}>
+          <Field label="Username" hint="3–20 Zeichen: a–z, 0–9, _">
+            <input className="input w-full" value={form.username} onChange={set('username')} autoCapitalize="none" autoCorrect="off" maxLength={20} />
+          </Field>
+          <Field label="Anzeigename">
+            <input className="input w-full" value={form.display_name} onChange={set('display_name')} maxLength={40} placeholder="z. B. Jürgen" />
+          </Field>
+          <Field label="Bio">
+            <textarea className="textarea w-full" rows={2} value={form.bio} onChange={set('bio')} maxLength={280} placeholder="z. B. Espresso-Nerd, helle Röstungen, Lelit Bianca" />
+          </Field>
+          <button className="btn btn-primary btn-block" disabled={saving}>
+            {saving ? 'Speichere …' : 'Profil speichern'}
           </button>
-        )}
-        <button className="btn btn-ghost border-base-300 btn-block" onClick={() => go('feedback')}>
-          <MessageSquare size={16} aria-hidden /> Feedback zur Beta geben
-        </button>
-        <details className="[&[open]>summary]:mb-3">
-          <summary className="btn btn-ghost border-base-300 btn-block list-none [&::-webkit-details-marker]:hidden"><Lock size={16} aria-hidden /> Passwort ändern</summary>
-          <PasswordForm />
-        </details>
-        <button className="btn btn-ghost border-base-300 btn-block" onClick={() => supabase?.auth.signOut()}>
-          Abmelden
-        </button>
-        <ConfirmButton
-          className="btn btn-outline btn-error btn-block"
-          question="Konto und alle Daten (Bohnen, Bezüge, Foto-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen."
-          confirmLabel="Konto endgültig löschen"
-          typeToConfirm="LÖSCHEN"
-          onConfirm={async () => {
-            try {
-              await deleteMyAccount()
-              await supabase?.auth.signOut()
-            } catch (e) {
-              toast(errMsg(e), { tone: 'error' })
-            }
-          }}
-        >
-          Konto löschen
-        </ConfirmButton>
-      </section>
+        </form>
+      )}
+      {msg && <div className={`alert alert-soft block alert-${msg.tone}`}>{msg.text}</div>}
 
+      <div className="flex flex-wrap gap-px overflow-hidden rounded-[16px] border border-base-300 bg-base-300">
+        {stats.map((s) => (
+          <div key={s.k} className={`min-w-0 flex-1 basis-[22%] bg-base-100 p-2.5 desk:basis-35 desk:p-4 ${s.desk ? 'hidden desk:block' : ''}`}>
+            <div className={`num text-xl font-semibold desk:text-[28px] ${s.accent ? 'text-accent-strong' : ''}`}>{s.v}</div>
+            <div className="text-xs text-muted desk:text-[13px]">{s.k}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-5 desk:flex-row desk:items-start desk:gap-6">
+        <section className="flex min-w-0 flex-col gap-3 desk:flex-[1_1_420px]">
+          <h3 className="lbl">Mein Setup</h3>
+          {profile.setup_photo_url && <img className="media setup-photo" src={profile.setup_photo_url} alt="Kaffee-Setup" loading="lazy" />}
+          {gear.length ? (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2 desk:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] desk:gap-3">
+              {gear.map((g) => (
+                <button key={g.id} className="flex cursor-pointer flex-col gap-2.5 rounded-[14px] border border-base-300 bg-base-100 p-3 text-left desk:gap-3 desk:rounded-[16px] desk:p-3.5" onClick={() => go('equipment')}>
+                  {g.img ? (
+                    <img className="h-22.5 w-full rounded-[10px] object-cover desk:h-37.5 desk:rounded-[12px]" src={g.img} alt="" loading="lazy" />
+                  ) : (
+                    <span className="grid h-22.5 place-items-center rounded-[10px] border border-dashed border-(--line-strong) text-xs text-muted desk:h-37.5 desk:rounded-[12px]">Foto</span>
+                  )}
+                  <span>
+                    <span className="lbl block">{g.kind}</span>
+                    <span className="font-semibold desk:text-[17px]">{g.name}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button className="btn h-11 rounded-[12px] border-(--line-strong) bg-transparent font-normal" onClick={() => go('equipment')}>
+              + Maschine &amp; Mühle eintragen
+            </button>
+          )}
+          <SetupPhotoEditor profile={profile} onSaved={setProfile} />
+        </section>
+
+        <section className="flex min-w-0 flex-col gap-3 desk:flex-[1_1_360px]">
+          <h3 className="lbl">Einstellungen</h3>
+          <div className="overflow-hidden rounded-[14px] border border-base-300 bg-base-100 desk:rounded-[16px] [&>*:first-child]:border-t-0">
+            <label className={row} aria-label="Profil öffentlich">
+              <span>
+                <span className="block font-medium">Profil öffentlich</span>
+                <span className="text-[13px] text-muted">{profile.is_public ? 'Alle sehen deine Bezüge, nicht nur Freunde' : 'Nur Freunde sehen deine Bezüge'}</span>
+              </span>
+              <input className="toggle toggle-primary" type="checkbox" checked={profile.is_public} onChange={() => void togglePublic()} />
+            </label>
+            <div className="flex flex-col gap-2.5 border-t border-base-300 px-4 py-3.5">
+              <span className="font-medium">Darstellung</span>
+              <Segmented options={THEME_LABEL} value={theme.theme} onChange={(v) => v && theme.setTheme(v)} />
+            </div>
+            <button className={row} onClick={() => go('feedback')}>
+              <span className="flex items-center gap-2"><MessageSquare size={18} strokeWidth={1.75} aria-hidden /> Feedback an das Team</span>
+              <ChevronRight size={16} className="text-muted" aria-hidden />
+            </button>
+            <button className={row} onClick={() => void downloadBackup()}>
+              <span className="flex items-center gap-2"><Download size={18} strokeWidth={1.75} aria-hidden /> Daten exportieren</span>
+              <span className="num text-xs text-muted">JSON</span>
+            </button>
+            <details className="border-t border-base-300 [&[open]>summary]:pb-2">
+              <summary className={`${row} list-none border-t-0 [&::-webkit-details-marker]:hidden`}>
+                <span className="flex items-center gap-2"><Lock size={18} strokeWidth={1.75} aria-hidden /> Passwort ändern</span>
+                <ChevronRight size={16} className="text-muted" aria-hidden />
+              </summary>
+              <div className="px-4 pb-4"><PasswordForm /></div>
+            </details>
+            {me?.role === 'admin' && (
+              <button className={row} onClick={() => go('admin')}>
+                <span className="flex items-center gap-2"><Wrench size={18} strokeWidth={1.75} aria-hidden /> Admin-Bereich</span>
+                <ChevronRight size={16} className="text-muted" aria-hidden />
+              </button>
+            )}
+            <button className={`${row} text-error`} onClick={() => supabase?.auth.signOut()}>
+              Abmelden
+            </button>
+          </div>
+          <ConfirmButton
+            className="btn btn-ghost btn-sm self-start font-normal text-error"
+            question="Konto und alle Daten (Bohnen, Bezüge, Foto-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen."
+            confirmLabel="Konto endgültig löschen"
+            typeToConfirm="LÖSCHEN"
+            onConfirm={async () => {
+              try {
+                await deleteMyAccount()
+                await supabase?.auth.signOut()
+              } catch (e) {
+                toast(errMsg(e), { tone: 'error' })
+              }
+            }}
+          >
+            Konto löschen
+          </ConfirmButton>
+        </section>
+      </div>
+
+      <div className={`${css.friends} flex flex-col gap-4`}>
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
         <h3 className="lbl">Freunde finden</h3>
         <input className="input w-full" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Username suchen …" autoCapitalize="none" />
@@ -363,6 +443,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
           </>
         )}
       </section>
+      </div>
     </div>
   )
 }

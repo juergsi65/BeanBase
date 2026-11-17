@@ -7,7 +7,7 @@ import { MACHINE_PRESETS, GRINDER_PRESETS, searchPresets } from '../data/presets
 import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
-import { exportAll } from '../lib/db'
+import { downloadBackup } from '../lib/db'
 import { useHapticsSetting } from '../lib/haptics'
 import { THEME_LABEL } from '../lib/theme'
 import type { RowInput } from '../lib/db'
@@ -59,13 +59,6 @@ export default function EquipmentPage({ data, theme }: Pick<PageProps, 'data' | 
 
 function AppSettings({ theme }: Pick<PageProps, 'theme'>) {
   const [haptics, setHaptics] = useHapticsSetting()
-  const download = async () => {
-    const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
-    Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `beanbase-backup-${new Date().toISOString().slice(0, 10)}.json`,
-    }).click()
-  }
   return (
     <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
       <h3 className="lbl">App</h3>
@@ -81,7 +74,7 @@ function AppSettings({ theme }: Pick<PageProps, 'theme'>) {
         </span>
         <input className="toggle toggle-primary" type="checkbox" checked={haptics} onChange={(e) => setHaptics(e.target.checked)} />
       </label>
-      <button className="flex items-center justify-between gap-2 border-t border-base-300 pt-3.5 text-left cursor-pointer" onClick={download}>
+      <button className="flex items-center justify-between gap-2 border-t border-base-300 pt-3.5 text-left cursor-pointer" onClick={() => void downloadBackup()}>
         <span className="flex items-center gap-2 font-medium">
           <Download size={18} aria-hidden /> Alle Daten exportieren
         </span>
