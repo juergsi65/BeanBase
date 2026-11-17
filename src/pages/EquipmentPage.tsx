@@ -1,3 +1,4 @@
+import { Camera, Download, Pencil, Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { Field, Empty, Chip, Segmented, ConfirmButton } from '../components/ui'
@@ -6,7 +7,7 @@ import { MACHINE_PRESETS, GRINDER_PRESETS, searchPresets } from '../data/presets
 import MediaPicker from '../components/MediaPicker'
 import { uploadMedia, deleteMedia } from '../lib/media'
 import { toast } from '../lib/toast'
-import { exportAll } from '../lib/db'
+import { downloadBackup } from '../lib/db'
 import { useHapticsSetting } from '../lib/haptics'
 import { THEME_LABEL } from '../lib/theme'
 import type { RowInput } from '../lib/db'
@@ -30,7 +31,7 @@ const typeOf = (r: EquipRow | Preset): string => ('type' in r ? r.type : r.scale
 export default function EquipmentPage({ data, theme }: Pick<PageProps, 'data' | 'theme'>) {
   return (
     <div className="flex flex-col gap-4">
-      <h2>Mein Equipment</h2>
+      <h2>Setup</h2>
       <EquipmentSection
         data={data}
         table="machines"
@@ -58,31 +59,26 @@ export default function EquipmentPage({ data, theme }: Pick<PageProps, 'data' | 
 
 function AppSettings({ theme }: Pick<PageProps, 'theme'>) {
   const [haptics, setHaptics] = useHapticsSetting()
-  const download = async () => {
-    const blob = new Blob([JSON.stringify(await exportAll(), null, 2)], { type: 'application/json' })
-    Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `beanbase-backup-${new Date().toISOString().slice(0, 10)}.json`,
-    }).click()
-  }
   return (
     <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-      <h3 className="text-xs uppercase tracking-widest text-muted">App</h3>
+      <h3 className="lbl">App</h3>
       {theme && (
         <Field label="Design">
           <Segmented options={THEME_LABEL} value={theme.theme} onChange={(v) => v && theme.setTheme(v)} />
         </Field>
       )}
-      <label className="flex items-center gap-3 cursor-pointer font-semibold">
-        <input className="checkbox checkbox-primary"
-          type="checkbox"
-          checked={haptics}
-          onChange={(e) => setHaptics(e.target.checked)}
-        />
-        <span>Haptisches Feedback (Vibration beim Tippen)</span>
+      <label className="flex items-center gap-3 cursor-pointer border-t border-base-300 pt-3.5" aria-label="Haptisches Feedback">
+        <span className="grow">
+          <span className="block font-medium">Haptisches Feedback</span>
+          <span className="text-sm text-muted">Vibration beim Tippen</span>
+        </span>
+        <input className="toggle toggle-primary" type="checkbox" checked={haptics} onChange={(e) => setHaptics(e.target.checked)} />
       </label>
-      <button className="btn btn-ghost border-base-300 btn-block" onClick={download}>
-        ⤓ Alle Daten exportieren (JSON-Backup)
+      <button className="flex items-center justify-between gap-2 border-t border-base-300 pt-3.5 text-left cursor-pointer" onClick={() => void downloadBackup()}>
+        <span className="flex items-center gap-2 font-medium">
+          <Download size={18} aria-hidden /> Alle Daten exportieren
+        </span>
+        <span className="num text-xs text-muted">JSON-BACKUP</span>
       </button>
     </section>
   )
@@ -98,7 +94,7 @@ function PresetPicker({ presets, onPick }: { presets: Preset[]; onPick: (p: Pres
       <input className="input w-full"
         type="search"
         value={q}
-        placeholder="🔍 Bekanntes Modell suchen (z. B. Niche) …"
+        placeholder="Bekanntes Modell suchen (z. B. Niche) …"
         aria-label="Aus bekannten Modellen wählen"
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -187,16 +183,16 @@ function EquipmentSection({
   return (
     <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs uppercase tracking-widest text-muted">{title}</h3>
+        <h3 className="lbl">{title}</h3>
         {!form && (
-          <button className="btn btn-primary btn-sm" onClick={() => setForm({ name: '', type: defaultType, notes: '', preset_id: null })}>
-            + Hinzufügen
+          <button className="btn btn-primary btn-sm rounded-[10px]" onClick={() => setForm({ name: '', type: defaultType, notes: '', preset_id: null })}>
+            <Plus size={16} strokeWidth={2.2} aria-hidden /> Hinzufügen
           </button>
         )}
       </div>
 
       {form && (
-        <form className="mb-3 flex flex-col gap-4 rounded-box bg-base-200 p-3" onSubmit={save}>
+        <form className="mb-3 flex flex-col gap-4 rounded-box border border-primary/35 bg-base-200 p-3" onSubmit={save}>
           <PresetPicker presets={presets} onPick={pick} />
           {form.preset_id && (
             <div className="flex flex-wrap gap-1.5">
@@ -243,10 +239,21 @@ function EquipmentSection({
         <ul className="items">
           {rows.map((r) => (
             <li key={r.id} className="item">
-              {r.image_url && <img className="thumb" src={r.image_url} alt="" loading="lazy" />}
+              {r.image_url ? (
+                <img className="thumb size-14" src={r.image_url} alt="" loading="lazy" />
+              ) : (
+                <span className="grid size-14 shrink-0 place-items-center rounded-xl border border-dashed border-(--line-strong) text-muted" aria-hidden>
+                  <Camera size={20} />
+                </span>
+              )}
               <div className="grow">
-                <strong>
-                  {r.name} {r.preset_id && <span className="badge badge-success badge-soft badge-xs ml-1" title={presetName(r.preset_id)}>✓</span>}
+                <strong className="flex flex-wrap items-center gap-1.5 font-semibold">
+                  {r.name}
+                  {r.preset_id && (
+                    <span className="num rounded-md border border-success/40 bg-success/10 px-1.5 text-[10px] text-success" title={presetName(r.preset_id)}>
+                      MODELL
+                    </span>
+                  )}
                 </strong>
                 <span className="text-muted text-sm">
                   {types[typeOf(r)]}
@@ -255,13 +262,14 @@ function EquipmentSection({
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  className="btn btn-ghost border-base-300 btn-sm"
+                  className="btn btn-ghost border-base-300 btn-sm btn-square size-10"
+                  aria-label={`${r.name} bearbeiten`}
                   onClick={() => setForm({ id: r.id, name: r.name, type: typeOf(r), notes: r.notes ?? '', preset_id: r.preset_id ?? null, image_url: r.image_url ?? null })}
                 >
-                  ✎
+                  <Pencil size={16} aria-hidden />
                 </button>
                 <ConfirmButton question={`„${r.name}“ löschen?`} confirmLabel="Löschen" onConfirm={() => del(r)} ariaLabel={`${r.name} löschen`}>
-                  ✕
+                  <X size={18} aria-hidden />
                 </ConfirmButton>
               </div>
             </li>

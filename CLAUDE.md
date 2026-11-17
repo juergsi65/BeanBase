@@ -19,6 +19,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 ## Architecture
 
 **Stack:** React 19 + Vite 8 + TypeScript (strict), Tailwind CSS 4 + daisyUI 5 (themes `light`/`dark` defined in `src/styles.css`), TanStack Query, Supabase (Postgres + Auth + Storage + RPC). Hosted as Cloudflare Worker serving `dist/` as SPA assets.
+**Styling:** Tailwind utilities first. CSS that utilities can't express and that belongs to one component goes in a co-located `X.module.css` (wrap rules in `@layer components`, reference daisyUI/global classes via `:global(.x)`). `src/styles.css` holds only themes/tokens, base, app shell and shared building blocks. `main.tsx` must import `styles.css` before `App`, otherwise module CSS declares `@layer components` first and `base` ends up overriding it. Inline `style` only for computed values.
 **Two runtime modes** (`src/lib/supabase.ts`): if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are unset, `supabase` is `null` and the app runs in **demo mode** with all data in `localStorage` (`beanbase:v1`), no login. Anything account-only (social, admin, media upload) must call `requireSupabase()`. `.env.production` holds the real (public) Supabase URL + publishable key.
 
 **Data layer:**
@@ -28,7 +29,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 - Social/community/admin data (`social.ts`, `community.ts`, `admin.ts`, `barcode.ts`) talk to Supabase directly (tables + `security definer` RPCs like `get_community_recipes`, `lookup_bean_by_barcode`), not through `db.ts`.
 - Row types live in `src/types.ts` (`TableMap`, `Data`).
 
-**Navigation:** no router. `src/App.tsx` holds a `tab` state and a `go(tab, params)` helper; pages in `src/pages/` receive shared props. Initial tab can come from `?tab=` (PWA shortcuts); `?invite=CODE` and `?recovery=1` drive registration / password reset.
+**Navigation:** React Router (data mode: `createBrowserRouter` in `src/App.tsx`, no loaders — data stays in TanStack Query). Routes `/`, `/<tab>`, `/users/:userId`; `Layout` holds auth gates + app shell and passes shared page props via `<Outlet context>`. Pages navigate through `go(tab, params)` (wraps `navigate`); brew presets travel in history state. Old `?tab=` links redirect to `/<tab>`; `?invite=CODE` and `?recovery=1` drive registration / password reset.
 
 **Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/grind.ts` (grinder scales per manual: notation parse/format, corrections in real grinder units, canonical `brews.grind_pos` for community averages; scale definitions live on `GRINDER_PRESETS`), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
 

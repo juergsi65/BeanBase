@@ -1,8 +1,9 @@
 // Mahlgrad-Eingabe passend zur Skala der Mühle (Klicks, Makro/Mikro, Umdrehung.Zahl.Klick, Innenring …)
+import { Minus, Plus } from 'lucide-react'
 import { NumberInput } from './ui'
 import { formatGrind, parseGrind, type GrindScale } from '../lib/grind'
 
-const numBtn = 'btn join-item h-(--tap) w-(--tap) min-w-11 px-0 text-2xl font-normal active:btn-primary'
+const cBtn = 'btn btn-square size-11 min-h-0 shrink-0 rounded-[11px] border-(--line-strong) bg-base-100 px-0'
 const sub = 'text-[0.72rem] uppercase tracking-wider text-muted'
 
 export default function GrindInput({ scale, value, onChange }: { scale: GrindScale; value: string | number | null | undefined; onChange: (v: string) => void }) {
@@ -34,12 +35,12 @@ export default function GrindInput({ scale, value, onChange }: { scale: GrindSca
         <div className={scale.ring ? 'grid grid-cols-[1fr_auto] items-end gap-2' : ''}>
           <div className="flex flex-col gap-1">
             {scale.ring && <span className={sub}>Skala {scale.min}–{scale.max}</span>}
-            <NumberInput value={main} onChange={(v) => set(v === '' ? null : v)} step={scale.step} decimals={decimals} min={scale.min} max={scale.max} placeholder="–" />
+            <NumberInput compact label="Mahlgrad" value={main} onChange={(v) => set(v === '' ? null : v)} step={scale.step} decimals={decimals} min={scale.min} max={scale.max} placeholder="–" />
           </div>
           {scale.ring && ring != null && (
             <div className="flex flex-col gap-1">
               <span className={sub}>Innenring</span>
-              <select aria-label="Innenring" className="select h-(--tap) w-22 text-center font-bold" value={ring} onChange={(e) => set(parsed?.pos ?? scale.min, Number(e.target.value))}>
+              <select aria-label="Innenring" className="select h-11 w-22 rounded-[11px] border-(--line-strong) bg-base-100 text-center font-semibold" value={ring} onChange={(e) => set(parsed?.pos ?? scale.min, Number(e.target.value))}>
                 {Array.from({ length: scale.ring.max - scale.ring.min + 1 }, (_, i) => scale.ring!.min + i).map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -53,7 +54,7 @@ export default function GrindInput({ scale, value, onChange }: { scale: GrindSca
       )
     }
     case 'clicks':
-      return <NumberInput value={parsed ? Math.round(parsed.pos) : ''} onChange={(v) => set(v === '' ? null : v)} step={1} min={0} max={scale.max} unit="Klicks" placeholder="–" />
+      return <NumberInput compact label="Klicks" value={parsed ? Math.round(parsed.pos) : ''} onChange={(v) => set(v === '' ? null : v)} step={1} min={0} max={scale.max} unit="Klicks" placeholder="–" />
     case 'compound': {
       const k = scale.subs.length
       const ticks = parsed ? Math.round(parsed.pos * k) : null
@@ -64,7 +65,7 @@ export default function GrindInput({ scale, value, onChange }: { scale: GrindSca
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <span className={sub}>{letters ? `Makro ${scale.min}–${scale.max}` : `Zahl ${scale.min}–${scale.max}`}</span>
-            <NumberInput value={main ?? ''} onChange={(v) => set(v === '' ? null : v + idx / k)} step={1} min={scale.min} max={scale.max} placeholder="–" />
+            <NumberInput compact label={letters ? 'Makro' : 'Zahl'} value={main ?? ''} onChange={(v) => set(v === '' ? null : v + idx / k)} step={1} min={scale.min} max={scale.max} placeholder="–" />
           </div>
           <div className="flex flex-col gap-1">
             <span className={sub}>{letters ? 'Mikro (A = feiner)' : 'Zwischenstufe'}</span>
@@ -73,7 +74,7 @@ export default function GrindInput({ scale, value, onChange }: { scale: GrindSca
                 <button
                   type="button"
                   key={l || 'none'}
-                  className={`btn btn-sm min-w-10 ${i === idx && main != null ? 'btn-primary' : 'btn-ghost border-base-300'}`}
+                  className={`btn btn-sm min-w-10 rounded-[10px] ${i === idx && main != null ? 'btn-primary' : 'border-(--line-strong) bg-base-100'}`}
                   onClick={() => set((main ?? scale.min) + i / k)}
                 >
                   {letters ? l : `${main ?? scale.min}${l}`}
@@ -92,20 +93,20 @@ export default function GrindInput({ scale, value, onChange }: { scale: GrindSca
       }
       return (
         <div className="flex flex-col gap-1">
-          <div className="join w-full">
-            <button type="button" className={numBtn} onClick={() => bump(-1)} aria-label="1 Klick feiner">
-              −
+          <div className="flex items-center justify-between gap-1">
+            <button type="button" className={cBtn} onClick={() => bump(-1)} aria-label="1 Klick feiner">
+              <Minus size={18} aria-hidden />
             </button>
             <input
-              className="input join-item h-(--tap) grow min-w-0 text-center text-[1.35rem] font-bold"
+              className="num min-w-0 grow bg-transparent text-center text-2xl font-semibold outline-none"
               inputMode="decimal"
               value={raw}
-              placeholder="z. B. 1.5.2"
+              placeholder="1.5.2"
               onChange={(e) => onChange(e.target.value)}
               aria-label="Umdrehung.Zahl.Klick"
             />
-            <button type="button" className={numBtn} onClick={() => bump(1)} aria-label="1 Klick gröber">
-              +
+            <button type="button" className={cBtn} onClick={() => bump(1)} aria-label="1 Klick gröber">
+              <Plus size={18} aria-hidden />
             </button>
           </div>
           <span className="text-muted text-sm">

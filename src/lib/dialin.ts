@@ -197,7 +197,7 @@ export function correction({
 
   if (extraction == null) return { tone: 'none', title: null, tips }
   if (extraction === 0) {
-    const r = { tone: 'good' as const, title: 'Ausgewogen – diese Einstellung beibehalten. 👌', tips }
+    const r = { tone: 'good' as const, title: 'Ausgewogen – diese Einstellung beibehalten.', tips }
     if (time && targetTime && (time < targetTime[0] || time > targetTime[1]))
       tips.push(`Geschmack passt, auch wenn die Zeit (${fmtTime(time)}) außerhalb von ${fmtRange(targetTime)} liegt – der Geschmack zählt.`)
     return r
