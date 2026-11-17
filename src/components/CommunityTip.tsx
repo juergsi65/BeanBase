@@ -64,16 +64,16 @@ export default function CommunityTip({
   }, [roaster, name, grinderPreset, machinePreset, type])
 
   if (!communityAvailable)
-    return <p className="community muted small">🌍 Community-Check: verfügbar, sobald die App mit Supabase verbunden ist.</p>
+    return <p className="py-0.5 text-muted text-sm">🌍 Community-Check: verfügbar, sobald die App mit Supabase verbunden ist.</p>
   if (state.status === 'idle') return null
-  if (state.status === 'loading') return <p className="community muted small">🌍 Suche Community-Werte …</p>
-  if (state.status === 'error') return <p className="community muted small">🌍 Community-Check nicht verfügbar ({state.error})</p>
+  if (state.status === 'loading') return <p className="py-0.5 text-muted text-sm">🌍 Suche Community-Werte …</p>
+  if (state.status === 'error') return <p className="py-0.5 text-muted text-sm">🌍 Community-Check nicht verfügbar ({state.error})</p>
 
   if (state.status !== 'done') return null
   const row = bestScope(state.result)
   const methodLabel = type ? ` (${MACHINE_TYPES[type]})` : ''
   if (!row)
-    return <p className="community muted small">🌍 Noch keine Community-Daten für diese Bohne{methodLabel} – du bist der/die Erste!</p>
+    return <p className="py-0.5 text-muted text-sm">🌍 Noch keine Community-Daten für diese Bohne{methodLabel} – du bist der/die Erste!</p>
 
   const grinderName = findGrinderPreset(grinderPreset)?.name ?? grinder?.name
   const machineName = findMachinePreset(machinePreset)?.name ?? machine?.name
@@ -104,37 +104,37 @@ export default function CommunityTip({
   )
 
   return (
-    <div className="community card-inner">
-      <div className="community-head">🌍 Community {head}</div>
-      <div className="community-row">
-        <span className="community-label">Ø Durchschnitt</span>
+    <div className="community-tip flex flex-col gap-1.5 rounded-[14px] px-3.5 py-3">
+      <div className="font-semibold">🌍 Community {head}</div>
+      <div className="flex flex-col gap-px">
+        <span className="text-[0.72rem] uppercase tracking-wider text-muted">Ø Durchschnitt</span>
         <span>{line(avg)}</span>
       </div>
-      <div className="community-row">
-        <span className="community-label">★ Bestes Rezept ({row.best_rating}★)</span>
+      <div className="flex flex-col gap-px">
+        <span className="text-[0.72rem] uppercase tracking-wider text-muted">★ Bestes Rezept ({row.best_rating}★)</span>
         <span>{line(best)}</span>
       </div>
       {row.min_grind != null && row.min_grind !== row.max_grind && (
-        <p className="muted small">
+        <p className="text-muted text-sm">
           Mahlgrad-Spanne {Number(row.min_grind)}–{Number(row.max_grind)}
         </p>
       )}
-      <p className="muted small">
+      <p className="text-muted text-sm">
         Ø {row.avg_rating} ★ aus {row.brew_count} gut bewerteten Bezügen von {row.user_count} Nutzern
       </p>
       {row.scope === 'all' && (
-        <p className="muted small">
+        <p className="text-muted text-sm">
           {grinderPreset
             ? 'Mahlgrad: noch zu wenige Daten für deine Mühle.'
             : 'Tipp: Verknüpfe deine Mühle unter „Setup“ mit einem Modell, um auch Mahlgrad-Werte zu sehen.'}
         </p>
       )}
       {onApply && (
-        <div className="row-actions">
-          <button type="button" className="btn primary grow" onClick={() => onApply(best)}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button type="button" className="btn btn-primary grow mt-1" onClick={() => onApply(best)}>
             Rezept übernehmen
           </button>
-          <button type="button" className="btn ghost" onClick={() => onApply(avg)}>
+          <button type="button" className="btn btn-ghost border-base-300 mt-1" onClick={() => onApply(avg)}>
             Ø übernehmen
           </button>
         </div>

@@ -46,8 +46,8 @@ export function SetupCard({
 }) {
   const gear = [...machines, ...grinders].filter((g): g is typeof g & { image_url: string } => !!g.image_url)
   return (
-    <section className="card">
-      <h3 className="section-title">Barista-Visitenkarte</h3>
+    <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+      <h3 className="text-xs uppercase tracking-widest text-muted">Barista-Visitenkarte</h3>
       {setupPhoto && <img className="media setup-photo" src={setupPhoto} alt="Kaffee-Setup" loading="lazy" />}
       {gear.length > 0 && (
         <div className="gear-strip">
@@ -61,23 +61,23 @@ export function SetupCard({
       )}
       {children}
       {machines.length || grinders.length ? (
-        <ul className="setup-list">
+        <ul className="flex flex-col gap-1.5 [&>li]:flex [&>li]:items-baseline [&>li]:gap-2">
           {machines.map((m) => (
             <li key={m.id}>
-              <span>☕</span> {m.name} <span className="muted small">{MACHINE_TYPES[m.type]}</span>
+              <span>☕</span> {m.name} <span className="text-muted text-sm">{MACHINE_TYPES[m.type]}</span>
             </li>
           ))}
           {grinders.map((g) => (
             <li key={g.id}>
-              <span>⚙️</span> {g.name} <span className="muted small">{SCALE_TYPES[g.scale_type]}</span>
+              <span>⚙️</span> {g.name} <span className="text-muted text-sm">{SCALE_TYPES[g.scale_type]}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="muted small">Noch kein Equipment eingetragen.</p>
+        <p className="text-muted text-sm">Noch kein Equipment eingetragen.</p>
       )}
       {(beansCount != null || brewsCount != null) && (
-        <p className="muted small">
+        <p className="text-muted text-sm">
           {beansCount != null && `${beansCount} aktive Bohnen`}
           {beansCount != null && brewsCount != null && ' · '}
           {brewsCount != null && plural(brewsCount, 'Bezug', 'Bezüge')}
@@ -89,15 +89,15 @@ export function SetupCard({
 
 function PersonRow({ profile, onOpen, children }: { profile: PublicProfile; onOpen: (id: string) => void; children: ReactNode }) {
   return (
-    <li className="list-item">
-      <button type="button" className="feed-author" onClick={() => onOpen(profile.id)}>
+    <li className="item">
+      <button type="button" className="flex min-w-0 cursor-pointer items-center gap-2.5 text-left [&>span]:flex [&>span]:min-w-0 [&>span]:flex-col" onClick={() => onOpen(profile.id)}>
         <Avatar profile={profile} size={36} />
         <span>
           <strong>{profile.display_name || profile.username}</strong>
-          <span className="muted small">@{profile.username}</span>
+          <span className="text-muted text-sm">@{profile.username}</span>
         </span>
       </button>
-      <div className="row-actions">{children}</div>
+      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
     </li>
   )
 }
@@ -140,7 +140,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
   }, [q])
 
   if (!socialAvailable) return <SocialUnavailable />
-  if (!form || !profile) return <p className="muted">Lade Profil …</p>
+  if (!form || !profile) return <p className="text-muted">Lade Profil …</p>
 
   const open = (id: string) => go('user', { userId: id })
   const set = (k: keyof ProfileForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -199,43 +199,43 @@ export default function ProfilePage({ data, go, me }: PageProps) {
   }
 
   return (
-    <div className="stack profile-page">
+    <div className="profile-page flex flex-col gap-4 desk:block">
       <h2>Mein Profil</h2>
-      <form className="card" onSubmit={save}>
-        <div className="profile-head">
-          <label className="avatar-upload" title="Profilbild ändern">
+      <form className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5" onSubmit={save}>
+        <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
+          <label className="relative inline-block cursor-pointer" title="Profilbild ändern">
             <Avatar profile={profile} size={72} />
             <span className="avatar-edit">📷</span>
             <input type="file" accept="image/*" hidden onChange={onAvatar} data-testid="avatar-upload" />
           </label>
           <div>
             <strong>{profile.display_name || profile.username}</strong>
-            <span className="muted small">@{profile.username}</span>
+            <span className="text-muted text-sm">@{profile.username}</span>
             <span>{me?.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Beta-Tester</Chip>}</span>
           </div>
         </div>
         <Field label="Username" hint="3–20 Zeichen: a–z, 0–9, _">
-          <input value={form.username} onChange={set('username')} autoCapitalize="none" autoCorrect="off" maxLength={20} />
+          <input className="input w-full" value={form.username} onChange={set('username')} autoCapitalize="none" autoCorrect="off" maxLength={20} />
         </Field>
         <Field label="Anzeigename">
-          <input value={form.display_name} onChange={set('display_name')} maxLength={40} placeholder="z. B. Jürgen" />
+          <input className="input w-full" value={form.display_name} onChange={set('display_name')} maxLength={40} placeholder="z. B. Jürgen" />
         </Field>
         <Field label="Bio">
-          <textarea rows={2} value={form.bio} onChange={set('bio')} maxLength={280} placeholder="z. B. Espresso-Nerd, helle Röstungen, Lelit Bianca" />
+          <textarea className="textarea w-full" rows={2} value={form.bio} onChange={set('bio')} maxLength={280} placeholder="z. B. Espresso-Nerd, helle Röstungen, Lelit Bianca" />
         </Field>
-        <label className="toggle">
-          <input type="checkbox" checked={form.is_public} onChange={set('is_public')} />
+        <label className="flex items-center gap-3 cursor-pointer font-semibold">
+          <input className="checkbox checkbox-primary" type="checkbox" checked={form.is_public} onChange={set('is_public')} />
           <span>
             Profil öffentlich
-            <span className="muted small" style={{ display: 'block', fontWeight: 400 }}>
+            <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
               {form.is_public
                 ? 'Alle BeanBase-Nutzer sehen deine Bohnen, dein Setup und deine Bezüge („Alle Baristas“).'
                 : 'Nur akzeptierte Freunde sehen deine Bohnen, dein Setup und deine Bezüge.'}
             </span>
           </span>
         </label>
-        {msg && <div className={`banner ${msg.tone}`}>{msg.text}</div>}
-        <button className="btn primary block" disabled={saving}>
+        {msg && <div className={`alert alert-soft block alert-${msg.tone}`}>{msg.text}</div>}
+        <button className="btn btn-primary btn-block" disabled={saving}>
           {saving ? 'Speichere …' : 'Profil speichern'}
         </button>
       </form>
@@ -250,24 +250,24 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         <SetupPhotoEditor profile={profile} onSaved={setProfile} />
       </SetupCard>
 
-      <section className="card">
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
         {me?.role === 'admin' && (
-          <button className="btn primary block" onClick={() => go('admin')}>
+          <button className="btn btn-primary btn-block" onClick={() => go('admin')}>
             🛠 Admin-Bereich
           </button>
         )}
-        <button className="btn ghost block" onClick={() => go('feedback')}>
+        <button className="btn btn-ghost border-base-300 btn-block" onClick={() => go('feedback')}>
           💬 Feedback zur Beta geben
         </button>
-        <details className="pw-change">
-          <summary className="btn ghost block">🔒 Passwort ändern</summary>
+        <details className="[&[open]>summary]:mb-3">
+          <summary className="btn btn-ghost border-base-300 btn-block list-none [&::-webkit-details-marker]:hidden">🔒 Passwort ändern</summary>
           <PasswordForm />
         </details>
-        <button className="btn ghost block" onClick={() => supabase?.auth.signOut()}>
+        <button className="btn btn-ghost border-base-300 btn-block" onClick={() => supabase?.auth.signOut()}>
           Abmelden
         </button>
         <button
-          className="btn danger-ghost block"
+          className="btn btn-outline btn-error btn-block"
           onClick={async () => {
             if (prompt('Konto und ALLE Daten (Bohnen, Bezüge, Fotos-Verknüpfungen, Freunde) endgültig löschen? Zum Bestätigen LÖSCHEN eintippen:') !== 'LÖSCHEN') return
             try {
@@ -282,19 +282,19 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         </button>
       </section>
 
-      <section className="card">
-        <h3 className="section-title">Freunde finden</h3>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Username suchen …" autoCapitalize="none" />
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Freunde finden</h3>
+        <input className="input w-full" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Username suchen …" autoCapitalize="none" />
         {hits.length > 0 && (
-          <ul className="list">
+          <ul className="items">
             {hits.map((h) => {
               const r = relationOf(h.id)
               return (
                 <PersonRow key={h.id} profile={h} onOpen={open}>
                   {r ? (
-                    <span className="muted small">{r}</span>
+                    <span className="text-muted text-sm">{r}</span>
                   ) : (
-                    <button className="btn primary sm" onClick={act(() => sendFriendRequest(h.id))}>
+                    <button className="btn btn-primary btn-sm" onClick={act(() => sendFriendRequest(h.id))}>
                       + Anfrage
                     </button>
                   )}
@@ -303,19 +303,19 @@ export default function ProfilePage({ data, go, me }: PageProps) {
             })}
           </ul>
         )}
-        {q.trim().length >= 2 && !hits.length && <p className="muted small">Kein Nutzer gefunden.</p>}
+        {q.trim().length >= 2 && !hits.length && <p className="text-muted text-sm">Kein Nutzer gefunden.</p>}
       </section>
 
       {rel.incoming.length > 0 && (
-        <section className="card">
-          <h3 className="section-title">Anfragen an dich ({rel.incoming.length})</h3>
-          <ul className="list">
+        <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+          <h3 className="text-xs uppercase tracking-widest text-muted">Anfragen an dich ({rel.incoming.length})</h3>
+          <ul className="items">
             {rel.incoming.map(({ friendship, profile: p }) => (
               <PersonRow key={friendship.id} profile={p} onOpen={open}>
-                <button className="btn primary sm" onClick={act(() => acceptFriend(friendship.id))}>
+                <button className="btn btn-primary btn-sm" onClick={act(() => acceptFriend(friendship.id))}>
                   Annehmen
                 </button>
-                <button className="btn ghost sm" onClick={act(() => removeFriendship(friendship.id))}>
+                <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => removeFriendship(friendship.id))}>
                   Ablehnen
                 </button>
               </PersonRow>
@@ -324,14 +324,14 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         </section>
       )}
 
-      <section className="card">
-        <h3 className="section-title">Freunde ({rel.friends.length})</h3>
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Freunde ({rel.friends.length})</h3>
         {rel.friends.length ? (
-          <ul className="list">
+          <ul className="items">
             {rel.friends.map(({ friendship, profile: p }) => (
               <PersonRow key={friendship.id} profile={p} onOpen={open}>
                 <button
-                  className="btn danger-ghost sm"
+                  className="btn btn-outline btn-error btn-sm"
                   onClick={act(async () => {
                     if (confirm(`Freundschaft mit @${p.username} beenden?`)) await removeFriendship(friendship.id)
                   })}
@@ -347,11 +347,11 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         )}
         {rel.outgoing.length > 0 && (
           <>
-            <p className="muted small">Gesendete Anfragen</p>
-            <ul className="list">
+            <p className="text-muted text-sm">Gesendete Anfragen</p>
+            <ul className="items">
               {rel.outgoing.map(({ friendship, profile: p }) => (
                 <PersonRow key={friendship.id} profile={p} onOpen={open}>
-                  <button className="btn ghost sm" onClick={act(() => removeFriendship(friendship.id))}>
+                  <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => removeFriendship(friendship.id))}>
                     Zurückziehen
                   </button>
                 </PersonRow>
@@ -385,10 +385,10 @@ function SetupPhotoEditor({ profile, onSaved }: { profile: PublicProfile; onSave
   }
   return (
     <div>
-      <p className="muted small">{busy ? 'Lade hoch …' : profile.setup_photo_url ? 'Setup-Foto ändern:' : 'Zeig dein Setup – ein Foto für deine Visitenkarte:'}</p>
+      <p className="text-muted text-sm">{busy ? 'Lade hoch …' : profile.setup_photo_url ? 'Setup-Foto ändern:' : 'Zeig dein Setup – ein Foto für deine Visitenkarte:'}</p>
       {!profile.setup_photo_url && <MediaPicker allowVideo={false} onChange={change} />}
       {profile.setup_photo_url && (
-        <button type="button" className="btn ghost sm" onClick={() => change({ pending: null, removed: true })} disabled={busy}>
+        <button type="button" className="btn btn-ghost border-base-300 btn-sm" onClick={() => change({ pending: null, removed: true })} disabled={busy}>
           Setup-Foto entfernen
         </button>
       )}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
 import { useSessionStorage } from 'use-storage-hook'
-import { Field } from '../components/ui'
+import { Field, segBtn } from '../components/ui'
 import { sendFeedback, listFeedback } from '../lib/admin'
 import { toast } from '../lib/toast'
 import { fmtDate } from '../lib/coffee'
@@ -33,21 +33,21 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
   }
 
   return (
-    <div className="stack">
+    <div className="flex flex-col gap-4">
       <h2>Feedback zur Beta</h2>
-      <p className="muted">
+      <p className="text-muted">
         Danke, dass du BeanBase testest! Was klemmt, was fehlt, was gefällt dir? Jede Rückmeldung landet direkt beim Entwickler.
       </p>
-      <form className="card" onSubmit={submit}>
-        <div className="segmented">
+      <form className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5" onSubmit={submit}>
+        <div className="flex flex-wrap gap-1.5">
           {(Object.entries(TOPICS) as [Topic, string][]).map(([k, v]) => (
-            <button type="button" key={k} className={topic === k ? 'on' : ''} onClick={() => setTopic(k)}>
+            <button type="button" key={k} className={segBtn(topic === k)} onClick={() => setTopic(k)}>
               {v}
             </button>
           ))}
         </div>
         <Field label="Deine Nachricht" hint={`${text.length}/1900`}>
-          <textarea
+          <textarea className="textarea w-full"
             rows={5}
             required
             maxLength={1900}
@@ -56,18 +56,18 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
             placeholder={topic === 'bug' ? 'Was hast du gemacht, was ist passiert, was hättest du erwartet?' : 'Erzähl uns mehr …'}
           />
         </Field>
-        <p className="muted small">Mitgesendet werden die aktuelle Seite, Bildschirmgröße und Browser – keine weiteren Daten.</p>
-        <button className="btn primary block big" disabled={busy || !text.trim()}>
+        <p className="text-muted text-sm">Mitgesendet werden die aktuelle Seite, Bildschirmgröße und Browser – keine weiteren Daten.</p>
+        <button className="btn btn-primary btn-block btn-lg" disabled={busy || !text.trim()}>
           {busy ? 'Sende …' : 'Feedback senden'}
         </button>
       </form>
       {mine.length > 0 && (
-        <section className="card">
-          <h3 className="section-title">Dein bisheriges Feedback</h3>
-          <ul className="list">
+        <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+          <h3 className="text-xs uppercase tracking-widest text-muted">Dein bisheriges Feedback</h3>
+          <ul className="items">
             {mine.map((f) => (
-              <li key={f.id} className="list-item col">
-                <span className="muted small">
+              <li key={f.id} className="item col">
+                <span className="text-muted text-sm">
                   {fmtDate(f.created_at)} · {f.status === 'erledigt' ? '✅ erledigt' : '🕒 offen'}
                 </span>
                 <span>{f.message}</span>
@@ -76,7 +76,7 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
           </ul>
         </section>
       )}
-      <button className="btn ghost block" onClick={() => go(fromTab)}>
+      <button className="btn btn-ghost border-base-300 btn-block" onClick={() => go(fromTab)}>
         Zurück
       </button>
     </div>

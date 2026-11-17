@@ -32,19 +32,19 @@ export function PasswordForm({ onDone, submitLabel = 'Passwort speichern' }: { o
   }
 
   return (
-    <form className="stack-sm" onSubmit={submit}>
+    <form className="flex flex-col gap-3 text-left" onSubmit={submit}>
       <Field label="Neues Passwort" hint={`mind. ${MIN_PASSWORD} Zeichen`}>
-        <input type={show ? 'text' : 'password'} autoComplete="new-password" required minLength={MIN_PASSWORD} value={pw} onChange={(e) => setPw(e.target.value)} />
+        <input className="input w-full" type={show ? 'text' : 'password'} autoComplete="new-password" required minLength={MIN_PASSWORD} value={pw} onChange={(e) => setPw(e.target.value)} />
       </Field>
       <Field label="Wiederholen">
-        <input type={show ? 'text' : 'password'} autoComplete="new-password" required value={pw2} onChange={(e) => setPw2(e.target.value)} />
+        <input className="input w-full" type={show ? 'text' : 'password'} autoComplete="new-password" required value={pw2} onChange={(e) => setPw2(e.target.value)} />
       </Field>
-      <label className="toggle small">
-        <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
+      <label className="flex items-center gap-3 cursor-pointer font-medium text-sm">
+        <input className="checkbox checkbox-primary" type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
         <span>Passwort anzeigen</span>
       </label>
-      {msg && <div className="banner error">{msg}</div>}
-      <button className="btn primary block big" disabled={busy}>
+      {msg && <div className="alert alert-soft block alert-error">{msg}</div>}
+      <button className="btn btn-primary btn-block btn-lg" disabled={busy}>
         {busy ? 'Speichere …' : submitLabel}
       </button>
     </form>
@@ -53,11 +53,11 @@ export function PasswordForm({ onDone, submitLabel = 'Passwort speichern' }: { o
 
 export default function SetPasswordPage({ onDone }: { onDone: () => void }) {
   return (
-    <div className="auth">
-      <div className="auth-card">
-        <div className="auth-logo">🔒</div>
+    <div className="grid min-h-dvh place-items-center p-5">
+      <div className="card w-full max-w-[380px] desk:max-w-[420px] gap-3.5 rounded-[20px] border border-base-300 bg-base-100 px-5.5 py-7 text-center desk:px-8 desk:py-9">
+        <div className="text-5xl">🔒</div>
         <h1>Neues Passwort</h1>
-        <p className="muted">Wähle ein neues Passwort für dein BeanBase-Konto.</p>
+        <p className="text-muted">Wähle ein neues Passwort für dein BeanBase-Konto.</p>
         <PasswordForm onDone={onDone} submitLabel="Passwort speichern & weiter" />
       </div>
     </div>

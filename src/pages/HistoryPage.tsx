@@ -41,12 +41,12 @@ export default function HistoryPage({ data, go }: PageProps) {
   }
 
   return (
-    <div className="stack">
+    <div className="flex flex-col gap-4">
       <h2>Brew-Log</h2>
-      <div className="filters">
-        <input type="search" placeholder="Suchen (Bohne, Rösterei, Notiz …)" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="grid3">
-          <select value={bean} onChange={(e) => setBean(e.target.value)}>
+      <div className="flex flex-col gap-2">
+        <input className="input w-full" type="search" placeholder="Suchen (Bohne, Rösterei, Notiz …)" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="grid grid-cols-2 min-[421px]:grid-cols-3 gap-2">
+          <select className="select w-full" value={bean} onChange={(e) => setBean(e.target.value)}>
             <option value="">Alle Bohnen</option>
             {data.beans.map((b) => (
               <option key={b.id} value={b.id}>
@@ -54,7 +54,7 @@ export default function HistoryPage({ data, go }: PageProps) {
               </option>
             ))}
           </select>
-          <select value={roast} onChange={(e) => setRoast(e.target.value)}>
+          <select className="select w-full" value={roast} onChange={(e) => setRoast(e.target.value)}>
             <option value="">Jeder Röstgrad</option>
             {Object.entries(ROAST_LEVELS).map(([k, v]) => (
               <option key={k} value={k}>
@@ -62,7 +62,7 @@ export default function HistoryPage({ data, go }: PageProps) {
               </option>
             ))}
           </select>
-          <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
+          <select className="select w-full" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
             <option value={0}>Jede Bewertung</option>
             {[5, 4, 3, 2].map((n) => (
               <option key={n} value={n}>
@@ -74,21 +74,21 @@ export default function HistoryPage({ data, go }: PageProps) {
       </div>
 
       {!rows.length ? (
-        <Empty action={<button className="btn primary" onClick={() => go('brew', { key: Date.now() })}>Bezug loggen</button>}>
+        <Empty action={<button className="btn btn-primary" onClick={() => go('brew', { key: Date.now() })}>Bezug loggen</button>}>
           {data.brews.length ? 'Keine Treffer für diese Filter.' : 'Noch keine Bezüge geloggt.'}
         </Empty>
       ) : (
-        <ul className="list">
+        <ul className="items">
           {rows.map((b) => {
             const bn = lookup.beans(b.bean_id)
             const isOpen = open === b.id
             const cost = brewCost(b, data.bean_stock)
             return (
-              <li key={b.id} className={`list-item col ${isOpen ? 'open' : ''}`}>
-                <div className="row" onClick={() => setOpen(isOpen ? null : b.id)}>
+              <li key={b.id} className={`item col ${isOpen ? 'open' : ''}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2.5" onClick={() => setOpen(isOpen ? null : b.id)}>
                   <div>
                     <strong>{bn?.name ?? 'Unbekannte Bohne'}</strong>
-                    <span className="muted small">
+                    <span className="text-muted text-sm">
                       {fmtDate(b.created_at)} · Mahlgrad {b.grind_setting || '–'} · {b.dose ?? '–'}g → {b.yield ?? '–'}g ·{' '}
                       {b.brew_time ?? '–'}s{cost && ` · ${fmtMoney(cost.value, cost.currency)}`}
                       {b.media_url && (b.media_type === 'video' ? ' · 🎬' : ' · 📷')}
@@ -98,24 +98,24 @@ export default function HistoryPage({ data, go }: PageProps) {
                 </div>
                 {isOpen && (
                   <div className="details">
-                    <div className="stats">
-                      <Stat label="Ratio" value={fmtRatio(ratio(b.dose, b.yield))} />
-                      <Stat label="Temp" value={b.temperature} unit="°C" />
-                      <Stat label="Pre-Inf." value={b.preinfusion} unit="s" />
+                    <div className="grid grid-cols-3 gap-2">
+                      <Stat className="bg-base-200" label="Ratio" value={fmtRatio(ratio(b.dose, b.yield))} />
+                      <Stat className="bg-base-200" label="Temp" value={b.temperature} unit="°C" />
+                      <Stat className="bg-base-200" label="Pre-Inf." value={b.preinfusion} unit="s" />
                     </div>
-                    <p className="small">
+                    <p className="text-sm">
                       {lookup.machines(b.machine_id)?.name ?? '–'} · {lookup.grinders(b.grinder_id)?.name ?? '–'} · {extractionLabel(b.extraction)}
                     </p>
-                    {b.notes && <p className="recipe-note">„{b.notes}“</p>}
+                    {b.notes && <p className="italic [overflow-wrap:anywhere]">„{b.notes}“</p>}
                     <MediaView url={b.media_url} type={b.media_type} />
-                    <div className="row-actions">
-                      <button className="btn primary sm" onClick={() => go('brew', { key: Date.now(), brew: b })}>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button className="btn btn-primary btn-sm" onClick={() => go('brew', { key: Date.now(), brew: b })}>
                         Wiederholen
                       </button>
-                      <button className="btn ghost sm" onClick={() => go('brew', { key: Date.now(), brew: b, editId: b.id })}>
+                      <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => go('brew', { key: Date.now(), brew: b, editId: b.id })}>
                         Bearbeiten
                       </button>
-                      <button className="btn danger-ghost sm" onClick={() => del(b.id)}>
+                      <button className="btn btn-outline btn-error btn-sm" onClick={() => del(b.id)}>
                         Löschen
                       </button>
                     </div>

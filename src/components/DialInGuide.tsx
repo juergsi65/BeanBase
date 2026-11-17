@@ -11,11 +11,11 @@ const ROAST_TEXT: Record<RoastLevel, string> = { light: 'helle Röstung', medium
 
 function Step({ n, title, done, onToggle, children }: { n: number; title: ReactNode; done?: boolean; onToggle: () => void; children: ReactNode }) {
   return (
-    <li className={`guide-step ${done ? 'done' : ''}`}>
-      <button type="button" className="guide-check" onClick={onToggle} aria-pressed={done} aria-label={`Schritt ${n} erledigt`}>
+    <li className={`guide-step grid grid-cols-[40px_1fr] items-start gap-3 ${done ? 'done' : ''}`}>
+      <button type="button" className={`btn btn-circle size-10 text-base font-extrabold ${done ? 'btn-success' : 'btn-outline btn-primary border-2 text-accent-strong'}`} onClick={onToggle} aria-pressed={done} aria-label={`Schritt ${n} erledigt`}>
         {done ? '✓' : n}
       </button>
-      <div className="guide-body">
+      <div className="guide-body flex flex-col gap-1.5 pt-2">
         <strong>{title}</strong>
         {children}
       </div>
@@ -40,7 +40,7 @@ export function CorrectionHint({
   onNote?: (text: string) => void
 }) {
   const tasted = form.rating != null || (form.extraction ?? 0) !== 0
-  if (!tasted) return <p className="muted small">Nach dem Probieren den Extraktions-Regler einstellen – hier erscheint dann die Korrektur für den nächsten Versuch.</p>
+  if (!tasted) return <p className="text-muted text-sm">Nach dem Probieren den Extraktions-Regler einstellen – hier erscheint dann die Korrektur für den nächsten Versuch.</p>
   const c = correction({
     extraction: form.extraction,
     grind: form.grind_setting,
@@ -51,17 +51,17 @@ export function CorrectionHint({
     type: machine?.type,
   })
   return (
-    <div className={`correction ${c.tone}`}>
+    <div className={`correction ${c.tone} flex flex-col gap-1.5 rounded-xl bg-base-200 px-3 py-2.5`}>
       <strong>{c.title}</strong>
       {c.tips.length > 0 && (
-        <ul>
+        <ul className="flex list-disc flex-col gap-0.5 pl-4.5">
           {c.tips.map((t) => (
             <li key={t}>{t}</li>
           ))}
         </ul>
       )}
       {onNote && c.tone !== 'good' && c.tips.length > 0 && (
-        <button type="button" className="btn ghost sm" onClick={() => onNote(`Nächstes Mal: ${c.tips.find((t) => t.startsWith('Mahlgrad')) ?? c.tips[0]}`)}>
+        <button type="button" className="btn btn-ghost border-base-300 btn-sm self-start" onClick={() => onNote(`Nächstes Mal: ${c.tips.find((t) => t.startsWith('Mahlgrad')) ?? c.tips[0]}`)}>
           Als Notiz übernehmen
         </button>
       )}
@@ -99,11 +99,12 @@ export default function DialInGuide({
   const espresso = (machine?.type ?? 'espresso') === 'espresso'
 
   return (
-    <details className="card guide" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary>
+    <details className="guide collapse collapse-arrow bg-base-100 border border-base-300" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="collapse-title flex flex-col gap-0.5 text-[1.05rem] font-bold">
         <span>🧭 Dial-In-Assistent</span>
-        <span className="muted small">Schritt für Schritt zum Shot</span>
+        <span className="text-muted text-sm font-normal">Schritt für Schritt zum Shot</span>
       </summary>
+      <div className="collapse-content flex flex-col gap-3.5">
 
       {sources.length > 1 && (
         <Segmented
@@ -112,24 +113,24 @@ export default function DialInGuide({
           onChange={(v) => v && onSource(v)}
         />
       )}
-      {plan.note && <p className="muted small">{plan.note}</p>}
-      <p className="tba-note">
-        <span className="tba">KI-Coach · TBA</span> Persönliche KI-Empfehlungen auf Basis deiner Bezüge folgen in einem kommenden Update.
+      {plan.note && <p className="text-muted text-sm">{plan.note}</p>}
+      <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+        <span className="badge badge-dash badge-info badge-sm font-bold whitespace-nowrap">KI-Coach · TBA</span> Persönliche KI-Empfehlungen auf Basis deiner Bezüge folgen in einem kommenden Update.
       </p>
 
-      <ol className="guide-steps">
+      <ol className="flex flex-col gap-3">
         <Step n={1} title="Mühle einstellen" done={done.grind} onToggle={() => toggle('grind')}>
           {!grinder ? (
             <p>Wähle oben eine Mühle aus.</p>
           ) : plan.grind != null ? (
             <p>
-              Stelle deine <strong>{grinderName}</strong> auf <span className="guide-value">{plan.grind}</span>
-              <span className="muted small"> (kleinere Zahl = feiner bei den meisten Mühlen)</span>
+              Stelle deine <strong>{grinderName}</strong> auf <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.grind}</span>
+              <span className="text-muted text-sm"> (kleinere Zahl = feiner bei den meisten Mühlen)</span>
             </p>
           ) : (
             <p>{plan.grindNote}</p>
           )}
-          <p className="muted small">
+          <p className="text-muted text-sm">
             Nach dem Verstellen 1–2 g Bohnen durchmahlen und verwerfen (Totraum/Purge) – sonst landet noch Mehl der alten Einstellung im Sieb.
           </p>
         </Step>
@@ -137,14 +138,14 @@ export default function DialInGuide({
         <Step n={2} title={espresso ? 'Maschine vorbereiten' : 'Vorbereiten'} done={done.prep} onToggle={() => toggle('prep')}>
           {plan.temp != null && (
             <p>
-              Zieltemperatur <span className="guide-value">{plan.temp} °C</span>
-              {plan.source === 'base' && <span className="muted small"> für {ROAST_TEXT[plan.roast]}</span>}
+              Zieltemperatur <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.temp} °C</span>
+              {plan.source === 'base' && <span className="text-muted text-sm"> für {ROAST_TEXT[plan.roast]}</span>}
             </p>
           )}
           <p>{prepText(machine)}</p>
           {plan.dose != null && (
             <p>
-              <span className="guide-value">{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
+              <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
             </p>
           )}
         </Step>
@@ -153,21 +154,21 @@ export default function DialInGuide({
           <p>
             {plan.yield != null && (
               <>
-                Output <span className="guide-value">{plan.yield} g</span>
-                {plan.ratio && <span className="muted small"> (Ratio {fmtRatio(plan.ratio)})</span>}
+                Output <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.yield} g</span>
+                {plan.ratio && <span className="text-muted text-sm"> (Ratio {fmtRatio(plan.ratio)})</span>}
               </>
             )}
             {plan.time && (
               <>
                 {plan.yield != null ? ' in ' : 'Zeit '}
-                <span className="guide-value">{fmtRange(plan.time)}</span>
+                <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{fmtRange(plan.time)}</span>
               </>
             )}
           </p>
-          {espresso && <p className="muted small">Stoppuhr unten mit dem Pumpenstart starten, bei Erreichen des Ziel-Outputs stoppen.</p>}
+          {espresso && <p className="text-muted text-sm">Stoppuhr unten mit dem Pumpenstart starten, bei Erreichen des Ziel-Outputs stoppen.</p>}
           <button
             type="button"
-            className="btn primary block"
+            className="btn btn-primary btn-block"
             onClick={() => onApply({ dose: plan.dose, yield: plan.yield, temperature: plan.temp, grind_setting: plan.grind })}
           >
             Zielwerte ins Formular übernehmen
@@ -178,6 +179,7 @@ export default function DialInGuide({
           <CorrectionHint form={form} grinder={grinder} machine={machine} targetTime={plan.time} />
         </Step>
       </ol>
+      </div>
     </details>
   )
 }

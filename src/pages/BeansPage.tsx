@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, TagInput, Segmented, Chip, Empty, Stars } from '../components/ui'
+import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { lookupBarcode } from '../lib/barcode'
@@ -78,23 +78,23 @@ export default function BeansPage({ data, go }: PageProps) {
   }
 
   return (
-    <div className="stack">
-      <div className="page-head">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2>Bohnen</h2>
-        <div className="row-actions">
-          <button className="btn ghost" onClick={() => setScanning(true)} aria-label="Barcode scannen">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button className="btn btn-ghost border-base-300" onClick={() => setScanning(true)} aria-label="Barcode scannen">
             ▦ Scan
           </button>
-          <button className="btn primary" onClick={() => setEditing('new')}>
+          <button className="btn btn-primary" onClick={() => setEditing('new')}>
             + Bohne
           </button>
         </div>
       </div>
       {scanning && <BarcodeScanner onResult={onScan} onClose={() => setScanning(false)} />}
       <Segmented options={{ active: 'In der Mühle', archived: 'Archiv', all: 'Alle' }} value={view} onChange={(v) => setView(v ?? 'all')} />
-      <div className="grid2">
-        <input type="search" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select value={roast} onChange={(e) => setRoast(e.target.value)}>
+      <div className="grid grid-cols-2 gap-3">
+        <input className="input w-full" type="search" placeholder="Suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="select w-full" value={roast} onChange={(e) => setRoast(e.target.value)}>
           <option value="">Jeder Röstgrad</option>
           {Object.entries(ROAST_LEVELS).map(([k, v]) => (
             <option key={k} value={k}>
@@ -107,18 +107,18 @@ export default function BeansPage({ data, go }: PageProps) {
       {!rows.length ? (
         <Empty>{data.beans.length ? 'Keine Bohnen in dieser Ansicht.' : 'Noch keine Bohnen angelegt.'}</Empty>
       ) : (
-        <ul className="list">
+        <ul className="items">
           {rows.map((b) => {
             const days = daysSince(b.roast_date)
             const fresh = freshness(days)
             const { best, count } = recipesForBean(data.brews, b.id)
             return (
-              <li key={b.id} className="list-item col">
-                <div className="row" onClick={() => setEditing(b)}>
+              <li key={b.id} className="item col">
+                <div className="flex flex-nowrap items-center justify-between gap-2.5" onClick={() => setEditing(b)}>
                   {b.image_url && <img className="thumb" src={b.image_url} alt="" loading="lazy" />}
                   <div className="grow">
                     <strong>{b.name}</strong>
-                    <span className="muted small">{[b.roaster, b.origin, b.variety].filter(Boolean).join(' · ') || '—'}</span>
+                    <span className="text-muted text-sm">{[b.roaster, b.origin, b.variety].filter(Boolean).join(' · ') || '—'}</span>
                   </div>
                   {days != null && (
                     <div className={`age sm ${fresh?.tone}`}>
@@ -127,7 +127,7 @@ export default function BeansPage({ data, go }: PageProps) {
                     </div>
                   )}
                 </div>
-                <div className="chips">
+                <div className="flex flex-wrap gap-1.5">
                   {b.process && <Chip>{PROCESSES[b.process]}</Chip>}
                   {b.roast_level && <Chip>{ROAST_LEVELS[b.roast_level]}</Chip>}
                   {b.flavor_notes?.map((t) => (
@@ -140,17 +140,17 @@ export default function BeansPage({ data, go }: PageProps) {
                   const u = beanUsage(b.id, data.bean_stock, data.brews)
                   return u ? <StockBar usage={u} compact onArchive={b.active && u.remaining <= 0 ? () => void data.update('beans', b.id, { active: false }) : undefined} /> : null
                 })()}
-                <div className="row small">
-                  <span className="muted">
+                <div className="flex flex-wrap items-center justify-between gap-2.5 text-sm">
+                  <span className="text-muted">
                     {plural(count, 'Bezug', 'Bezüge')}{best ? ' · bestes: ' : ''}
                   </span>
                   {best && <Stars value={best.rating} size="sm" />}
                   <span className="grow" />
-                  <button className="btn ghost sm" onClick={() => data.update('beans', b.id, { active: !b.active })}>
+                  <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => data.update('beans', b.id, { active: !b.active })}>
                     {b.active ? 'Aufgebraucht' : 'Reaktivieren'}
                   </button>
                   {b.active && (
-                    <button className="btn primary sm" onClick={() => go('brew', { key: Date.now(), brew: { bean_id: b.id } })}>
+                    <button className="btn btn-primary btn-sm" onClick={() => go('brew', { key: Date.now(), brew: { bean_id: b.id } })}>
                       Bezug
                     </button>
                   )}
@@ -335,17 +335,17 @@ function BeanForm({
   }
 
   return (
-    <form className="stack" onSubmit={save}>
+    <form className="flex flex-col gap-4 pb-21 desk:pb-6" onSubmit={save}>
       <h2>{bean ? 'Bohne bearbeiten' : 'Neue Bohne'}</h2>
 
-      <section className="card">
-        <h3 className="section-title">Schnell erfassen</h3>
-        <button type="button" className="btn primary big block" onClick={() => setScanning(true)}>
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Schnell erfassen</h3>
+        <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => setScanning(true)}>
           ▦ Barcode scannen
         </button>
         {scanning && <BarcodeScanner onResult={handleBarcode} onClose={() => setScanning(false)} />}
         {form.barcode && (
-          <div className="chips">
+          <div className="flex flex-wrap gap-1.5">
             <Chip
               onRemove={() => {
                 setForm((f) => ({ ...f, barcode: null }))
@@ -356,29 +356,29 @@ function BeanForm({
             </Chip>
           </div>
         )}
-        {scan.status === 'loading' && <div className="banner info">🔍 Suche Bohne zum Barcode …</div>}
+        {scan.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Suche Bohne zum Barcode …</div>}
         {scan.status === 'found' && (
-          <div className="banner info">
+          <div className="alert alert-soft block alert-info">
             ✨ {scan.text}
           </div>
         )}
         {scan.status === 'notcoffee' && (
-          <div className="banner error" role="alert">
+          <div className="alert alert-soft block alert-error" role="alert">
             <strong>Kein Kaffee erkannt:</strong> Dieser Barcode gehört zu einem anderen Produkt ({scan.productName}). Bitte scanne eine
             Kaffeepackung.
           </div>
         )}
         {scan.status === 'unknown' && (
-          <div className="banner info">
+          <div className="alert alert-soft block alert-info">
             Barcode noch unbekannt – fotografiere das Etikett oder trag die Daten ein. Beim Speichern wird der Barcode hinterlegt, damit die
             Bohne beim nächsten Scan sofort erkannt wird.
           </div>
         )}
         {scan.status === 'existing' && (
-          <div className="banner info">
+          <div className="alert alert-soft block alert-info">
             Diese Bohne hast du schon: <strong>{scan.bean.name}</strong>{' '}
             {onOpen && (
-              <button type="button" className="link" onClick={() => onOpen(scan.bean)}>
+              <button type="button" className="link link-primary p-2 no-underline" onClick={() => onOpen(scan.bean)}>
                 Öffnen
               </button>
             )}
@@ -387,44 +387,44 @@ function BeanForm({
         {preview ? (
           <div className="photo">
             <img src={preview} alt="Kaffeetüte" />
-            <button type="button" className="btn ghost sm photo-remove" onClick={removePhoto} aria-label="Foto entfernen">
+            <button type="button" className="btn btn-ghost btn-sm absolute top-2 right-2 border-base-300 bg-page/75" onClick={removePhoto} aria-label="Foto entfernen">
               ✕
             </button>
           </div>
         ) : (
-          <p className="muted small">
+          <p className="text-muted text-sm">
             {canAnalyze
               ? 'Fotografiere die Vorderseite der Tüte – Sorte, Rösterei, Herkunft & Co. werden automatisch erkannt.'
               : 'Fotografiere die Tüte zur Wiedererkennung in deiner Bohnen-Liste.'}
           </p>
         )}
-        <div className="grid2">
-          <button type="button" className="btn primary big" onClick={() => cameraRef.current?.click()}>
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" className="btn btn-primary btn-lg" onClick={() => cameraRef.current?.click()}>
             📷 Foto
           </button>
-          <button type="button" className="btn ghost big" onClick={() => uploadRef.current?.click()}>
+          <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => uploadRef.current?.click()}>
             🖼 Hochladen
           </button>
         </div>
         {!canAnalyze && (
-          <p className="tba-note">
-            <span className="tba">KI-Erkennung · TBA</span> Automatische Etiketten-Erkennung folgt in einem kommenden Update.
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+            <span className="badge badge-dash badge-info badge-sm font-bold whitespace-nowrap">KI-Erkennung · TBA</span> Automatische Etiketten-Erkennung folgt in einem kommenden Update.
           </p>
         )}
         <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
         <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} data-testid="bean-upload" />
         {canAnalyze && (
-          <p className="muted small">
+          <p className="text-muted text-sm">
             💡 Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
           </p>
         )}
-        {ai.status === 'loading' && <div className="banner info">🔍 Etikett wird erkannt …</div>}
-        {ai.status === 'done' && <div className="banner info">✨ {ai.text}</div>}
+        {ai.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Etikett wird erkannt …</div>}
+        {ai.status === 'done' && <div className="alert alert-soft block alert-info">✨ {ai.text}</div>}
         {ai.status === 'error' && (
-          <div className="banner error">
+          <div className="alert alert-soft block alert-error">
             {ai.text}{' '}
             {preview && canAnalyze && (
-              <button type="button" className="link" onClick={() => runAnalysis(photo?.dataUrl ?? preview)}>
+              <button type="button" className="link link-primary p-2 no-underline" onClick={() => runAnalysis(photo?.dataUrl ?? preview)}>
                 Erneut versuchen
               </button>
             )}
@@ -432,20 +432,20 @@ function BeanForm({
         )}
       </section>
 
-      <section className="card">
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
         <Field label="Name *">
-          <input required value={form.name} onChange={set('name')} placeholder="z. B. Ethiopia Guji" />
+          <input className="input w-full" required value={form.name} onChange={set('name')} placeholder="z. B. Ethiopia Guji" />
         </Field>
         <Field label="Rösterei">
-          <input value={form.roaster ?? ''} onChange={set('roaster')} />
+          <input className="input w-full" value={form.roaster ?? ''} onChange={set('roaster')} />
         </Field>
         <CommunityTip roaster={form.roaster} name={form.name} grinder={ctxGrinder} machine={ctxMachine} />
-        <div className="grid2">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Herkunft">
-            <input value={form.origin ?? ''} onChange={set('origin')} placeholder="Land / Region / Farm" />
+            <input className="input w-full" value={form.origin ?? ''} onChange={set('origin')} placeholder="Land / Region / Farm" />
           </Field>
           <Field label="Varietät">
-            <input value={form.variety ?? ''} onChange={set('variety')} placeholder="z. B. Heirloom, Bourbon" />
+            <input className="input w-full" value={form.variety ?? ''} onChange={set('variety')} placeholder="z. B. Heirloom, Bourbon" />
           </Field>
         </div>
         <Field label="Aufbereitung">
@@ -455,33 +455,33 @@ function BeanForm({
           <Segmented options={ROAST_LEVELS} value={form.roast_level} onChange={set('roast_level')} />
         </Field>
         <Field label="Röstdatum" hint={days != null ? `→ ${days} Tage alt` : ''}>
-          <input type="date" value={form.roast_date} onChange={set('roast_date')} />
+          <input className="input w-full" type="date" value={form.roast_date} onChange={set('roast_date')} />
         </Field>
         <Field label="Geschmacksnoten" hint="Enter oder Komma zum Hinzufügen">
           <TagInput value={form.flavor_notes} onChange={set('flavor_notes')} placeholder="Blaubeere, Schokolade …" />
         </Field>
       </section>
 
-      <section className="card">
-        <h3 className="section-title">Packung & Preis</h3>
-        <p className="muted small">Nur für dich sichtbar – auch Freunde sehen keine Preise.</p>
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Packung & Preis</h3>
+        <p className="text-muted text-sm">Nur für dich sichtbar – auch Freunde sehen keine Preise.</p>
         <Field label="Packungsgröße">
-          <div className="segmented">
+          <div className="flex flex-wrap gap-1.5">
             {BAG_SIZES.map((g) => (
-              <button type="button" key={g} className={Number(stock.bag) === g ? 'on' : ''} onClick={() => setStock((s) => ({ ...s, bag: g }))}>
+              <button type="button" key={g} className={segBtn(Number(stock.bag) === g)} onClick={() => setStock((s) => ({ ...s, bag: g }))}>
                 {fmtGrams(g)}
               </button>
             ))}
           </div>
         </Field>
-        <div className="grid2">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Gewicht (g)">
-            <input type="number" inputMode="decimal" min="1" value={stock.bag} placeholder="z. B. 250" onChange={(e) => setStock((s) => ({ ...s, bag: e.target.value }))} />
+            <input className="input w-full" type="number" inputMode="decimal" min="1" value={stock.bag} placeholder="z. B. 250" onChange={(e) => setStock((s) => ({ ...s, bag: e.target.value }))} />
           </Field>
           <Field label="Kaufpreis">
-            <div className="money-input">
-              <input type="number" inputMode="decimal" min="0" step="0.01" value={stock.price} placeholder="z. B. 14.90" onChange={(e) => setStock((s) => ({ ...s, price: e.target.value }))} />
-              <select value={stock.currency} onChange={(e) => setStock((s) => ({ ...s, currency: e.target.value as Currency }))} aria-label="Währung">
+            <div className="grid grid-cols-[minmax(0,1fr)_76px] gap-1.5">
+              <input className="input w-full" type="number" inputMode="decimal" min="0" step="0.01" value={stock.price} placeholder="z. B. 14.90" onChange={(e) => setStock((s) => ({ ...s, price: e.target.value }))} />
+              <select className="select w-full" value={stock.currency} onChange={(e) => setStock((s) => ({ ...s, currency: e.target.value as Currency }))} aria-label="Währung">
                 {(Object.keys(CURRENCIES) as Currency[]).map((c) => (
                   <option key={c} value={c}>
                     {CURRENCIES[c]}
@@ -492,7 +492,7 @@ function BeanForm({
           </Field>
         </div>
         {previewCpg != null && (
-          <div className="cost-preview">
+          <div className="grid grid-cols-2 min-[361px]:grid-cols-3 gap-2 max-[360px]:*:last:col-span-2 *:flex *:flex-col *:items-center *:rounded-xl *:bg-base-200 *:px-1.5 *:py-2.5 *:text-center [&_strong]:text-accent-strong [&_strong]:[overflow-wrap:anywhere] [&_span]:text-[0.72rem] [&_span]:text-muted">
             <div>
               <strong>{fmtMoney(previewCpg * 100, stock.currency)}</strong>
               <span>pro 100 g</span>
@@ -508,32 +508,32 @@ function BeanForm({
           </div>
         )}
         {usage && !stock.newBag && (
-          <div className="stock-row">
+          <div className="flex flex-col gap-2.5">
             <StockBar usage={usage} />
-            <button type="button" className="btn ghost sm" onClick={() => setStock((s) => ({ ...s, newBag: true }))}>
+            <button type="button" className="btn btn-ghost border-base-300 btn-sm" onClick={() => setStock((s) => ({ ...s, newBag: true }))}>
               🔄 Neue Packung angebrochen
             </button>
           </div>
         )}
-        {stock.newBag && <div className="banner info">Beim Speichern startet der Verbrauch der neuen Packung bei 0.</div>}
+        {stock.newBag && <div className="alert alert-soft block alert-info">Beim Speichern startet der Verbrauch der neuen Packung bei 0.</div>}
       </section>
 
-      <section className="card">
-        <label className="toggle">
-          <input type="checkbox" checked={form.active} onChange={set('active')} />
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <label className="flex items-center gap-3 cursor-pointer font-semibold">
+          <input className="checkbox checkbox-primary" type="checkbox" checked={form.active} onChange={set('active')} />
           <span>{form.active ? 'Aktiv in der Mühle' : 'Aufgebraucht / Archiv'}</span>
         </label>
       </section>
       {bean && (
-        <button type="button" className="btn danger-ghost block" onClick={del}>
+        <button type="button" className="btn btn-outline btn-error btn-block" onClick={del}>
           🗑 Bohne löschen
         </button>
       )}
       <div className="sticky-actions">
-        <button type="button" className="btn ghost big" onClick={onDone}>
+        <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={onDone}>
           Abbrechen
         </button>
-        <button className="btn primary big grow" disabled={saving}>
+        <button className="btn btn-primary btn-lg grow desk:grow-0 desk:basis-80" disabled={saving}>
           {saving ? 'Speichere …' : 'Speichern'}
         </button>
       </div>

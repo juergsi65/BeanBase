@@ -9,10 +9,14 @@ export default function Avatar({
 }) {
   const name = profile?.display_name || profile?.username || '?'
   return profile?.avatar_url ? (
-    <img className="avatar" src={profile.avatar_url} alt="" width={size} height={size} style={{ width: size, height: size }} loading="lazy" />
+    <span className="avatar shrink-0">
+      <img className="rounded-full border border-base-300" src={profile.avatar_url} alt="" width={size} height={size} style={{ width: size, height: size }} loading="lazy" />
+    </span>
   ) : (
-    <span className="avatar avatar-fallback" style={{ width: size, height: size, fontSize: size * 0.42 }} aria-hidden>
-      {name.replace(/^barista_/, '').charAt(0).toUpperCase()}
+    <span className="avatar avatar-placeholder shrink-0" aria-hidden>
+      <span className="avatar-fallback flex items-center justify-center rounded-full font-extrabold leading-none" style={{ width: size, height: size, fontSize: size * 0.42 }}>
+        {name.replace(/^barista_/, '').charAt(0).toUpperCase()}
+      </span>
     </span>
   )
 }

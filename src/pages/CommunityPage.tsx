@@ -37,43 +37,43 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
 
 
   return (
-    <div className="timeline-page">
-      <div className="timeline-tabs" role="tablist">
+    <div className="feed-page">
+      <div className="feed-tabs tabs tabs-border flex-nowrap border-b border-base-300" role="tablist">
         {(Object.entries(TABS) as [Scope, string][]).map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={scope === k} className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>
+          <button key={k} role="tab" aria-selected={scope === k} className={`tab h-12 grow font-semibold ${scope === k ? 'tab-active font-extrabold text-base-content! [--tab-border-color:var(--accent-strong)]' : 'text-muted'}`} onClick={() => setScope(k)}>
             {label}
           </button>
         ))}
-        <button className="timeline-friends" onClick={() => go('profile')} aria-label="Freunde finden">
+        <button className="btn btn-ghost h-12 px-4 text-lg" onClick={() => go('profile')} aria-label="Freunde finden">
           👥
         </button>
       </div>
 
-      <button className="composer" onClick={() => go('brew', { key: Date.now() })}>
+      <button className="flex w-full cursor-pointer items-center gap-3 border-b border-base-300 px-4 py-3.5 text-left text-muted hover:bg-base-content/3" onClick={() => go('brew', { key: Date.now() })}>
         <Avatar profile={myProfile} size={44} />
-        <span className="composer-prompt">Was brühst du gerade?</span>
-        <span className="btn primary sm">+ Bezug</span>
+        <span className="flex-1 text-base min-[361px]:text-[1.08rem]">Was brühst du gerade?</span>
+        <span className="btn btn-primary btn-sm">+ Bezug</span>
       </button>
 
       {state === 'loading' && (
-        <div className="timeline">
+        <div className="feed">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="post skeleton" aria-hidden>
-              <span className="sk-avatar" />
-              <div className="post-body">
-                <span className="sk-line w40" />
-                <span className="sk-line w90" />
-                <span className="sk-line w70" />
+            <div key={i} className="post" aria-hidden>
+              <span className="skeleton size-11 rounded-full" />
+              <div className="flex flex-col gap-2 pt-1">
+                <span className="skeleton h-3 w-2/5" />
+                <span className="skeleton h-3 w-[90%]" />
+                <span className="skeleton h-3 w-[70%]" />
               </div>
             </div>
           ))}
         </div>
       )}
-      {state === 'error' && <div className="banner error">Feed konnte nicht geladen werden: {feed.error?.message}</div>}
+      {state === 'error' && <div className="alert alert-soft block alert-error">Feed konnte nicht geladen werden: {feed.error?.message}</div>}
       {state === 'ready' && !items.length && (
         <Empty
           action={
-            <button className="btn primary" onClick={() => go('profile')}>
+            <button className="btn btn-primary" onClick={() => go('profile')}>
               Freunde finden
             </button>
           }
@@ -84,14 +84,14 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
         </Empty>
       )}
       {state === 'ready' && items.length > 0 && (
-        <div className="timeline">
+        <div className="feed">
           {items.map((b) => (
             <FeedCard key={b.id} brew={b} me={me} onReuse={reuse} onOpenUser={openUser} />
           ))}
         </div>
       )}
       {feed.hasNextPage && (
-        <button className="btn ghost block" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>
+        <button className="btn btn-ghost border-base-300 btn-block" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>
           {feed.isFetchingNextPage ? 'Lade …' : 'Mehr laden'}
         </button>
       )}

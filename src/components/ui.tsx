@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { Brew, Data, Grinder, Machine, Bean } from '../types'
 import { extractionLabel, fmtRatio, ratio, dialInHint, fmtDate } from '../lib/coffee'
 import { haptic } from '../lib/haptics'
 
 export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
-    <label className="field">
-      <span className="field-label">
-        {label} {hint && <em>{hint}</em>}
+    <label className="fieldset gap-1.5 p-0 min-w-0">
+      <span className="fieldset-legend justify-start flex-wrap gap-x-1 gap-y-0 p-0 text-sm">
+        {label} {hint && <em className="font-normal not-italic text-muted">{hint}</em>}
       </span>
       {children}
     </label>
@@ -17,6 +17,8 @@ export function Field({ label, hint, children }: { label: ReactNode; hint?: Reac
 /** Große Zahleneingabe mit −/+ Buttons (Smartphone-tauglich) */
 /** '' = leer (Eingabefeld gelöscht) */
 export type NumValue = number | '' | null | undefined
+
+const numBtn = 'btn join-item h-(--tap) w-(--tap) min-w-11 px-0 text-2xl font-normal active:btn-primary'
 
 export function NumberInput({
   value,
@@ -45,22 +47,23 @@ export function NumberInput({
     onChange(Number(next.toFixed(decimals)))
   }
   return (
-    <div className="num">
-      <button type="button" className="num-btn" onClick={() => bump(-1)} aria-label="weniger">
+    <div className="join num w-full">
+      <button type="button" className={numBtn} onClick={() => bump(-1)} aria-label="weniger">
         −
       </button>
-      <div className="num-input">
+      <label className="input join-item h-(--tap) grow min-w-0 px-2">
         <input
           type="number"
+          className="num-input grow min-w-0 text-center text-[1.35rem] font-bold"
           inputMode={decimals ? 'decimal' : 'numeric'}
           step={step}
           value={value ?? ''}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value.replace(',', '.')))}
         />
-        {unit && <span className="unit">{unit}</span>}
-      </div>
-      <button type="button" className="num-btn" onClick={() => bump(1)} aria-label="mehr">
+        {unit && <span className="text-xs text-muted">{unit}</span>}
+      </label>
+      <button type="button" className={numBtn} onClick={() => bump(1)} aria-label="mehr">
         +
       </button>
     </div>
@@ -76,35 +79,42 @@ export function Stars({
   onChange?: (v: number | null) => void
   size?: 'lg' | 'sm'
 }) {
+  const name = useId()
+  const star = 'mask mask-star-2 bg-accent-strong'
+  if (!onChange)
+    return (
+      <div className="rating rating-xs shrink-0">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <div key={n} className={star} aria-label={`${n} Sterne`} aria-current={n === value} />
+        ))}
+      </div>
+    )
   return (
-    <div className={`stars ${size}`} role={onChange ? 'radiogroup' : undefined}>
-      {[1, 2, 3, 4, 5].map((n) =>
-        onChange ? (
-          <button
-            type="button"
-            key={n}
-            className={n <= (value ?? 0) ? 'on' : ''}
-            onClick={() => onChange(n === value ? null : n)}
-            aria-label={`${n} Sterne`}
-          >
-            ★
-          </button>
-        ) : (
-          <span key={n} className={n <= (value ?? 0) ? 'on' : ''}>
-            ★
-          </span>
-        ),
-      )}
+    <div className={`rating justify-center w-full ${size === 'lg' ? 'rating-xl gap-1' : 'rating-sm'}`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <input
+          key={n}
+          type="radio"
+          name={name}
+          className={star}
+          aria-label={`${n} Sterne`}
+          checked={n === value}
+          onChange={() => {}}
+          onClick={() => onChange(n === value ? null : n)}
+        />
+      ))}
     </div>
   )
 }
 
 export function ExtractionSlider({ value, onChange }: { value: number | null | undefined; onChange: (v: number) => void }) {
   const v = value ?? 0
+  const tone = v < 0 ? 'text-(--sour)' : v > 0 ? 'text-accent-strong' : 'text-success'
   return (
-    <div className="extraction">
+    <div>
       <input
         type="range"
+        className="range range-lg w-full rounded-full text-base-content [--range-bg:transparent] [--range-fill:0] bg-[linear-gradient(90deg,var(--sour),var(--color-success)_50%,var(--bitter))]"
         min={-5}
         max={5}
         step={1}
@@ -112,12 +122,12 @@ export function ExtractionSlider({ value, onChange }: { value: number | null | u
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label="Extraktion"
       />
-      <div className="extraction-scale">
+      <div className="flex justify-between text-xs text-muted mt-1.5">
         <span>Sauer</span>
         <span>Ausgewogen</span>
         <span>Bitter</span>
       </div>
-      <div className={`extraction-label ${v < 0 ? 'sour' : v > 0 ? 'bitter' : 'good'}`}>{extractionLabel(v)}</div>
+      <div className={`text-center font-bold mt-1 ${tone}`}>{extractionLabel(v)}</div>
     </div>
   )
 }
@@ -156,16 +166,16 @@ export function Stopwatch({ onStop }: { onStop: (secs: number) => void }) {
   }
   const s = ms / 1000
   return (
-    <div className={`stopwatch ${running ? 'running' : ''}`}>
+    <div className={`flex flex-col gap-3 ${running ? 'running' : ''}`}>
       <div className="sw-time">
         {Math.floor(s)}
         <small>.{Math.floor((s % 1) * 10)} s</small>
       </div>
-      <div className="sw-buttons">
-        <button type="button" className={`btn big ${running ? 'danger' : 'primary'}`} onClick={toggle} data-no-haptic="1">
+      <div className="grid grid-cols-[1fr_72px] gap-2">
+        <button type="button" className={`btn btn-lg h-16 text-xl ${running ? 'btn-error' : 'btn-primary'}`} onClick={toggle} data-no-haptic="1">
           {running ? '■ Stopp' : ms ? '▶ Weiter' : '▶ Start'}
         </button>
-        <button type="button" className="btn big ghost" onClick={reset} disabled={running || !ms}>
+        <button type="button" className="btn btn-lg btn-ghost border-base-300 h-16 text-xl" onClick={reset} disabled={running || !ms}>
           ↺
         </button>
       </div>
@@ -173,12 +183,21 @@ export function Stopwatch({ onStop }: { onStop: (secs: number) => void }) {
   )
 }
 
+const CHIP_TONE: Record<string, string> = {
+  good: 'badge-soft badge-success',
+  info: 'badge-soft badge-info',
+  warn: 'badge-soft badge-warning',
+  bad: 'badge-soft badge-error',
+  flavor: 'badge-outline badge-primary text-accent-strong',
+  muted: 'bg-base-200 border-base-300 text-muted',
+}
+
 export function Chip({ children, tone, onRemove }: { children: ReactNode; tone?: string; onRemove?: () => void }) {
   return (
-    <span className={`chip ${tone ?? ''}`}>
+    <span className={`badge h-auto min-h-6 gap-1 ${CHIP_TONE[tone ?? ''] ?? 'bg-base-200 border-base-300'}`}>
       {children}
       {onRemove && (
-        <button type="button" onClick={onRemove} aria-label="entfernen">
+        <button type="button" className="cursor-pointer text-base text-muted leading-none" onClick={onRemove} aria-label="entfernen">
           ×
         </button>
       )}
@@ -202,7 +221,7 @@ export function TagInput({
     setDraft('')
   }
   return (
-    <div className="tags-input">
+    <div className="tags-input input w-full h-auto flex-wrap gap-1.5 py-1.5">
       {value.map((t) => (
         <Chip key={t} onRemove={() => onChange(value.filter((x) => x !== t))}>
           {t}
@@ -224,6 +243,10 @@ export function TagInput({
   )
 }
 
+/** Klassen für einen Segment-Knopf (auch für eigene Segment-Leisten in Seiten) */
+export const segBtn = (on: boolean) => `btn grow min-h-11 ${on ? 'btn-primary' : 'font-normal'}`
+
+/** Auswahl-Knöpfe; nochmal tippen hebt die Auswahl auf */
 export function Segmented<K extends string>({
   options,
   value,
@@ -234,9 +257,9 @@ export function Segmented<K extends string>({
   onChange: (v: K | null) => void
 }) {
   return (
-    <div className="segmented">
+    <div className="flex flex-wrap gap-1.5">
       {(Object.entries(options) as [K, ReactNode][]).map(([k, label]) => (
-        <button type="button" key={k} className={value === k ? 'on' : ''} onClick={() => onChange(value === k ? null : k)}>
+        <button type="button" key={k} className={segBtn(value === k)} onClick={() => onChange(value === k ? null : k)}>
           {label}
         </button>
       ))}
@@ -268,17 +291,17 @@ export function RecipeCard<B extends RecipeBrew>({
   const machine = lookup.machines(brew.machine_id)
   const hint = dialInHint(brew)
   return (
-    <div className="recipe">
-      <div className="recipe-head">
-        <span className="recipe-title">{title}</span>
+    <div className="flex flex-col gap-3 rounded-[14px] bg-base-200 p-3.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-widest text-muted">{title}</span>
         {brew.rating && <Stars value={brew.rating} size="sm" />}
       </div>
       <div className="recipe-grind">
-        <span className="label">Mahlgrad</span>
-        <span className="value">{brew.grind_setting || '–'}</span>
-        {grinder && <span className="sub">{grinder.name}</span>}
+        <span className="text-xs uppercase tracking-widest text-muted">Mahlgrad</span>
+        <span className="text-[2.6rem] font-extrabold leading-tight text-accent-strong">{brew.grind_setting || '–'}</span>
+        {grinder && <span className="text-xs text-muted">{grinder.name}</span>}
       </div>
-      <div className="stats">
+      <div className="grid grid-cols-3 gap-2">
         <Stat label="Dosis" value={brew.dose} unit="g" />
         <Stat label="Output" value={brew.yield} unit="g" />
         <Stat label="Ratio" value={fmtRatio(r)} />
@@ -286,15 +309,15 @@ export function RecipeCard<B extends RecipeBrew>({
         <Stat label="Temp" value={brew.temperature} unit="°C" />
         <Stat label="Pre-Inf." value={brew.preinfusion} unit="s" />
       </div>
-      <div className="recipe-meta">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted [overflow-wrap:anywhere]">
         {machine && <span>{machine.name}</span>}
         <span>{fmtDate(brew.created_at)}</span>
         {brew.extraction != null && <span>{extractionLabel(brew.extraction)}</span>}
       </div>
-      {brew.notes && <p className="recipe-note">„{brew.notes}“</p>}
-      {hint && <p className="recipe-hint">💡 {hint}</p>}
+      {brew.notes && <p className="italic [overflow-wrap:anywhere]">„{brew.notes}“</p>}
+      {hint && <p className="text-sm text-muted">💡 {hint}</p>}
       {onReuse && (
-        <button className="btn primary block" onClick={() => onReuse(brew)}>
+        <button className="btn btn-primary btn-block" onClick={() => onReuse(brew)}>
           Mit diesen Werten neuen Bezug starten
         </button>
       )}
@@ -302,15 +325,20 @@ export function RecipeCard<B extends RecipeBrew>({
   )
 }
 
-export function Stat({ label, value, unit }: { label: ReactNode; value: ReactNode; unit?: string }) {
+/** Kennzahl-Kachel (daisyUI stat, kompakt) */
+export const statCls = 'stat place-items-center gap-0 rounded-[10px] bg-base-100 px-1 py-2 min-w-0'
+export const statValueCls = 'stat-value text-lg font-bold tabular-nums whitespace-normal'
+export const statTitleCls = 'stat-title text-[0.7rem] text-muted whitespace-normal text-center'
+
+export function Stat({ label, value, unit, className = '' }: { label: ReactNode; value: ReactNode; unit?: string; className?: string }) {
   const empty = value == null || value === ''
   return (
-    <div className="stat">
-      <span className="stat-value">
+    <div className={`${statCls} ${className}`}>
+      <span className={statValueCls}>
         {empty ? '–' : value}
-        {!empty && unit && <small>{unit}</small>}
+        {!empty && unit && <small className="ml-px text-xs font-normal text-muted">{unit}</small>}
       </span>
-      <span className="stat-label">{label}</span>
+      <span className={statTitleCls}>{label}</span>
     </div>
   )
 }

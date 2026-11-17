@@ -111,54 +111,54 @@ export default function FeedCard({
   const gear = [brew.machine?.name || (brew.machine && MACHINE_TYPES[brew.machine.type]), brew.grinder?.name].filter(Boolean).join(' · ')
 
   return (
-    <article className="post feed-card">
-      <button type="button" className="post-avatar" onClick={() => onOpenUser?.(brew.user_id)} aria-label={`Profil von @${p?.username}`}>
+    <article className="post">
+      <button type="button" className="self-start cursor-pointer" onClick={() => onOpenUser?.(brew.user_id)} aria-label={`Profil von @${p?.username}`}>
         <Avatar profile={p} size={44} />
       </button>
-      <div className="post-body">
-        <header className="post-head">
-          <button type="button" className="feed-author post-name" onClick={() => onOpenUser?.(brew.user_id)}>
-            <strong>{p?.display_name || p?.username}</strong>
-            <span className="post-handle">@{p?.username}</span>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <header className="flex min-w-0 items-baseline gap-1 text-[0.95rem]">
+          <button type="button" className="post-name flex min-w-0 items-baseline gap-1 cursor-pointer text-left" onClick={() => onOpenUser?.(brew.user_id)}>
+            <strong className="truncate">{p?.display_name || p?.username}</strong>
+            <span className="truncate text-muted">@{p?.username}</span>
           </button>
-          <span className="post-dot">·</span>
-          <time dateTime={brew.created_at} title={fmtDate(brew.created_at)}>
+          <span className="text-muted">·</span>
+          <time className="shrink-0 whitespace-nowrap text-muted" dateTime={brew.created_at} title={fmtDate(brew.created_at)}>
             {fmtRelative(brew.created_at)}
           </time>
         </header>
 
-        {brew.notes && <p className="post-text">{brew.notes}</p>}
+        {brew.notes && <p className="text-[1.02rem] leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere]">{brew.notes}</p>}
 
-        <div className="post-bean">
-          <span className="post-bean-icon">☕</span>
-          <span>
+        <div className="flex items-start gap-2 text-[0.92rem]">
+          <span className="leading-[1.35]">☕</span>
+          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
             <strong>{brew.bean?.name ?? 'Unbekannte Bohne'}</strong>
-            {brew.bean?.roaster && <span className="muted"> · {brew.bean.roaster}</span>}
-            {brew.bean?.roast_level && <span className="muted"> · {ROAST_LEVELS[brew.bean.roast_level]}</span>}
+            {brew.bean?.roaster && <span className="text-muted"> · {brew.bean.roaster}</span>}
+            {brew.bean?.roast_level && <span className="text-muted"> · {ROAST_LEVELS[brew.bean.roast_level]}</span>}
           </span>
           {brew.rating ? <Stars value={brew.rating} size="sm" /> : null}
         </div>
 
         {recipe.length > 0 && (
-          <div className="post-recipe">
+          <div className="flex flex-wrap gap-1.5">
             {recipe.map((x) => (
-              <span key={x}>{x}</span>
+              <span key={x} className="badge bg-base-200 border-base-300 text-[0.82rem] font-semibold tabular-nums">{x}</span>
             ))}
           </div>
         )}
         {(gear || brew.extraction != null) && (
-          <p className="post-meta">
+          <p className="text-xs text-muted [overflow-wrap:anywhere]">
             {gear}
             {gear && brew.extraction != null && ' · '}
             {brew.extraction != null && extractionLabel(brew.extraction)}
           </p>
         )}
 
-        {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="feed-media post-media" />}
+        {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="mt-1 max-h-[480px] rounded-2xl border border-base-300" />}
 
-        <footer className="post-actions feed-actions">
+        <footer className="-mx-2 mt-0.5 flex items-center gap-1">
           <button type="button" className={`post-action ${comments ? 'on' : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
-            <span className="post-icon">💬</span>
+            <span className="post-icon text-[1.05rem] leading-none">💬</span>
             <span>{commentCount}</span>
           </button>
           <button
@@ -168,43 +168,43 @@ export default function FeedCard({
             aria-pressed={liked}
             aria-label="Gefällt mir"
           >
-            <span className="post-icon">☕</span>
+            <span className="post-icon text-[1.05rem] leading-none">☕</span>
             <span>{likes}</span>
           </button>
           {!own && onReuse && (
-            <button type="button" className="post-action reuse" onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
-              <span className="post-icon">↻</span>
+            <button type="button" className="post-action reuse ml-auto" onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
+              <span className="post-icon text-[1.05rem] leading-none">↻</span>
               <span>Rezept übernehmen</span>
             </button>
           )}
         </footer>
-        {err && <p className="scanner-error">{err}</p>}
+        {err && <p className="text-sm text-error">{err}</p>}
 
         {comments && (
-          <div className="comments">
-            {comments.length === 0 && <p className="muted small">Noch keine Kommentare – schreib den ersten.</p>}
+          <div className="flex flex-col gap-2.5 pt-1">
+            {comments.length === 0 && <p className="text-muted text-sm">Noch keine Kommentare – schreib den ersten.</p>}
             {comments.map((c) => (
-              <div key={c.id} className="comment">
+              <div key={c.id} className="flex items-start gap-2">
                 <Avatar profile={c.author} size={30} />
-                <div className="comment-bubble">
-                  <div className="comment-head">
-                    <strong>{c.author?.display_name || c.author?.username}</strong>
-                    <span className="post-handle">@{c.author?.username}</span>
-                    <span className="post-dot">·</span>
-                    <time title={fmtDate(c.created_at)}>{fmtRelative(c.created_at)}</time>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-[14px] bg-base-200 px-3 py-2 [overflow-wrap:anywhere]">
+                  <div className="flex min-w-0 items-baseline gap-1 text-sm">
+                    <strong className="truncate">{c.author?.display_name || c.author?.username}</strong>
+                    <span className="truncate text-muted">@{c.author?.username}</span>
+                    <span className="text-muted">·</span>
+                    <time className="whitespace-nowrap text-muted" title={fmtDate(c.created_at)}>{fmtRelative(c.created_at)}</time>
                   </div>
                   <span>{c.body}</span>
                 </div>
                 {(c.user_id === me || own) && (
-                  <button type="button" className="link small" onClick={() => remove(c.id)} aria-label="Kommentar löschen">
+                  <button type="button" className="link link-primary p-2 no-underline text-sm" onClick={() => remove(c.id)} aria-label="Kommentar löschen">
                     ✕
                   </button>
                 )}
               </div>
             ))}
-            <form className="comment-form" onSubmit={send}>
-              <input value={draft} maxLength={500} placeholder="Antworten …" onChange={(e) => setDraft(e.target.value)} />
-              <button className="btn primary sm" disabled={busy || !draft.trim()}>
+            <form className="grid grid-cols-[1fr_auto] gap-2" onSubmit={send}>
+              <input className="input input-sm h-10 w-full" value={draft} maxLength={500} placeholder="Antworten …" onChange={(e) => setDraft(e.target.value)} />
+              <button className="btn btn-primary btn-sm" disabled={busy || !draft.trim()}>
                 Senden
               </button>
             </form>

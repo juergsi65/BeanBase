@@ -68,18 +68,18 @@ export default function AuthPage() {
     requireSupabase().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })
 
   return (
-    <div className="auth">
-      <div className="auth-card">
-        <div className="auth-logo">🫘</div>
+    <div className="grid min-h-dvh place-items-center p-5">
+      <div className="card w-full max-w-[380px] desk:max-w-[420px] gap-3.5 rounded-[20px] border border-base-300 bg-base-100 px-5.5 py-7 text-center desk:px-8 desk:py-9">
+        <div className="text-5xl">🫘</div>
         <h1>BeanBase</h1>
-        <p className="muted">Dein digitales Barista-Notizbuch. Nie wieder Dial-In auf Zetteln.</p>
-        <form onSubmit={submit}>
+        <p className="text-muted">Dein digitales Barista-Notizbuch. Nie wieder Dial-In auf Zetteln.</p>
+        <form className="flex flex-col gap-3 text-left" onSubmit={submit}>
           <Field label="E-Mail">
-            <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="input w-full" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           {mode === 'signup' && settings.invite_required && (
             <Field label="Einladungscode" hint="BeanBase ist in der Beta – nur mit Einladung">
-              <input
+              <input className="input w-full"
                 required
                 value={invite}
                 onChange={(e) => setInvite(e.target.value.toUpperCase())}
@@ -91,7 +91,7 @@ export default function AuthPage() {
           )}
           {mode !== 'reset' && (
           <Field label="Passwort">
-            <input
+            <input className="input w-full"
               type="password"
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               minLength={6}
@@ -101,22 +101,22 @@ export default function AuthPage() {
             />
           </Field>
           )}
-          {msg && <div className={`banner ${msg.tone}`}>{msg.text}</div>}
-          <button className="btn primary block big" disabled={busy}>
+          {msg && <div className={`alert alert-soft block alert-${msg.tone}`}>{msg.text}</div>}
+          <button className="btn btn-primary btn-block btn-lg" disabled={busy}>
             {mode === 'login' ? 'Einloggen' : mode === 'signup' ? 'Konto erstellen' : 'Link zum Zurücksetzen senden'}
           </button>
         </form>
         {googleEnabled && mode !== 'reset' && (
-          <button className="btn ghost block" onClick={google}>
+          <button className="btn btn-ghost border-base-300 btn-block" onClick={google}>
             Mit Google anmelden
           </button>
         )}
         {mode === 'login' && (
-          <button className="link" onClick={() => { setMode('reset'); setMsg(null) }}>
+          <button className="link link-primary p-2 no-underline" onClick={() => { setMode('reset'); setMsg(null) }}>
             Passwort vergessen?
           </button>
         )}
-        <button className="link" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg(null) }}>
+        <button className="link link-primary p-2 no-underline" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setMsg(null) }}>
           {mode === 'login' ? 'Noch kein Konto? Registrieren' : mode === 'signup' ? 'Schon registriert? Einloggen' : '← Zurück zum Login'}
         </button>
       </div>

@@ -22,8 +22,8 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
   const error = actionError ?? barista.error?.message
 
   if (!socialAvailable) return <SocialUnavailable />
-  if (error) return <div className="banner error">{error}</div>
-  if (!view) return <p className="muted">Lade Profil …</p>
+  if (error) return <div className="alert alert-soft block alert-error">{error}</div>
+  if (!view) return <p className="text-muted">Lade Profil …</p>
   if (!view.profile) return <Empty>Profil nicht gefunden.</Empty>
 
   const { profile: p, relation } = view
@@ -39,31 +39,31 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
   }
 
   return (
-    <div className="stack">
-      <button className="link" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => go('community')}>
+    <div className="flex flex-col gap-4">
+      <button className="link link-primary p-2 no-underline" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => go('community')}>
         ← Community
       </button>
-      <section className="card">
-        <div className="profile-head">
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+        <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
           <Avatar profile={p} size={72} />
           <div className="grow">
             <h2>{p.display_name || p.username}</h2>
-            <span className="muted small">
+            <span className="text-muted text-sm">
               @{p.username} {p.is_public ? '· öffentlich' : '· privat'}
             </span>
           </div>
         </div>
         {p.bio && <p>{p.bio}</p>}
         {!isMe && (
-          <div className="row-actions">
+          <div className="flex flex-wrap items-center gap-1.5">
             {relation === 'none' && (
-              <button className="btn primary" onClick={act(() => sendFriendRequest(p.id))}>
+              <button className="btn btn-primary" onClick={act(() => sendFriendRequest(p.id))}>
                 + Freundschaftsanfrage
               </button>
             )}
-            {relation === 'outgoing' && <span className="muted small">Anfrage gesendet</span>}
+            {relation === 'outgoing' && <span className="text-muted text-sm">Anfrage gesendet</span>}
             {relation === 'incoming' && (
-              <button className="btn primary" onClick={act(async () => view.friendshipId && acceptFriend(view.friendshipId))}>
+              <button className="btn btn-primary" onClick={act(async () => view.friendshipId && acceptFriend(view.friendshipId))}>
                 Anfrage annehmen
               </button>
             )}
@@ -77,20 +77,20 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
       ) : (
         <>
           <SetupCard machines={view.machines} grinders={view.grinders} beansCount={view.beans.length} setupPhoto={p.setup_photo_url} />
-          <section className="card">
-            <h3 className="section-title">Aktuelle Bohnen</h3>
+          <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+            <h3 className="text-xs uppercase tracking-widest text-muted">Aktuelle Bohnen</h3>
             {view.beans.length ? (
-              <ul className="list">
+              <ul className="items">
                 {view.beans.map((b) => (
-                  <li key={b.id} className="list-item col">
-                    <div className="row">
+                  <li key={b.id} className="item col">
+                    <div className="flex flex-nowrap items-center justify-between gap-2.5">
                       {b.image_url && <img className="thumb" src={b.image_url} alt="" loading="lazy" />}
                       <div className="grow">
                         <strong>{b.name}</strong>
-                        <span className="muted small">{[b.roaster, b.origin].filter(Boolean).join(' · ')}</span>
+                        <span className="text-muted text-sm">{[b.roaster, b.origin].filter(Boolean).join(' · ')}</span>
                       </div>
                     </div>
-                    <div className="chips">
+                    <div className="flex flex-wrap gap-1.5">
                       {b.roast_level && <Chip>{ROAST_LEVELS[b.roast_level]}</Chip>}
                       {b.flavor_notes?.map((t) => (
                         <Chip key={t} tone="flavor">
@@ -102,18 +102,18 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
                 ))}
               </ul>
             ) : (
-              <p className="muted small">Keine aktiven Bohnen.</p>
+              <p className="text-muted text-sm">Keine aktiven Bohnen.</p>
             )}
           </section>
-          <h3 className="section-title">Letzte Bezüge</h3>
+          <h3 className="text-xs uppercase tracking-widest text-muted">Letzte Bezüge</h3>
           {view.brews.length ? (
-            <div className="timeline">
+            <div className="feed">
               {view.brews.map((b) => (
                 <FeedCard key={b.id} brew={b} me={me} onReuse={(brew) => go('brew', { key: Date.now(), brew: recipeFromBrew(brew, data) })} />
               ))}
             </div>
           ) : (
-            <p className="muted small">Noch keine Bezüge.</p>
+            <p className="text-muted text-sm">Noch keine Bezüge.</p>
           )}
         </>
       )}

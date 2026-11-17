@@ -117,9 +117,9 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
 
   return (
     <div className="scanner" role="dialog" aria-label="Barcode scannen">
-      <div className="scanner-top">
+      <div className="flex items-center justify-between text-lg">
         <strong>▦ Barcode scannen</strong>
-        <button type="button" className="btn ghost sm" onClick={onClose} aria-label="Schließen">
+        <button type="button" className="btn btn-ghost btn-sm border-[#3d3027] text-[#f3e9dc]" onClick={onClose} aria-label="Schließen">
           ✕
         </button>
       </div>
@@ -130,8 +130,8 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
           {status === 'starting' ? 'Kamera wird gestartet …' : status === 'scanning' ? 'Barcode der Tüte in den Rahmen halten' : error}
         </p>
       </div>
-      <div className="scanner-manual">
-        <input
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <input className="input w-full bg-[#221a15] text-[#f3e9dc] border-[#3d3027]"
           inputMode="numeric"
           placeholder="oder Nummer eintippen"
           value={manual}
@@ -147,11 +147,11 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
           }}
           aria-label="Barcode-Nummer"
         />
-        <button type="button" className="btn primary" onClick={submitManual}>
+        <button type="button" className="btn btn-primary" onClick={submitManual}>
           OK
         </button>
       </div>
-      {manualError && <p className="scanner-error">{manualError}</p>}
+      {manualError && <p className="text-sm text-error">{manualError}</p>}
     </div>
   )
 }

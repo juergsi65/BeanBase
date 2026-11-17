@@ -164,12 +164,12 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
   }
 
   return (
-    <form className="stack brew-form" onSubmit={save}>
+    <form className="brew-form flex flex-col gap-4 pb-21 desk:grid desk:gap-x-6 desk:pb-6" onSubmit={save}>
       <h2 className="brew-title">{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
 
-      <section className="card brew-bean">
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-bean">
         <Field label="Bohne">
-          <select value={form.bean_id} onChange={set('bean_id')}>
+          <select className="select w-full" value={form.bean_id} onChange={set('bean_id')}>
             <option value="">— keine —</option>
             {data.beans.map((b) => (
               <option key={b.id} value={b.id}>
@@ -180,9 +180,9 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             ))}
           </select>
         </Field>
-        <div className="grid2">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Maschine / Methode">
-            <select value={form.machine_id} onChange={changeMachine}>
+            <select className="select w-full" value={form.machine_id} onChange={changeMachine}>
               <option value="">—</option>
               {data.machines.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -192,7 +192,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             </select>
           </Field>
           <Field label="Mühle">
-            <select value={form.grinder_id} onChange={set('grinder_id')}>
+            <select className="select w-full" value={form.grinder_id} onChange={set('grinder_id')}>
               <option value="">—</option>
               {data.grinders.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -214,12 +214,14 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
           />
         )}
         {!editing && prev.last && (
-          <details className="prev">
-            <summary>
+          <details className="collapse collapse-arrow rounded-none">
+            <summary className="collapse-title min-h-0 py-1 pl-0 pr-8 text-sm text-muted after:top-3! [&_strong]:text-accent-strong">
               Letzter Bezug dieser Bohne: Mahlgrad <strong>{prev.last.grind_setting || '–'}</strong> · {prev.last.dose ?? '–'}g →{' '}
               {prev.last.yield ?? '–'}g · {prev.last.brew_time ?? '–'}s
             </summary>
-            <RecipeCard title="Letzter Bezug" brew={prev.last} lookup={lookup} />
+            <div className="collapse-content px-0 pt-2.5">
+              <RecipeCard title="Letzter Bezug" brew={prev.last} lookup={lookup} />
+            </div>
           </details>
         )}
       </section>
@@ -239,9 +241,9 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         />
       )}
 
-      <section className="card brew-recipe">
-        <h3 className="section-title">Rezept</h3>
-        <div className="grid2 nums">
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-recipe">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Rezept</h3>
+        <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
           <Field label="Dosis (Mehl)">
             <NumberInput value={form.dose} onChange={set('dose')} step={0.1} decimals={1} min={0} unit="g" />
           </Field>
@@ -249,10 +251,10 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             <NumberInput value={form.yield} onChange={set('yield')} step={0.5} decimals={1} min={0} unit="g" />
           </Field>
         </div>
-        <div className="ratio-display">
-          Brew-Ratio <strong>{fmtRatio(r)}</strong>
+        <div className="rounded-xl bg-base-200 p-2.5 text-center text-muted">
+          Brew-Ratio <strong className="ml-2 text-[1.6rem] text-accent-strong">{fmtRatio(r)}</strong>
           {cost && (
-            <span className="ratio-cost">
+            <span className="mt-1 block text-sm text-muted">
               ≈ {fmtMoney(cost.value, cost.currency)}
               {usage && ` · Rest danach ${fmtGrams(Math.max(0, usage.remaining - (editing ? 0 : Number(form.dose) || 0)))}`}
             </span>
@@ -260,7 +262,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         </div>
         <Field label="Mahlgrad" hint={grinder ? `${grinder.name} · ${SCALE_TYPES[grinder.scale_type] ?? ''}` : ''}>
           {grinder?.scale_type === 'stepless' ? (
-            <input value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="z. B. 2.4 oder ‚zwischen 2 und 3‘" className="big-input" />
+            <input value={form.grind_setting ?? ''} onChange={set('grind_setting')} placeholder="z. B. 2.4 oder ‚zwischen 2 und 3‘" className="input w-full big-input" />
           ) : (
             <NumberInput
               value={form.grind_setting === '' || form.grind_setting == null || isNaN(Number(form.grind_setting)) ? '' : Number(form.grind_setting)}
@@ -272,7 +274,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             />
           )}
         </Field>
-        <div className="grid2 nums">
+        <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
           <Field label="Temperatur">
             <NumberInput value={form.temperature} onChange={set('temperature')} step={0.5} decimals={1} min={0} max={100} unit="°C" />
           </Field>
@@ -282,16 +284,16 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         </div>
       </section>
 
-      <section className="card brew-timer">
-        <h3 className="section-title">Durchlaufzeit</h3>
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-timer">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Durchlaufzeit</h3>
         <Stopwatch onStop={set('brew_time')} />
         <Field label="Brühzeit">
           <NumberInput value={form.brew_time} onChange={set('brew_time')} step={1} min={0} unit="s" placeholder="–" />
         </Field>
       </section>
 
-      <section className="card brew-rating">
-        <h3 className="section-title">Bewertung</h3>
+      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-rating">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Bewertung</h3>
         <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
         <Stars value={form.rating} onChange={set('rating')} />
         <Field label="Extraktion">
@@ -299,15 +301,15 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         </Field>
         <CorrectionHint form={form} grinder={grinder} machine={machine} targetTime={plan?.time} onNote={addNote} />
         <Field label="Notiz für den nächsten Versuch">
-          <textarea rows={3} value={form.notes} onChange={set('notes')} placeholder="z. B. Nächstes Mal 2 Klicks feiner mahlen" />
+          <textarea className="textarea w-full" rows={3} value={form.notes} onChange={set('notes')} placeholder="z. B. Nächstes Mal 2 Klicks feiner mahlen" />
         </Field>
       </section>
 
       <div className="sticky-actions">
-        <button type="button" className="btn ghost big" onClick={() => go(editing ? 'history' : 'dashboard')}>
+        <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => go(editing ? 'history' : 'dashboard')}>
           Abbrechen
         </button>
-        <button className="btn primary big grow" disabled={saving}>
+        <button className="btn btn-primary btn-lg grow desk:grow-0 desk:basis-80" disabled={saving}>
           {saving ? 'Speichere …' : editing ? 'Änderungen speichern' : 'Bezug speichern'}
         </button>
       </div>

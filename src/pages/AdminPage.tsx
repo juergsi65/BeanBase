@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
-import { Segmented, Empty, Field, Chip } from '../components/ui'
+import { Segmented, Empty, Field, Chip, statCls, statValueCls, statTitleCls } from '../components/ui'
 import Avatar from '../components/Avatar'
 import { MediaView } from '../components/MediaPicker'
 import { fmtDate, plural } from '../lib/coffee'
@@ -42,8 +42,8 @@ const act = (fn: () => Promise<unknown>, reload?: (() => Promise<unknown>) | nul
 }
 
 function Loading<T>({ state, children }: { state: LoadState<T>; children: (data: T) => ReactNode }) {
-  if (state.loading && !state.data) return <p className="muted">Lade …</p>
-  if (state.error) return <div className="banner error">{state.error}</div>
+  if (state.loading && !state.data) return <p className="text-muted">Lade …</p>
+  if (state.error) return <div className="alert alert-soft block alert-error">{state.error}</div>
   if (state.data === undefined) return null
   return <>{children(state.data)}</>
 }
@@ -54,7 +54,7 @@ function Overview() {
     <Loading state={state}>
       {(o) => (
         <>
-          <div className="admin-stats">
+          <div className="grid grid-cols-2 min-[361px]:grid-cols-3 min-[700px]:grid-cols-4 desk:grid-cols-5 gap-2">
             {[
               ['Nutzer', o.users, `+${o.users_7d} in 7 Tagen`],
               ['Aktiv (7 Tage)', o.active_7d, 'mit Bezug'],
@@ -66,16 +66,14 @@ function Overview() {
               ['Gesperrt', o.blocked, ''],
               ['Speicher', `${o.storage_mb} MB`, `von ${STORAGE_LIMIT_MB} MB (Free)`],
             ].map(([label, value, sub]) => (
-              <div key={label} className="stat">
-                <span className="stat-value">{value}</span>
-                <span className="stat-label">{label}</span>
-                {sub && <span className="stat-sub">{sub}</span>}
+              <div key={label} className={`${statCls} border border-base-300`}>
+                <span className={statValueCls}>{value}</span>
+                <span className={statTitleCls}>{label}</span>
+                {sub && <span className="stat-desc text-[0.65rem] text-muted whitespace-normal text-center">{sub}</span>}
               </div>
             ))}
           </div>
-          <div className="stock-bar" title="Speicherbelegung">
-            <span style={{ width: `${Math.min(100, (o.storage_mb / STORAGE_LIMIT_MB) * 100)}%` }} />
-          </div>
+          <progress className="progress progress-primary h-2.5" title="Speicherbelegung" value={Math.min(100, (o.storage_mb / STORAGE_LIMIT_MB) * 100)} max={100} />
         </>
       )}
     </Loading>
@@ -91,33 +89,33 @@ function Users({ me }: { me: MyProfile }) {
         const list = users.filter((u) => !q || `${u.username} ${u.display_name ?? ''} ${u.email ?? ''}`.toLowerCase().includes(q.toLowerCase()))
         return (
           <>
-            <input type="search" placeholder="🔍 Nutzer suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
-            <p className="muted small">{plural(users.length, 'Konto', 'Konten')} · alle außer Admins sind Beta-Tester</p>
-            <ul className="list">
+            <input className="input w-full" type="search" placeholder="🔍 Nutzer suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
+            <p className="text-muted text-sm">{plural(users.length, 'Konto', 'Konten')} · alle außer Admins sind Beta-Tester</p>
+            <ul className="items">
               {list.map((u) => (
-                <li key={u.id} className={`list-item col ${u.blocked ? 'blocked' : ''}`}>
-                  <div className="row">
+                <li key={u.id} className={`item col ${u.blocked ? 'blocked' : ''}`}>
+                  <div className="flex flex-nowrap items-center justify-between gap-2.5">
                     <Avatar profile={u} size={36} />
                     <div className="grow">
                       <strong>
                         @{u.username} {u.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Tester</Chip>}
                         {u.blocked && <Chip tone="bad">gesperrt</Chip>}
                       </strong>
-                      <span className="muted small">{u.email}</span>
+                      <span className="text-muted text-sm">{u.email}</span>
                     </div>
                   </div>
-                  <span className="muted small">
+                  <span className="text-muted text-sm">
                     seit {fmtDate(u.created_at)} · zuletzt online {u.last_sign_in_at ? fmtDate(u.last_sign_in_at) : '–'} · {plural(Number(u.beans), 'Bohne', 'Bohnen')} ·{' '}
                     {plural(Number(u.brews), 'Bezug', 'Bezüge')}
                     {u.is_public ? ' · öffentlich' : ''}
                   </span>
                   {u.role !== 'admin' && u.id !== me?.id && (
-                    <div className="row-actions">
-                      <button className="btn ghost sm" onClick={act(() => adminSetBlocked(u.id, !u.blocked), reload, u.blocked ? 'Entsperrt' : 'Gesperrt')}>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => adminSetBlocked(u.id, !u.blocked), reload, u.blocked ? 'Entsperrt' : 'Gesperrt')}>
                         {u.blocked ? '🔓 Entsperren' : '🔒 Sperren'}
                       </button>
                       <button
-                        className="btn danger-ghost sm"
+                        className="btn btn-outline btn-error btn-sm"
                         onClick={act(
                           async () => {
                             if (prompt(`Konto @${u.username} mit allen Daten endgültig löschen? Zum Bestätigen den Username eintippen:`) === u.username)
@@ -171,29 +169,29 @@ function Invites() {
   return (
     <>
       <form
-        className="card"
+        className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5"
         onSubmit={(e) => {
           e.preventDefault()
           create()
         }}
       >
-        <h3 className="section-title">Neue Einladung</h3>
-        <div className="grid2">
+        <h3 className="text-xs uppercase tracking-widest text-muted">Neue Einladung</h3>
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Nutzungen">
-            <input type="number" min="1" max="200" value={form.uses} onChange={(e) => setForm({ ...form, uses: e.target.value })} />
+            <input className="input w-full" type="number" min="1" max="200" value={form.uses} onChange={(e) => setForm({ ...form, uses: e.target.value })} />
           </Field>
           <Field label="Eigener Code" hint="optional">
-            <input value={form.code} placeholder="automatisch" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+            <input className="input w-full" value={form.code} placeholder="automatisch" onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
           </Field>
         </div>
         <Field label="Notiz" hint="z. B. für wen">
-          <input value={form.note} maxLength={120} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          <input className="input w-full" value={form.note} maxLength={120} onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </Field>
-        <button className="btn primary block">Einladung erstellen</button>
+        <button className="btn btn-primary btn-block">Einladung erstellen</button>
         {created && (
-          <div className="banner info">
+          <div className="alert alert-soft block alert-info">
             Neuer Code: <strong>{created}</strong>{' '}
-            <button type="button" className="link" onClick={() => share(created)}>
+            <button type="button" className="link link-primary p-2 no-underline" onClick={() => share(created)}>
               Teilen / kopieren
             </button>
           </div>
@@ -202,21 +200,21 @@ function Invites() {
       <Loading state={state}>
         {(codes) =>
           codes.length ? (
-            <ul className="list">
+            <ul className="items">
               {codes.map((c) => (
-                <li key={c.code} className="list-item col">
-                  <div className="row">
-                    <strong className="code">{c.code}</strong>
+                <li key={c.code} className="item col">
+                  <div className="flex flex-wrap items-center justify-between gap-2.5">
+                    <strong className="font-mono tracking-wider">{c.code}</strong>
                     <Chip tone={c.uses >= c.max_uses ? 'bad' : 'good'}>
                       {c.uses}/{c.max_uses} genutzt
                     </Chip>
                   </div>
-                  {c.note && <span className="muted small">{c.note}</span>}
-                  <div className="row-actions">
-                    <button className="btn ghost sm" onClick={() => share(c.code)}>
+                  {c.note && <span className="text-muted text-sm">{c.note}</span>}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => share(c.code)}>
                       📤 Teilen
                     </button>
-                    <button className="btn danger-ghost sm" onClick={act(() => adminDeleteInvite(c.code), reload, 'Code gelöscht')}>
+                    <button className="btn btn-outline btn-error btn-sm" onClick={act(() => adminDeleteInvite(c.code), reload, 'Code gelöscht')}>
                       🗑
                     </button>
                   </div>
@@ -243,19 +241,19 @@ function FeedbackInbox() {
           <>
             <Segmented options={{ neu: `Offen (${items.filter((f) => f.status === 'neu').length})`, erledigt: 'Erledigt', alle: 'Alle' }} value={filter} onChange={(v) => v && setFilter(v)} />
             {!list.length && <Empty>Kein Feedback in dieser Ansicht.</Empty>}
-            <ul className="list">
+            <ul className="items">
               {list.map((f) => (
-                <li key={f.id} className="list-item col">
-                  <span className="muted small">
+                <li key={f.id} className="item col">
+                  <span className="text-muted text-sm">
                     @{f.author?.username ?? 'gelöscht'} · {fmtDate(f.created_at)} · {f.context}
                   </span>
-                  <span className="feedback-text">{f.message}</span>
-                  <span className="muted small ua">{f.user_agent}</span>
-                  <div className="row-actions">
-                    <button className="btn ghost sm" onClick={act(() => setFeedbackStatus(f.id, f.status === 'neu' ? 'erledigt' : 'neu'), reload)}>
+                  <span className="whitespace-pre-wrap">{f.message}</span>
+                  <span className="text-muted text-[0.68rem]">{f.user_agent}</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => setFeedbackStatus(f.id, f.status === 'neu' ? 'erledigt' : 'neu'), reload)}>
                       {f.status === 'neu' ? '✅ Erledigt' : '↩︎ Wieder öffnen'}
                     </button>
-                    <button className="btn danger-ghost sm" onClick={act(() => deleteFeedback(f.id), reload, 'Gelöscht')}>
+                    <button className="btn btn-outline btn-error btn-sm" onClick={act(() => deleteFeedback(f.id), reload, 'Gelöscht')}>
                       🗑
                     </button>
                   </div>
@@ -278,32 +276,32 @@ function Moderation() {
         const media = Array.isArray(content?.media) ? content.media : []
         return (
         <>
-          <h3 className="section-title">Neueste Kommentare</h3>
-          {!comments.length && <p className="muted small">Keine Kommentare.</p>}
-          <ul className="list">
+          <h3 className="text-xs uppercase tracking-widest text-muted">Neueste Kommentare</h3>
+          {!comments.length && <p className="text-muted text-sm">Keine Kommentare.</p>}
+          <ul className="items">
             {comments.map((c) => (
-              <li key={c.id} className="list-item">
+              <li key={c.id} className="item">
                 <div className="grow">
-                  <span className="muted small">
+                  <span className="text-muted text-sm">
                     @{c.username} · {fmtDate(c.created_at)}
                   </span>
                   <span>{c.body}</span>
                 </div>
-                <button className="btn danger-ghost sm" onClick={act(() => adminDeleteComment(c.id), reload, 'Kommentar gelöscht')} aria-label="Kommentar löschen">
+                <button className="btn btn-outline btn-error btn-sm" onClick={act(() => adminDeleteComment(c.id), reload, 'Kommentar gelöscht')} aria-label="Kommentar löschen">
                   🗑
                 </button>
               </li>
             ))}
           </ul>
-          <h3 className="section-title">Neueste Fotos/Videos</h3>
-          {!media.length && <p className="muted small">Keine Medien.</p>}
-          <div className="admin-media">
+          <h3 className="text-xs uppercase tracking-widest text-muted">Neueste Fotos/Videos</h3>
+          {!media.length && <p className="text-muted text-sm">Keine Medien.</p>}
+          <div className="grid grid-cols-2 desk:grid-cols-4 gap-2">
             {media.map((m) => (
               <figure key={m.id}>
-                <MediaView url={m.media_url} type={m.media_type} />
-                <figcaption>
+                <MediaView url={m.media_url} type={m.media_type} className="h-[140px]" />
+                <figcaption className="flex flex-wrap justify-between gap-1 text-xs text-muted">
                   @{m.username}{' '}
-                  <button className="link small" onClick={act(() => adminRemoveMedia(m.id), reload, 'Medium entfernt')}>
+                  <button className="link link-primary p-2 no-underline text-sm" onClick={act(() => adminRemoveMedia(m.id), reload, 'Medium entfernt')}>
                     entfernen
                   </button>
                 </figcaption>
@@ -321,21 +319,21 @@ function Settings() {
   const settings = useSettings()
   const toggle = (key: keyof AppSettings) => act(() => adminSetSetting(key, !settings[key]), null, 'Gespeichert')
   return (
-    <section className="card">
-      <label className="toggle">
-        <input type="checkbox" checked={!!settings.invite_required} onChange={toggle('invite_required')} />
+    <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
+      <label className="flex items-center gap-3 cursor-pointer font-semibold">
+        <input className="checkbox checkbox-primary" type="checkbox" checked={!!settings.invite_required} onChange={toggle('invite_required')} />
         <span>
           Registrierung nur mit Einladungscode
-          <span className="muted small" style={{ display: 'block', fontWeight: 400 }}>
+          <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
             Empfohlen für den Beta-Test – sonst kann sich jeder mit dem Link registrieren.
           </span>
         </span>
       </label>
-      <label className="toggle">
-        <input type="checkbox" checked={!!settings.video_uploads} onChange={toggle('video_uploads')} />
+      <label className="flex items-center gap-3 cursor-pointer font-semibold">
+        <input className="checkbox checkbox-primary" type="checkbox" checked={!!settings.video_uploads} onChange={toggle('video_uploads')} />
         <span>
           Video-Uploads erlauben
-          <span className="muted small" style={{ display: 'block', fontWeight: 400 }}>
+          <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
             Wird auch serverseitig im Speicher durchgesetzt. Videos füllen den Free-Speicher (1 GB) schnell.
           </span>
         </span>
@@ -348,10 +346,14 @@ export default function AdminPage({ me }: Pick<PageProps, 'me'>) {
   const [section, setSection] = useState<Section>('overview')
   if (!me || me.role !== 'admin') return <Empty>Kein Zugriff – dieser Bereich ist nur für Admins.</Empty>
   return (
-    <div className="stack">
+    <div className="flex flex-col gap-4">
       <h2>🛠 Admin-Bereich</h2>
-      <div className="admin-tabs">
-        <Segmented options={SECTIONS} value={section} onChange={(v) => v && setSection(v)} />
+      <div role="tablist" className="tabs tabs-box flex-wrap bg-base-100 border border-base-300">
+        {(Object.entries(SECTIONS) as [Section, string][]).map(([k, label]) => (
+          <button key={k} role="tab" className={`tab grow ${section === k ? 'tab-active' : ''}`} aria-selected={section === k} onClick={() => setSection(k)}>
+            {label}
+          </button>
+        ))}
       </div>
       {section === 'overview' && <Overview />}
       {section === 'users' && <Users me={me} />}

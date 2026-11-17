@@ -63,33 +63,33 @@ export default function MediaPicker({
   const accept = allowVideo ? 'image/*,video/*' : 'image/*'
 
   return (
-    <div className="media-picker">
+    <div className="flex flex-col gap-2">
       {shown ? (
         <div className="photo">
           <MediaView url={shown.url} type={shown.type} />
-          <button type="button" className="btn ghost sm photo-remove" onClick={() => onChange({ pending: null, removed: true })} aria-label={`${label} entfernen`}>
+          <button type="button" className="btn btn-ghost btn-sm absolute top-2 right-2 border-base-300 bg-page/75" onClick={() => onChange({ pending: null, removed: true })} aria-label={`${label} entfernen`}>
             ✕
           </button>
         </div>
       ) : null}
-      <div className="grid2">
-        <button type="button" className="btn ghost" onClick={() => camRef.current?.click()} disabled={busy}>
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" className="btn btn-ghost border-base-300" onClick={() => camRef.current?.click()} disabled={busy}>
           📷 {allowVideo ? 'Foto / Video' : 'Foto'}
         </button>
-        <button type="button" className="btn ghost" onClick={() => fileRef.current?.click()} disabled={busy}>
+        <button type="button" className="btn btn-ghost border-base-300" onClick={() => fileRef.current?.click()} disabled={busy}>
           🖼 Aus Galerie
         </button>
       </div>
       <input ref={camRef} type="file" accept={accept} capture="environment" hidden onChange={onFile} />
       <input ref={fileRef} type="file" accept={accept} hidden onChange={onFile} data-testid="media-upload" />
-      {busy && <p className="muted small">Wird vorbereitet …</p>}
-      {allowVideo && !shown && <p className="muted small">Videos bis 60 s / 50 MB – z. B. den Durchlauf des Shots.</p>}
+      {busy && <p className="text-muted text-sm">Wird vorbereitet …</p>}
+      {allowVideo && !shown && <p className="text-muted text-sm">Videos bis 60 s / 50 MB – z. B. den Durchlauf des Shots.</p>}
       {wantsVideo && !allowVideo && !isLocalMode && !shown && (
-        <p className="tba-note">
-          <span className="tba">Video · bald</span> Video-Uploads sind in der Beta noch gesperrt.
+        <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
+          <span className="badge badge-dash badge-info badge-sm font-bold whitespace-nowrap">Video · bald</span> Video-Uploads sind in der Beta noch gesperrt.
         </p>
       )}
-      {err && <p className="scanner-error">{err}</p>}
+      {err && <p className="text-sm text-error">{err}</p>}
     </div>
   )
 }
