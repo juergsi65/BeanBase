@@ -195,6 +195,7 @@ export function ConfirmButton({
     )
   const ok = !typeToConfirm || typed === typeToConfirm
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape schließt die Bestätigung
     <div
       role="alertdialog"
       aria-label={typeof question === 'string' ? question : confirmLabel}
@@ -205,6 +206,7 @@ export function ConfirmButton({
       {typeToConfirm && (
         <input
           className="input input-sm w-full"
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- Bestätigung wurde gerade per Klick geöffnet, Fokus gehört hinein
           autoFocus
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
@@ -218,6 +220,7 @@ export function ConfirmButton({
           type="button"
           className="btn btn-error btn-sm"
           disabled={!ok || busy}
+          // oxlint-disable-next-line jsx-a11y/no-autofocus -- s. o.
           autoFocus={!typeToConfirm}
           onClick={async () => {
             setBusy(true)
@@ -249,6 +252,7 @@ export function Stopwatch({ onStop }: { onStop: (secs: number) => void }) {
   useEffect(() => () => cancelAnimationFrame(raf.current), [])
 
   const tick = () => {
+    // oxlint-disable-next-line react/purity -- false positive: läuft im rAF-Callback, nicht im Render
     setMs(performance.now() - start.current)
     raf.current = requestAnimationFrame(tick)
   }

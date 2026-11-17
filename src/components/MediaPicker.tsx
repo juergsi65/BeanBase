@@ -9,6 +9,7 @@ import { isLocalMode } from '../lib/supabase'
 export function MediaView({ url, type, className = '' }: { url: string | null | undefined; type?: MediaType | null; className?: string }) {
   if (!url) return null
   return type === 'video' ? (
+    // oxlint-disable-next-line jsx-a11y/media-has-caption -- Nutzer-Videos (Brew-Clips) haben keine Untertitel
     <video className={`media ${className}`} src={url} controls playsInline preload="metadata" />
   ) : (
     <img className={`media ${className}`} src={url} alt="" loading="lazy" />

@@ -9,11 +9,12 @@ BeanBase: mobile-first dial-in & brew-log PWA for home baristas. UI text, code c
 ```bash
 npm run dev         # Vite dev server (http://localhost:5173); .claude/launch.json uses port 5180
 npm run typecheck   # tsc for src/ AND worker/ (separate tsconfig in worker/)
-npm run build       # typecheck + vite build → dist/
+npm run lint        # oxlint (config .oxlintrc.json); lint:fix for autofixes
+npm run build       # typecheck + lint + vite build → dist/
 npx wrangler deploy # deploy to Cloudflare Workers (wrangler.jsonc builds first)
 ```
 
-No test runner and no linter configured. `npm run typecheck` is the only automated check.
+No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint — typescript-eslint does not support TS 7).
 
 ## Architecture
 

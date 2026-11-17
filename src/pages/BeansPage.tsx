@@ -199,7 +199,7 @@ function BeanForm({
   onOpen?: (b: Bean) => void
   initialBarcode: string | null
 }) {
-  const [form, setForm] = useState<BeanFormState>(() => ({ ...blank, ...(bean ?? {}), roast_date: bean?.roast_date ?? '' }))
+  const [form, setForm] = useState<BeanFormState>(() => ({ ...blank, ...bean, roast_date: bean?.roast_date ?? '' }))
   const [photo, setPhoto] = useState<{ blob: Blob; dataUrl: string } | null>(null) // neues, noch nicht gespeichertes Foto
   const [ai, setAi] = useState<AiState>({ status: 'idle' })
   const [scan, setScan] = useState<ScanState>({ status: 'idle' })

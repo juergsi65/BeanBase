@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { errMsg } from './errors'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { db, TABLES, type RowInput } from './db'
@@ -14,10 +14,14 @@ export function useData(user: AppUser | null | undefined) {
     enabled: !!user,
     queryFn: async () => Object.fromEntries(await Promise.all(TABLES.map(async (t) => [t, (await db.list(t)) ?? []]))) as Data,
   })
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    if (query.error) setError(query.error.message)
-  }, [query.error])
+  const [mutationError, setMutationError] = useState<string | null>(null)
+  // Ladefehler wird abgeleitet statt per Effect kopiert; „schließen“ merkt sich den weggeklickten Fehler
+  const [dismissed, setDismissed] = useState<Error | null>(null)
+  const error = mutationError ?? (query.error && query.error !== dismissed ? query.error.message : null)
+  const setError = (msg: string | null) => {
+    setMutationError(msg)
+    if (msg === null) setDismissed(query.error)
+  }
 
   const patch = (fn: (d: Data) => Data) => qc.setQueryData<Data>(key, (d) => fn(d ?? empty))
   // Tabellen-Liste generisch ersetzen (Typ-Zuordnung pro Tabelle gilt per Konstruktion)

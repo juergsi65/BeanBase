@@ -4,9 +4,11 @@
   "description": "BeanBase – Dial-In & Brew-Log für Home-Baristas",
   "scripts": {
     "dev": "vite",
-    "build": "npm run typecheck && vite build",
+    "build": "npm run typecheck && npm run lint && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p worker"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p worker",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix"
   },
   "repository": {
     "type": "git",
@@ -35,6 +37,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "daisyui": "^5.8.1",
     "only-types": "^1.0.1",
+    "oxlint": "^1.94.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"

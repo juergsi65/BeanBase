@@ -7,7 +7,7 @@ import { Chip, Empty } from '../components/ui'
 import { SetupCard } from './ProfilePage'
 import { SocialUnavailable } from './CommunityPage'
 import { ROAST_LEVELS } from '../lib/coffee'
-import { socialAvailable, getBaristaProfile, myId, sendFriendRequest, acceptFriend, removeFriendship } from '../lib/social'
+import { socialAvailable, getBaristaProfile, myId, sendFriendRequest, acceptFriend } from '../lib/social'
 import type { PageProps } from '../types'
 
 export default function UserPage({ data, go, userId }: PageProps & { userId: string | null }) {

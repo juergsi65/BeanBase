@@ -116,6 +116,7 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
   }
 
   return (
+    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Vollbild-Overlay, <dialog>-Defaultstyles/Top-Layer unerwünscht
     <div className="scanner" role="dialog" aria-label="Barcode scannen">
       <div className="flex items-center justify-between text-lg">
         <strong>▦ Barcode scannen</strong>

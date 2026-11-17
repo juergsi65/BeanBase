@@ -112,6 +112,7 @@ function PresetPicker({ presets, onPick }: { presets: Preset[]; onPick: (p: Pres
           {hits.length ? (
             hits.map((p) => (
               <li key={p.id}>
+                {/* oxlint-disable-next-line jsx-a11y/control-has-associated-label -- false positive: Text steckt im <span> */}
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
