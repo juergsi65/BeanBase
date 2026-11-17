@@ -21,7 +21,7 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 - **Hell/Dunkel**: ☀️/🌙-Knopf im Header, unter ⚙️ zusätzlich „Automatisch“ (folgt dem Gerät); ohne Aufblitzen beim Laden.
 - **Bedienung**: zentraler „+ Bezug“-Knopf, haptisches Feedback (Android: Vibration, iPhone ab iOS 17.4: Taptic-Engine über den Safari-Switch), kurze Bestätigungen („Bezug gespeichert ☕“), Druck-Animationen, als App installierbar (PWA: „Zum Home-Bildschirm“), Export & Haptik-Schalter unter ⚙️.
 - **Bohnen-Foto**: Tüte mit der Handykamera fotografieren oder hochladen; das Foto wird verkleinert im Supabase Storage gespeichert (Demo-Modus: lokal).
-- **KI-Funktionen · TBA**: Etiketten-Erkennung per Gemini (Edge Function `analyze-bean-label`) und ein KI-Dial-In-Coach sind vorbereitet, aber noch nicht freigeschaltet (`AI_LABEL_ENABLED` in `src/lib/images.js`). In der App sind sie als „TBA“ gekennzeichnet.
+- **KI-Funktionen · TBA**: Etiketten-Erkennung per Gemini (Edge Function `analyze-bean-label`) und ein KI-Dial-In-Coach sind vorbereitet, aber noch nicht freigeschaltet (`AI_LABEL_ENABLED` in `src/lib/images.ts`). In der App sind sie als „TBA“ gekennzeichnet.
 - **Barcode-Scanner**: EAN/UPC der Tüte mit der Handykamera scannen (eingebauter `BarcodeDetector` auf Android/Chrome, sonst ZXing – wird erst beim Öffnen geladen) oder Nummer eintippen (mit Prüfziffer-Check). Erkennung kaskadierend: **eigene Bohne** mit dem Barcode → direkt öffnen; **BeanBase-Community** (häufigste Produktangaben aller Nutzer, die die Bohne schon erfasst haben) → **Open Food Facts** → **UPCitemdb** (Trial-API, ~100 Abfragen/Tag; läuft über den Worker-Endpunkt `/api/upc/<code>`, da UPCitemdb keine Browser-Anfragen erlaubt, Treffer werden 7 Tage gecacht). **Strikter Kaffee-Filter**: Ist das Produkt laut Kategorien/Name kein Kaffee (Milch, Schokolade, Kaffeesahne, Filter …), wird nichts übernommen und „Kein Kaffee erkannt“ angezeigt. Unbekannte Barcodes werden beim Speichern hinterlegt, sodass der nächste Scan sie sofort erkennt. Auch der KI-Foto-Scan liest einen sichtbaren Barcode mit aus.
 - **Social Barista**: Profil mit Username, Anzeigename, Bio und Profilbild (Bucket `avatars`), automatisch beim Registrieren angelegt (`barista_xxxxxx`, ohne Bezug zur E-Mail). Freunde per Username suchen, Anfragen senden/annehmen/ablehnen. **Community-Tab** mit Feed („Nur Freunde“ / „Alle Baristas“): Bezüge mit Bohne, Setup, Parametern, Bewertung und Notiz, ☕-Likes, Kommentare und „Rezept übernehmen“ (Mahlgrad nur, wenn man dieselbe Mühle besitzt). **Barista-Profile** zeigen Setup, aktuelle Bohnen und letzte Bezüge.
   - **Privat per Default**: Bohnen, Equipment und Bezüge sehen nur akzeptierte Freunde. Wer „Profil öffentlich“ einschaltet, erscheint für alle eingeloggten Nutzer (Feed „Alle Baristas“). Schreiben darf immer nur der Besitzer (RLS).
@@ -33,7 +33,7 @@ Optimiert fürs Smartphone neben der Maschine: große Buttons, −/+ Zahleneinga
 
 | Teil | Wahl |
 |---|---|
-| Frontend | React 19 + Vite (reines CSS, kein UI-Framework) |
+| Frontend | React 19 + Vite + TypeScript, Tailwind CSS 4 + daisyUI 5, TanStack Query |
 | Auth & DB | [Supabase](https://supabase.com) (Postgres + Auth, kostenloser Tarif reicht) |
 | Hosting | beliebiges Static Hosting (Vercel, Netlify, Cloudflare Pages, GitHub Pages) |
 
@@ -62,7 +62,7 @@ npm run dev        # http://localhost:5173 – startet im Demo-Modus
 
 ## KI-Etikett-Erkennung aktivieren (optional, derzeit „TBA“)
 
-In `src/lib/images.js` `AI_LABEL_ENABLED = true` setzen und die Edge Function deployen:
+In `src/lib/images.ts` `AI_LABEL_ENABLED = true` setzen und die Edge Function deployen:
 
 Benötigt die [Supabase CLI](https://supabase.com/docs/guides/cli) und einen Gemini-API-Key aus [Google AI Studio](https://aistudio.google.com/apikey).
 
@@ -103,7 +103,7 @@ Netlify funktioniert identisch: Build-Befehl `npm run build`, Output-Verzeichnis
 
 ### Cloudflare Workers
 
-`wrangler.jsonc` ist vorkonfiguriert: statische Assets aus `dist` (mit `public/_headers` für Caching), dazu `worker/index.js` für `/api/*` (UPCitemdb-Proxy). In Cloudflare unter *Workers & Pages → Worker → Settings → Build*:
+`wrangler.jsonc` ist vorkonfiguriert: statische Assets aus `dist` (mit `public/_headers` für Caching), dazu `worker/index.ts` für `/api/*` (UPCitemdb-Proxy). In Cloudflare unter *Workers & Pages → Worker → Settings → Build*:
 
 | Einstellung | Wert |
 |---|---|
@@ -135,23 +135,23 @@ brews     (id, user_id, bean_id→beans, machine_id→machines, grinder_id→gri
 
 ```
 src/
-  App.jsx               Layout, Tab-Navigation, Auth-Gate
-  lib/db.js             Datenschicht (Supabase oder localStorage)
-  lib/coffee.js         Fachlogik: Ratio, Röst-Alter, Rezept-Auswahl, Labels
-  lib/images.js         Foto verkleinern, Storage-Upload, KI-Analyse aufrufen
-  lib/community.js      Community-Abfrage (RPC)
-  lib/dialin.js         Dial-In-Logik: Basiswerte, Zielwerte, Mahlgrad-Korrektur
-  lib/barcode.js        Barcode prüfen + nachschlagen (Community → Open Food Facts → UPCitemdb) + Kaffee-Filter
-  lib/social.js         Profile, Freunde, Feed, Likes, Kommentare
-  data/presets.js       Kuratierte Maschinen & Mühlen (preset_id nie ändern!)
-  components/ui.jsx     Stoppuhr, Sterne, Extraktions-Regler, Zahlenfeld, Rezeptkarte …
-  components/CommunityTip.jsx   Community-Sofort-Check
-  components/DialInGuide.jsx    Dial-In-Assistent + Korrekturhilfe
-  components/BarcodeScanner.jsx Kamera-Scanner (BarcodeDetector / ZXing) + manuelle Eingabe
-  components/FeedCard.jsx       Feed-Karte (Likes, Kommentare, Rezept übernehmen)
+  App.tsx               Layout, Tab-Navigation, Auth-Gate
+  lib/db.ts             Datenschicht (Supabase oder localStorage)
+  lib/coffee.ts         Fachlogik: Ratio, Röst-Alter, Rezept-Auswahl, Labels
+  lib/images.ts         Foto verkleinern, Storage-Upload, KI-Analyse aufrufen
+  lib/community.ts      Community-Abfrage (RPC)
+  lib/dialin.ts         Dial-In-Logik: Basiswerte, Zielwerte, Mahlgrad-Korrektur
+  lib/barcode.ts        Barcode prüfen + nachschlagen (Community → Open Food Facts → UPCitemdb) + Kaffee-Filter
+  lib/social.ts         Profile, Freunde, Feed, Likes, Kommentare
+  data/presets.ts       Kuratierte Maschinen & Mühlen (preset_id nie ändern!)
+  components/ui.tsx     Stoppuhr, Sterne, Extraktions-Regler, Zahlenfeld, Rezeptkarte …
+  components/CommunityTip.tsx   Community-Sofort-Check
+  components/DialInGuide.tsx    Dial-In-Assistent + Korrekturhilfe
+  components/BarcodeScanner.tsx Kamera-Scanner (BarcodeDetector / ZXing) + manuelle Eingabe
+  components/FeedCard.tsx       Feed-Karte (Likes, Kommentare, Rezept übernehmen)
   pages/                Dashboard, Bezug, Log, Bohnen, Community, Profil, Barista-Profil, Setup, Login
-lib/cost.js / lib/media.js / lib/haptics.js / lib/toast.js   Kosten & Bestand · Fotos/Videos · Haptik · Bestätigungen
-worker/index.js         Cloudflare Worker: Assets + /api/upc-Proxy
+lib/cost.ts / lib/media.ts / lib/haptics.ts / lib/toast.ts   Kosten & Bestand · Fotos/Videos · Haptik · Bestätigungen
+worker/index.ts         Cloudflare Worker: Assets + /api/upc-Proxy
 supabase/schema.sql     Tabellen, Row Level Security, Storage, Community-Funktion
 supabase/functions/analyze-bean-label/   Edge Function (Gemini Vision)
 ```
