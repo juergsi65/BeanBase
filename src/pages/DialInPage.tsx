@@ -49,7 +49,7 @@ export default function DialInPage({ data, go, preset }: PageProps & { preset: B
     })
 
   return (
-    <div className="flex flex-col gap-4 desk:max-w-[720px]">
+    <div className="flex flex-col gap-4">
       <header className="flex items-center gap-3">
         <span className="grid size-11 place-items-center rounded-xl bg-success/15 text-success">
           <Check size={22} aria-hidden />

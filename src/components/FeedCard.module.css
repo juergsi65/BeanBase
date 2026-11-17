@@ -30,7 +30,7 @@
     .feedPage { margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: clip; }
   }
   @media (min-width: 960px) {
-    :global(.page-community) > .feedPage { max-width: 680px; }
-    .feedTabs { top: var(--topbar); }
+    :global(.page-community) > .feedPage { max-width: 700px; }
+    .feedTabs { top: 0; }
   }
 }

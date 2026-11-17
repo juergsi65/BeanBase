@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useStore } from '@tanstack/react-store'
 import { useAuth } from './lib/useAuth'
@@ -11,6 +11,7 @@ import { getMyProfile } from './lib/social'
 import { useTheme } from './lib/theme'
 import { Bean, House, MessageSquare, Moon, Plus, ScrollText, SlidersHorizontal, Sun, User, Users, Wrench, X, type LucideIcon } from 'lucide-react'
 import Logo from './components/Logo'
+import Avatar from './components/Avatar'
 import type { BrewPreset, Go, Tab } from './types'
 
 // Start-Seite sofort, alle anderen Seiten erst beim ersten Öffnen laden (kleinerer Start-Chunk)
@@ -86,6 +87,17 @@ export default function App() {
   // eigenes Profil (Rolle, Sperre)
   const { data: me = null } = useQuery({ queryKey: ['me', user?.id], queryFn: getMyProfile, enabled: !!user && !isLocalMode })
   const [demoHint, setDemoHint] = useLocalStorage<boolean>('beanbase:demo-hint', true)
+  // Tastenkürzel N = Neuer Bezug (nicht beim Tippen in Feldern)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (e.key !== 'n' || e.ctrlKey || e.metaKey || e.altKey || el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return
+      setBrewPreset(null)
+      setTab('brew')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   if (user === undefined) return <div className="splash gap-3"><span className="loading loading-dots loading-lg text-primary" /> BeanBase lädt …</div>
   if (!user) return <Suspense fallback={pageLoading}><AuthPage /></Suspense>
@@ -102,13 +114,23 @@ export default function App() {
 
   const props = { data, go, me, theme }
   const activeTab = TAB_GROUP[tab] ?? tab
+  const beta = !isLocalMode && <span className="num shrink-0 rounded-md border border-primary/45 px-1.5 py-px text-[10px] font-semibold tracking-widest text-accent-strong">BETA</span>
+  // Desktop-Seitenleiste: Zähler neben den Tabs, Konto-Links darunter
+  const counts: Partial<Record<Tab, number>> = { beans: data.beans.filter((b) => b.active).length, history: data.brews.length }
+  const sideLinks: { label: string; icon: LucideIcon; on: boolean; run: () => void }[] = [
+    { label: 'Setup', icon: SlidersHorizontal, on: tab === 'equipment', run: () => go('equipment') },
+    ...(isLocalMode ? [] : [{ label: 'Feedback', icon: MessageSquare, on: tab === 'feedback', run: () => go('feedback') }]),
+    ...(me?.role === 'admin' ? [{ label: 'Admin', icon: Wrench, on: tab === 'admin', run: () => go('admin') }] : []),
+    { label: theme.isDark ? 'Helles Design' : 'Dunkles Design', icon: theme.isDark ? Sun : Moon, on: false, run: theme.toggle },
+  ]
 
   return (
     <div className="app">
-      <header className="topbar navbar sticky top-0 z-10 gap-2 px-3 min-h-0 pb-2 pt-[calc(8px+env(safe-area-inset-top))] desk:fixed desk:inset-x-0 desk:z-30 desk:h-16 desk:px-6 desk:py-0 bg-page/88 backdrop-blur-md border-b border-base-300">
-        <button className="flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap text-[17px] font-semibold tracking-tight cursor-pointer desk:text-lg" onClick={() => go('dashboard')}>
+      {/* Mobil/Tablet: Kopfleiste. Auf dem Desktop übernimmt die Seitenleiste Logo und Konto-Links */}
+      <header className="topbar navbar sticky top-0 z-10 gap-2 px-3 min-h-0 pb-2 pt-[calc(8px+env(safe-area-inset-top))] bg-page/88 backdrop-blur-md border-b border-base-300 desk:hidden">
+        <button className="flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap text-[17px] font-semibold tracking-tight cursor-pointer" onClick={() => go('dashboard')}>
           <Logo /> <span className="hidden min-[420px]:inline">BeanBase</span>
-          {!isLocalMode && <span className="num shrink-0 rounded-md border border-primary/45 px-1.5 py-px text-[10px] font-semibold tracking-widest text-accent-strong">BETA</span>}
+          {beta}
         </button>
         <div className="ml-auto flex shrink-0 gap-1.5">
           <button
@@ -196,20 +218,45 @@ export default function App() {
       </nav>
 
       {/* Desktop: Seitenleiste, "+ Neuer Bezug" als prominenter Knopf oben */}
-      <aside className="sidebar hidden desk:block z-20 bg-base-100 border-r border-base-300 px-3.5 py-5">
-        <button className="btn btn-primary btn-block h-12 justify-start gap-3 mb-4 rounded-[12px]" onClick={() => go('brew')}>
-          <Plus size={22} strokeWidth={2.2} aria-hidden /> Neuer Bezug
+      <aside className="sidebar hidden desk:flex flex-col gap-4.5 overflow-y-auto z-20 bg-base-100 border-r border-base-300 px-3.5 py-5">
+        <button className="flex items-center gap-2.5 px-1.5 text-[17px] font-semibold tracking-tight cursor-pointer" onClick={() => go('dashboard')}>
+          <Logo /> BeanBase {beta}
         </button>
-        <ul className="menu w-full gap-1 p-0 text-[0.95rem] font-semibold">
+        <button className="btn btn-primary btn-block h-12 justify-start gap-2.5 rounded-[13px]" onClick={() => go('brew')}>
+          <Plus size={20} strokeWidth={2.2} aria-hidden /> Neuer Bezug
+          <kbd className="num ml-auto text-[11px] font-normal opacity-70" aria-label="Tastenkürzel N">N</kbd>
+        </button>
+        <ul className="menu w-full gap-0.5 p-0 text-[15px]" aria-label="Hauptnavigation">
           {TABS.filter((t) => !t.fab).map((t) => (
             <li key={t.id}>
-              <button className={`gap-3 py-2.5 rounded-[10px] ${activeTab === t.id ? 'menu-active bg-primary/14! text-accent-strong!' : 'text-base-content/80'}`} onClick={() => go(t.id)}>
-                <t.icon size={20} strokeWidth={1.75} aria-hidden />
+              <button className={`h-11 gap-3 rounded-[11px] ${activeTab === t.id ? 'menu-active bg-primary/14! text-accent-strong! font-semibold' : 'text-base-content/80 font-medium'}`} onClick={() => go(t.id)} aria-current={activeTab === t.id ? 'page' : undefined}>
+                <t.icon {...ICON} />
                 {t.label}
+                {counts[t.id] ? <span className="num ml-auto text-xs font-normal text-muted">{counts[t.id]}</span> : null}
               </button>
             </li>
           ))}
         </ul>
+        <div className="h-px shrink-0 bg-base-300" />
+        <ul className="menu w-full gap-0.5 p-0 text-sm" aria-label="Konto">
+          {sideLinks.map((l) => (
+            <li key={l.label}>
+              <button className={`h-10 gap-3 rounded-[11px] ${l.on ? 'menu-active bg-primary/14! text-accent-strong!' : 'text-muted'}`} onClick={l.run}>
+                <l.icon size={18} strokeWidth={1.75} aria-hidden />
+                {l.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {me && (
+          <button className={`mt-auto flex shrink-0 items-center gap-2.5 rounded-[13px] border bg-base-200 p-2.5 text-left cursor-pointer ${tab === 'profile' ? 'border-primary' : 'border-base-300'}`} onClick={() => go('profile')} aria-label="Mein Profil">
+            <Avatar profile={me} size={36} />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-sm font-semibold">{me.display_name || me.username}</span>
+              <span className="truncate text-xs text-muted">@{me.username}</span>
+            </span>
+          </button>
+        )}
       </aside>
     </div>
   )
