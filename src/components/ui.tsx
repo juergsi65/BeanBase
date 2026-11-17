@@ -3,6 +3,7 @@ import type { Brew, Data, Grinder, Machine, Bean } from '../types'
 import { extractionLabel, fmtRatio, ratio, dialInHint, fmtDate } from '../lib/coffee'
 import { haptic } from '../lib/haptics'
 import { Lightbulb, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react'
+import sw from './Stopwatch.module.css'
 
 export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
   return (
@@ -286,7 +287,7 @@ export function Stopwatch({ onStop, target = [25, 30] }: { onStop: (secs: number
   const ticks = 40
   return (
     <div className="flex flex-col gap-3">
-      <div className="sw-ring">
+      <div className={sw.ring}>
         <svg viewBox="0 0 240 240" aria-hidden>
           {Array.from({ length: ticks }, (_, i) => {
             const t = (i / ticks) * max
@@ -318,7 +319,7 @@ export function Stopwatch({ onStop, target = [25, 30] }: { onStop: (secs: number
           />
           <circle cx="120" cy="120" r="90" fill="none" stroke="var(--color-base-200)" strokeWidth="10" />
           <circle
-            className="arc"
+            className={sw.arc}
             cx="120"
             cy="120"
             r="90"
@@ -330,9 +331,9 @@ export function Stopwatch({ onStop, target = [25, 30] }: { onStop: (secs: number
             transform="rotate(-90 120 120)"
           />
         </svg>
-        <div className="sw-face">
+        <div className={sw.face}>
           <span className="lbl">{running ? 'Läuft' : inWin ? 'Im Zielfenster' : 'Brühzeit'}</span>
-          <span className={`sw-time num ${inWin ? 'in-win' : over ? 'over' : ''}`} role="timer">
+          <span className={`${sw.time} num ${inWin ? sw.inWin : over ? sw.over : ''}`} role="timer">
             {s.toFixed(1)}
           </span>
           <span className="num text-xs text-muted">
@@ -531,9 +532,9 @@ export function FreshnessScale({ days }: { days: number }) {
   const pos = Math.min(100, Math.max(0, (days / 60) * 100))
   return (
     <div className="scale" aria-hidden>
-      <span className="bg-(--scale-rest)" style={{ flex: 5 }} />
-      <span className="bg-(--scale-good)" style={{ flex: 25 }} />
-      <span className="bg-(--scale-fade)" style={{ flex: 30 }} />
+      <span className="flex-5 bg-(--scale-rest)" />
+      <span className="flex-25 bg-(--scale-good)" />
+      <span className="flex-30 bg-(--scale-fade)" />
       <span className="needle" style={{ left: `${pos}%` }} />
     </div>
   )

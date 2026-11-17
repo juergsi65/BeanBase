@@ -7,16 +7,17 @@ import type { ReactNode } from 'react'
 import type { Plan, Source } from '../lib/dialin'
 import type { BrewForm } from '../pages/BrewPage'
 import type { Grinder, Machine, RoastLevel } from '../types'
+import css from './DialInGuide.module.css'
 
 const ROAST_TEXT: Record<RoastLevel, string> = { light: 'helle Röstung', medium: 'mittlere Röstung', dark: 'dunkle Röstung' }
 
 function Step({ n, title, done, onToggle, children }: { n: number; title: ReactNode; done?: boolean; onToggle: () => void; children: ReactNode }) {
   return (
-    <li className={`guide-step grid grid-cols-[40px_1fr] items-start gap-3 ${done ? 'done' : ''}`}>
+    <li className={`${css.step} grid grid-cols-[40px_1fr] items-start gap-3 ${done ? css.done : ''}`}>
       <button type="button" className={`btn btn-square size-10 rounded-[12px] num text-[15px] font-semibold ${done ? 'btn-success' : 'btn-ghost border-[1.5px] border-primary text-accent-strong'}`} onClick={onToggle} aria-pressed={done} aria-label={`Schritt ${n} erledigt`}>
         {done ? <Check size={18} aria-hidden /> : n}
       </button>
-      <div className="guide-body flex flex-col gap-1.5 pt-2">
+      <div className={`${css.body} flex flex-col gap-1.5 pt-2`}>
         <strong>{title}</strong>
         {children}
       </div>
@@ -51,7 +52,7 @@ export function CorrectionHint({
     type: machine?.type,
   })
   return (
-    <div className={`correction ${c.tone} flex flex-col gap-1.5 rounded-xl bg-base-200 px-3 py-2.5`}>
+    <div className={`${css.correction} ${css[c.tone] ?? ''} flex flex-col gap-1.5 rounded-xl bg-base-200 px-3 py-2.5`}>
       <strong>{c.title}</strong>
       {c.tips.length > 0 && (
         <ul className="flex list-disc flex-col gap-0.5 pl-4.5">
@@ -139,7 +140,7 @@ export default function DialInGuide({
             <p>Wähle oben eine Mühle aus.</p>
           ) : plan.grind != null ? (
             <p>
-              Stelle deine <strong>{grinderName}</strong> auf <span className="val">{plan.grind}</span>
+              Stelle deine <strong>{grinderName}</strong> auf <span className={css.val}>{plan.grind}</span>
               <span className="text-muted text-sm"> (kleinere Zahl = feiner bei den meisten Mühlen)</span>
             </p>
           ) : (
@@ -153,14 +154,14 @@ export default function DialInGuide({
         <Step n={2} title={espresso ? 'Maschine vorbereiten' : 'Vorbereiten'} done={done.prep} onToggle={() => toggle('prep')}>
           {plan.temp != null && (
             <p>
-              Zieltemperatur <span className="val">{plan.temp} °C</span>
+              Zieltemperatur <span className={css.val}>{plan.temp} °C</span>
               {plan.source === 'base' && <span className="text-muted text-sm"> für {ROAST_TEXT[plan.roast]}</span>}
             </p>
           )}
           <p>{prepText(machine)}</p>
           {plan.dose != null && (
             <p>
-              <span className="val">{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
+              <span className={css.val}>{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
             </p>
           )}
         </Step>
@@ -169,14 +170,14 @@ export default function DialInGuide({
           <p>
             {plan.yield != null && (
               <>
-                Output <span className="val">{plan.yield} g</span>
+                Output <span className={css.val}>{plan.yield} g</span>
                 {plan.ratio && <span className="text-muted text-sm"> (Ratio {fmtRatio(plan.ratio)})</span>}
               </>
             )}
             {plan.time && (
               <>
                 {plan.yield != null ? ' in ' : 'Zeit '}
-                <span className="val">{fmtRange(plan.time)}</span>
+                <span className={css.val}>{fmtRange(plan.time)}</span>
               </>
             )}
           </p>

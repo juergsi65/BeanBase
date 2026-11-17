@@ -3,6 +3,7 @@ import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
 import Avatar from '../components/Avatar'
 import FeedCard, { recipeFromBrew } from '../components/FeedCard'
+import css from '../components/FeedCard.module.css'
 import { Chip, Empty } from '../components/ui'
 import { SetupCard } from './ProfilePage'
 import { SocialUnavailable } from './CommunityPage'
@@ -40,7 +41,7 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
 
   return (
     <div className="flex flex-col gap-4">
-      <button className="link link-primary p-2 no-underline" style={{ alignSelf: 'flex-start', padding: 0 }} onClick={() => go('community')}>
+      <button className="link link-primary self-start p-0 no-underline" onClick={() => go('community')}>
         ← Community
       </button>
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
@@ -107,7 +108,7 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
           </section>
           <h3 className="lbl">Letzte Bezüge</h3>
           {view.brews.length ? (
-            <div className="feed">
+            <div className={css.feed}>
               {view.brews.map((b) => (
                 <FeedCard key={b.id} brew={b} me={me} onReuse={(brew) => go('brew', { key: Date.now(), brew: recipeFromBrew(brew, data) })} />
               ))}

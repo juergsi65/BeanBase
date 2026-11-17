@@ -20,6 +20,7 @@ import {
 import type { ReactNode } from 'react'
 import type { MediaChange } from '../components/MediaPicker'
 import type { Grinder, Machine, PageProps } from '../types'
+import css from './ProfilePage.module.css'
 
 interface ProfileForm {
   username: string
@@ -200,7 +201,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
   }
 
   return (
-    <div className="profile-page flex flex-col gap-4 desk:block">
+    <div className={`${css.page} flex flex-col gap-4 desk:block`}>
       <h2>Mein Profil</h2>
       <form className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5" onSubmit={save}>
         <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
@@ -228,7 +229,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
           <input className="checkbox checkbox-primary" type="checkbox" checked={form.is_public} onChange={set('is_public')} />
           <span>
             Profil öffentlich
-            <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
+            <span className="block text-sm font-normal text-muted">
               {form.is_public
                 ? 'Alle BeanBase-Nutzer sehen deine Bohnen, dein Setup und deine Bezüge („Alle Baristas“).'
                 : 'Nur akzeptierte Freunde sehen deine Bohnen, dein Setup und deine Bezüge.'}

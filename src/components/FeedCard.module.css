@@ -1,0 +1,36 @@
+/* Community: Feed im Stil eines Kurznachrichten-Dienstes (genutzt von FeedCard, CommunityPage, UserPage) */
+@layer components {
+  .feedPage { display: flex; flex-direction: column; margin: -16px -16px 0; }
+  .feedTabs { position: sticky; top: calc(64px + env(safe-area-inset-top)); z-index: 8; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); }
+  .feedPage > :global(.empty), .feedPage > :global(.alert), .feedPage > :global(.btn) { margin: 16px; }
+  .post {
+    display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--line); transition: background-color .15s;
+  }
+  .post:hover { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+  .name:hover strong { text-decoration: underline; }
+  .action {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.86rem;
+    padding: 8px 10px; border-radius: 999px; cursor: pointer; min-height: 40px; transition: color .15s, background-color .15s;
+  }
+  .action:hover, .action.on { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
+  .action.like:hover, .action.liked { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .action.liked { font-weight: 700; }
+  .action.reuse:hover { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .action.pop .icon { animation: like-pop .4s var(--bb-ease); }
+  @keyframes like-pop { 0% { transform: scale(1); } 40% { transform: scale(1.45) rotate(-12deg); } 100% { transform: scale(1); } }
+  :global(.page-user) .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+  .feed .post:last-child { border-bottom: 0; }
+  @media (max-width: 360px) {
+    .post { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 12px; }
+    .action.reuse span:last-child { display: none; }
+    .feedPage { margin: -12px -12px 0; }
+  }
+  @media (min-width: 700px) {
+    .feedPage { margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: clip; }
+  }
+  @media (min-width: 960px) {
+    :global(.page-community) > .feedPage { max-width: 680px; }
+    .feedTabs { top: var(--topbar); }
+  }
+}

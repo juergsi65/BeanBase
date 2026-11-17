@@ -15,6 +15,7 @@ import type { Source } from '../lib/dialin'
 import type { MediaChange } from '../components/MediaPicker'
 import type { NumValue } from '../components/ui'
 import type { Brew, BrewPreset, Machine, PageProps } from '../types'
+import css from './BrewPage.module.css'
 
 export interface BrewForm {
   bean_id: string
@@ -173,10 +174,10 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
   }
 
   return (
-    <form className="brew-form flex flex-col gap-4 pb-21 desk:grid desk:gap-x-6 desk:pb-6" onSubmit={save}>
-      <h2 className="brew-title">{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
+    <form className={`${css.form} flex flex-col gap-4 pb-21 desk:grid desk:gap-x-6 desk:pb-6`} onSubmit={save}>
+      <h2 className={css.title}>{editing ? 'Bezug bearbeiten' : 'Neuer Bezug'}</h2>
 
-      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-bean">
+      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.bean}`}>
         <Field label="Bohne">
           <select
             id="brew-bean"
@@ -267,7 +268,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         />
       )}
 
-      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-recipe">
+      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.recipe}`}>
         <h3 className="lbl">Rezept</h3>
         <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
           <Field label="Dosis (Mehl)">
@@ -314,7 +315,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         </div>
       </section>
 
-      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-timer">
+      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.timer}`}>
         <h3 className="lbl">Durchlaufzeit</h3>
         <Stopwatch onStop={set('brew_time')} target={plan?.time ?? undefined} />
         <Field label="Brühzeit">
@@ -322,7 +323,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         </Field>
       </section>
 
-      <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-rating">
+      <section className={`card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 ${css.rating}`}>
         <h3 className="lbl">Bewertung</h3>
         <Stars value={form.rating} onChange={set('rating')} />
         <Field label="Extraktion">
@@ -335,7 +336,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
         <MediaPicker value={media.removed ? null : savedMedia} pending={media.pending} onChange={setMedia} />
       </section>
 
-      <div className="sticky-actions">
+      <div className={`sticky-actions ${css.actions}`}>
         <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => go(editing ? 'history' : 'dashboard')}>
           Abbrechen
         </button>

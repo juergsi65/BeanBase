@@ -4,6 +4,7 @@ import { useSessionStorage } from 'use-storage-hook'
 import { Empty } from '../components/ui'
 import Avatar from '../components/Avatar'
 import FeedCard, { recipeFromBrew } from '../components/FeedCard'
+import css from '../components/FeedCard.module.css'
 import { socialAvailable, fetchFeed, myId, type FeedBrew } from '../lib/social'
 import type { PageProps } from '../types'
 
@@ -38,8 +39,8 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
 
 
   return (
-    <div className="feed-page">
-      <div className="feed-tabs tabs tabs-border flex-nowrap border-b border-base-300" role="tablist">
+    <div className={css.feedPage}>
+      <div className={`${css.feedTabs} tabs tabs-border flex-nowrap border-b border-base-300`} role="tablist">
         {(Object.entries(TABS) as [Scope, string][]).map(([k, label]) => (
           <button key={k} role="tab" aria-selected={scope === k} className={`tab h-12 grow font-semibold ${scope === k ? 'tab-active font-extrabold text-base-content! [--tab-border-color:var(--accent-strong)]' : 'text-muted'}`} onClick={() => setScope(k)}>
             {label}
@@ -57,9 +58,9 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
       </button>
 
       {state === 'loading' && (
-        <div className="feed">
+        <div className={css.feed}>
           {[0, 1, 2].map((i) => (
-            <div key={i} className="post" aria-hidden>
+            <div key={i} className={css.post} aria-hidden>
               <span className="skeleton size-11 rounded-full" />
               <div className="flex flex-col gap-2 pt-1">
                 <span className="skeleton h-3 w-2/5" />
@@ -85,7 +86,7 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
         </Empty>
       )}
       {state === 'ready' && items.length > 0 && (
-        <div className="feed">
+        <div className={css.feed}>
           {items.map((b) => (
             <FeedCard key={b.id} brew={b} me={me} onReuse={reuse} onOpenUser={openUser} />
           ))}

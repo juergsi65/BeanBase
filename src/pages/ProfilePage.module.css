@@ -1,0 +1,8 @@
+/* Profil: auf dem Desktop zweispaltig (Masonry über CSS-Spalten) */
+@layer components {
+  @media (min-width: 960px) {
+    .page { display: block; column-count: 2; column-gap: 24px; }
+    .page > * { break-inside: avoid; margin-bottom: 20px; display: flex; }
+    .page > h2 { column-span: all; display: block; }
+  }
+}

@@ -8,6 +8,7 @@ import { toggleLike, listComments, addComment, deleteComment, type Comment, type
 import type { Brew, Data } from '../types'
 import { haptic } from '../lib/haptics'
 import { isDefined } from 'only-utils'
+import css from './FeedCard.module.css'
 
 /** Rezept eines anderen Nutzers auf das eigene Setup abbilden (Mühle/Maschine über preset_id) */
 export function recipeFromBrew(brew: FeedBrew, own: Pick<Data, 'grinders' | 'machines'>): Partial<Brew> {
@@ -116,13 +117,13 @@ export default function FeedCard({
   const gear = [brew.machine?.name || (brew.machine && MACHINE_TYPES[brew.machine.type]), brew.grinder?.name].filter(Boolean).join(' · ')
 
   return (
-    <article className="post">
+    <article className={css.post}>
       <button type="button" className="self-start cursor-pointer" onClick={() => onOpenUser?.(brew.user_id)} aria-label={`Profil von @${p?.username}`}>
         <Avatar profile={p} size={44} />
       </button>
       <div className="flex min-w-0 flex-col gap-1.5">
         <header className="flex min-w-0 items-baseline gap-1 text-[0.95rem]">
-          <button type="button" className="post-name flex min-w-0 items-baseline gap-1 cursor-pointer text-left" onClick={() => onOpenUser?.(brew.user_id)}>
+          <button type="button" className={`${css.name} flex min-w-0 items-baseline gap-1 cursor-pointer text-left`} onClick={() => onOpenUser?.(brew.user_id)}>
             <strong className="truncate">{p?.display_name || p?.username}</strong>
             <span className="truncate text-muted">@{p?.username}</span>
           </button>
@@ -154,23 +155,23 @@ export default function FeedCard({
         {brew.media_url && <MediaView url={brew.media_url} type={brew.media_type} className="mt-1 max-h-[480px] rounded-2xl border border-base-300" />}
 
         <footer className="-mx-2 mt-0.5 flex items-center gap-1">
-          <button type="button" className={`post-action ${comments ? 'on' : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
-            <MessageCircle size={18} className="post-icon" aria-hidden />
+          <button type="button" className={`${css.action} ${comments ? css.on : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
+            <MessageCircle size={18} className={css.icon} aria-hidden />
             <span>{commentCount}</span>
           </button>
           <button
             type="button"
-            className={`post-action like ${liked ? 'liked' : ''} ${pop ? 'pop' : ''}`}
+            className={`${css.action} ${css.like} ${liked ? css.liked : ''} ${pop ? css.pop : ''}`}
             onClick={like}
             aria-pressed={liked}
             aria-label="Gefällt mir"
           >
-            <Heart size={18} className="post-icon" fill={liked ? "currentColor" : "none"} aria-hidden />
+            <Heart size={18} className={css.icon} fill={liked ? "currentColor" : "none"} aria-hidden />
             <span>{likes}</span>
           </button>
           {!own && onReuse && (
-            <button type="button" className="post-action reuse ml-auto" onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
-              <Repeat2 size={18} className="post-icon" aria-hidden />
+            <button type="button" className={`${css.action} ${css.reuse} ml-auto`} onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
+              <Repeat2 size={18} className={css.icon} aria-hidden />
               <span>Rezept übernehmen</span>
             </button>
           )}

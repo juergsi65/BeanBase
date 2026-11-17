@@ -1,0 +1,16 @@
+/* Bezug: Rezept links, Stoppuhr & Bewertung rechts */
+@layer components {
+  @media (min-width: 960px) {
+    .form {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 16px; align-items: start;
+      grid-template-areas: 'title title' 'bean bean' 'guide guide' 'recipe timer' 'recipe rating' 'actions actions';
+    }
+    .title { grid-area: title; }
+    .bean { grid-area: bean; }
+    .form > :global(.guide) { grid-area: guide; }
+    .recipe { grid-area: recipe; }
+    .timer { grid-area: timer; }
+    .rating { grid-area: rating; }
+    .actions { grid-area: actions; }
+  }
+}

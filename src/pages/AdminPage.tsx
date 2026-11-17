@@ -319,7 +319,7 @@ function Settings() {
         <input className="checkbox checkbox-primary" type="checkbox" checked={!!settings.invite_required} onChange={toggle('invite_required')} />
         <span>
           Registrierung nur mit Einladungscode
-          <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
+          <span className="block text-sm font-normal text-muted">
             Empfohlen für den Beta-Test – sonst kann sich jeder mit dem Link registrieren.
           </span>
         </span>
@@ -328,7 +328,7 @@ function Settings() {
         <input className="checkbox checkbox-primary" type="checkbox" checked={!!settings.video_uploads} onChange={toggle('video_uploads')} />
         <span>
           Video-Uploads erlauben
-          <span className="text-muted text-sm" style={{ display: 'block', fontWeight: 400 }}>
+          <span className="block text-sm font-normal text-muted">
             Wird auch serverseitig im Speicher durchgesetzt. Videos füllen den Free-Speicher (1 GB) schnell.
           </span>
         </span>

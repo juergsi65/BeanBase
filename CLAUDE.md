@@ -19,6 +19,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 ## Architecture
 
 **Stack:** React 19 + Vite 8 + TypeScript (strict), Tailwind CSS 4 + daisyUI 5 (themes `light`/`dark` defined in `src/styles.css`), TanStack Query, Supabase (Postgres + Auth + Storage + RPC). Hosted as Cloudflare Worker serving `dist/` as SPA assets.
+**Styling:** Tailwind utilities first. CSS that utilities can't express and that belongs to one component goes in a co-located `X.module.css` (wrap rules in `@layer components`, reference daisyUI/global classes via `:global(.x)`). `src/styles.css` holds only themes/tokens, base, app shell and shared building blocks. `main.tsx` must import `styles.css` before `App`, otherwise module CSS declares `@layer components` first and `base` ends up overriding it. Inline `style` only for computed values.
 **Two runtime modes** (`src/lib/supabase.ts`): if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are unset, `supabase` is `null` and the app runs in **demo mode** with all data in `localStorage` (`beanbase:v1`), no login. Anything account-only (social, admin, media upload) must call `requireSupabase()`. `.env.production` holds the real (public) Supabase URL + publishable key.
 
 **Data layer:**

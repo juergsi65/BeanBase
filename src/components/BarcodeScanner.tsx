@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { normalizeBarcode, isValidGtin } from '../lib/barcode'
 import { haptic } from '../lib/haptics'
+import css from './BarcodeScanner.module.css'
 
 const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e']
 
@@ -118,17 +119,17 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
 
   return (
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- Vollbild-Overlay, <dialog>-Defaultstyles/Top-Layer unerwünscht
-    <div className="scanner" role="dialog" aria-label="Barcode scannen">
+    <div className={css.scanner} role="dialog" aria-label="Barcode scannen">
       <div className="flex items-center justify-between text-lg">
         <strong>▦ Barcode scannen</strong>
         <button type="button" className="btn btn-ghost btn-sm border-[#3d3027] text-[#f3e9dc]" onClick={onClose} aria-label="Schließen">
           <X size={18} aria-hidden />
         </button>
       </div>
-      <div className="scanner-view">
+      <div className={css.view}>
         <video ref={videoRef} playsInline muted />
-        {status !== 'error' && <div className="scanner-frame" />}
-        <p className="scanner-hint">
+        {status !== 'error' && <div className={css.frame} />}
+        <p className={css.hint}>
           {status === 'starting' ? 'Kamera wird gestartet …' : status === 'scanning' ? 'Barcode der Tüte in den Rahmen halten' : error}
         </p>
       </div>

@@ -189,16 +189,10 @@
     padding: 10px 0; background: linear-gradient(transparent, var(--bg) 30%); pointer-events: none;
   }
   .sticky-actions > * { pointer-events: auto; min-width: 0; }
+  @media (min-width: 960px) {
+    .sticky-actions { bottom: 16px; justify-content: flex-end; }
+  }
 
-
-  /* Stoppuhr ------------------------------------------------------------- */
-  .sw-ring { position: relative; width: min(240px, 72vw); aspect-ratio: 1; margin: 0 auto; }
-  .sw-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .sw-ring .arc { transition: stroke .2s; }
-  .sw-face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .sw-time { font-size: 3.6rem; font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; }
-  .sw-time.in-win { color: var(--good); }
-  .sw-time.over { color: var(--warn); }
 
   /* Rezept ----------------------------------------------------------------- */
   .recipe-grind {
@@ -268,100 +262,14 @@
     border: 1px solid color-mix(in srgb, var(--info) 40%, transparent);
   }
 
-  /* Dial-In-Assistent ---------------------------------------------------- */
-  .guide-step.done .guide-body > strong { text-decoration: line-through; color: var(--muted); }
-  .correction { border-left: 4px solid var(--line); }
-  .correction.sour { border-left-color: var(--sour); background: color-mix(in srgb, var(--sour) 8%, var(--surface)); }
-  .correction.bitter { border-left-color: var(--bitter); background: color-mix(in srgb, var(--bitter) 9%, var(--surface)); }
-  .correction.good { border-left-color: var(--good); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
-  /* Zielwert im Fließtext (Dial-In-Assistent) */
-  .val {
-    display: inline-block; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
-    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent-strong);
-  }
-
-  /* Barcode-Scanner (immer dunkel, unabhängig vom Theme) ------------------- */
-  .scanner {
-    position: fixed; inset: 0; z-index: 50; background: #0b0807; color: #f3e9dc;
-    display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
-    gap: 12px;
-  }
-  .scanner-view { position: relative; flex: 1; border-radius: 18px; overflow: hidden; background: #000; min-height: 240px; }
-  .scanner-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .scanner-frame {
-    position: absolute; left: 10%; right: 10%; top: 35%; height: 30%; border: 3px solid #e0a96d;
-    border-radius: 14px; box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.35);
-  }
-  .scanner-frame::after {
-    content: ''; position: absolute; left: 6%; right: 6%; top: 50%; height: 2px; background: #e0776a;
-    animation: scanline 1.6s ease-in-out infinite alternate;
-  }
-  @keyframes scanline { from { transform: translateY(-40px); } to { transform: translateY(40px); } }
-  .scanner-hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0 16px; text-align: center; font-weight: 600; text-shadow: 0 1px 4px #000; }
-
   /* Profil ------------------------------------------------------------- */
   .avatar-fallback { background: linear-gradient(135deg, var(--accent), var(--bitter)); color: var(--accent-text); }
-  @media (min-width: 960px) {
-    .profile-page { display: block; column-count: 2; column-gap: 24px; }
-    .profile-page > * { break-inside: avoid; margin-bottom: 20px; display: flex; }
-    .profile-page > h2 { column-span: all; display: block; }
-  }
 
   /* Start: zwei Spalten ---------------------------------------------------- */
   @media (min-width: 960px) {
       .dash-side { position: sticky; top: calc(var(--topbar) + 24px); }
   }
 
-  /* Bezug: Rezept links, Stoppuhr & Bewertung rechts ---------------------- */
-  @media (min-width: 960px) {
-    .brew-form {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 16px; align-items: start;
-      grid-template-areas: 'title title' 'bean bean' 'guide guide' 'recipe timer' 'recipe rating' 'actions actions';
-    }
-    .brew-title { grid-area: title; }
-    .brew-bean { grid-area: bean; }
-    .brew-form > .guide { grid-area: guide; }
-    .brew-recipe { grid-area: recipe; }
-    .brew-timer { grid-area: timer; }
-    .brew-rating { grid-area: rating; }
-    .brew-form > .sticky-actions { grid-area: actions; }
-    .sticky-actions { bottom: 16px; justify-content: flex-end; }
-  }
-
-  /* Community: Feed im Stil eines Kurznachrichten-Dienstes ------------------ */
-  .feed-page { display: flex; flex-direction: column; margin: -16px -16px 0; }
-  .feed-tabs { position: sticky; top: calc(64px + env(safe-area-inset-top)); z-index: 8; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(12px); }
-  .feed-page > .empty, .feed-page > .alert, .feed-page > .btn { margin: 16px; }
-  .post {
-    display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--line); transition: background-color .15s;
-  }
-  .post:hover { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
-  .post-name:hover strong { text-decoration: underline; }
-  .post-action {
-    display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.86rem;
-    padding: 8px 10px; border-radius: 999px; cursor: pointer; min-height: 40px; transition: color .15s, background-color .15s;
-  }
-  .post-action:hover, .post-action.on { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
-  .post-action.like:hover, .post-action.liked { color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-  .post-action.liked { font-weight: 700; }
-  .post-action.reuse:hover { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
-  .post-action.pop .post-icon { animation: like-pop .4s var(--bb-ease); }
-  @keyframes like-pop { 0% { transform: scale(1); } 40% { transform: scale(1.45) rotate(-12deg); } 100% { transform: scale(1); } }
-  .page-user .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-  .feed .post:last-child { border-bottom: 0; }
-  @media (max-width: 360px) {
-    .post { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 12px; }
-    .post-action.reuse span:last-child { display: none; }
-    .feed-page { margin: -12px -12px 0; }
-  }
-  @media (min-width: 700px) {
-    .feed-page { margin: 0; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); overflow: clip; }
-  }
-  @media (min-width: 960px) {
-    .page-community > .feed-page { max-width: 680px; }
-    .feed-tabs { top: var(--topbar); }
-  }
 
   /* 320-px-Härtung ------------------------------------------------------- */
   @media (max-width: 360px) {
