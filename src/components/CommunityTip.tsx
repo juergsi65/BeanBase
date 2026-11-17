@@ -1,3 +1,4 @@
+import { Globe } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { communityAvailable, fetchCommunity, bestScope, communityValues, type Community, type CommunityValues } from '../lib/community'
@@ -64,16 +65,16 @@ export default function CommunityTip({
   }, [roaster, name, grinderPreset, machinePreset, type])
 
   if (!communityAvailable)
-    return <p className="py-0.5 text-muted text-sm">🌍 Community-Check: verfügbar, sobald die App mit Supabase verbunden ist.</p>
+    return <p className="py-0.5 text-muted text-sm">Community-Check: verfügbar, sobald die App mit Supabase verbunden ist.</p>
   if (state.status === 'idle') return null
-  if (state.status === 'loading') return <p className="py-0.5 text-muted text-sm">🌍 Suche Community-Werte …</p>
-  if (state.status === 'error') return <p className="py-0.5 text-muted text-sm">🌍 Community-Check nicht verfügbar ({state.error})</p>
+  if (state.status === 'loading') return <p className="py-0.5 text-muted text-sm">Suche Community-Werte …</p>
+  if (state.status === 'error') return <p className="py-0.5 text-muted text-sm">Community-Check nicht verfügbar ({state.error})</p>
 
   if (state.status !== 'done') return null
   const row = bestScope(state.result)
   const methodLabel = type ? ` (${MACHINE_TYPES[type]})` : ''
   if (!row)
-    return <p className="py-0.5 text-muted text-sm">🌍 Noch keine Community-Daten für diese Bohne{methodLabel} – du bist der/die Erste!</p>
+    return <p className="py-0.5 text-muted text-sm">Noch keine Community-Daten für diese Bohne{methodLabel} – du bist der/die Erste!</p>
 
   const grinderName = findGrinderPreset(grinderPreset)?.name ?? grinder?.name
   const machineName = findMachinePreset(machinePreset)?.name ?? machine?.name
@@ -105,13 +106,13 @@ export default function CommunityTip({
 
   return (
     <div className="community-tip flex flex-col gap-1.5 rounded-[14px] px-3.5 py-3">
-      <div className="font-semibold">🌍 Community {head}</div>
+      <div className="flex items-center gap-2 font-semibold"><Globe size={18} aria-hidden /> Community {head}</div>
       <div className="flex flex-col gap-px">
         <span className="text-[0.72rem] uppercase tracking-wider text-muted">Ø Durchschnitt</span>
         <span>{line(avg)}</span>
       </div>
       <div className="flex flex-col gap-px">
-        <span className="text-[0.72rem] uppercase tracking-wider text-muted">★ Bestes Rezept ({row.best_rating}★)</span>
+        <span className="lbl">Bestes Rezept ({row.best_rating}★)</span>
         <span>{line(best)}</span>
       </div>
       {row.min_grind != null && row.min_grind !== row.max_grind && (

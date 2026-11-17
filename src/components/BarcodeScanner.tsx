@@ -1,3 +1,4 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { normalizeBarcode, isValidGtin } from '../lib/barcode'
@@ -121,7 +122,7 @@ export default function BarcodeScanner({ onResult, onClose }: { onResult: (code:
       <div className="flex items-center justify-between text-lg">
         <strong>▦ Barcode scannen</strong>
         <button type="button" className="btn btn-ghost btn-sm border-[#3d3027] text-[#f3e9dc]" onClick={onClose} aria-label="Schließen">
-          ✕
+          <X size={18} aria-hidden />
         </button>
       </div>
       <div className="scanner-view">

@@ -1,3 +1,4 @@
+import { Camera, Coffee, Cog, Lock, MessageSquare, Wrench, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { Field, Empty, Chip, ConfirmButton } from '../components/ui'
@@ -47,7 +48,7 @@ export function SetupCard({
   const gear = [...machines, ...grinders].filter((g): g is typeof g & { image_url: string } => !!g.image_url)
   return (
     <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-      <h3 className="text-xs uppercase tracking-widest text-muted">Barista-Visitenkarte</h3>
+      <h3 className="lbl">Barista-Visitenkarte</h3>
       {setupPhoto && <img className="media setup-photo" src={setupPhoto} alt="Kaffee-Setup" loading="lazy" />}
       {gear.length > 0 && (
         <div className="gear-strip">
@@ -64,12 +65,12 @@ export function SetupCard({
         <ul className="flex flex-col gap-1.5 [&>li]:flex [&>li]:items-baseline [&>li]:gap-2">
           {machines.map((m) => (
             <li key={m.id}>
-              <span>☕</span> {m.name} <span className="text-muted text-sm">{MACHINE_TYPES[m.type]}</span>
+              <Coffee size={18} className="text-muted" aria-hidden /> {m.name} <span className="text-muted text-sm">{MACHINE_TYPES[m.type]}</span>
             </li>
           ))}
           {grinders.map((g) => (
             <li key={g.id}>
-              <span>⚙️</span> {g.name} <span className="text-muted text-sm">{SCALE_TYPES[g.scale_type]}</span>
+              <Cog size={18} className="text-muted" aria-hidden /> {g.name} <span className="text-muted text-sm">{SCALE_TYPES[g.scale_type]}</span>
             </li>
           ))}
         </ul>
@@ -205,7 +206,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
         <div className="flex items-center gap-3.5 [&>div]:flex [&>div]:flex-col">
           <label className="relative inline-block cursor-pointer" title="Profilbild ändern">
             <Avatar profile={profile} size={72} />
-            <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full border-2 border-base-100 bg-accent text-[0.85rem]">📷</span>
+            <span className="absolute -right-0.5 -bottom-0.5 grid size-7 place-items-center rounded-full border-2 border-base-100 bg-accent text-accent-content"><Camera size={14} aria-hidden /></span>
             <input type="file" accept="image/*" hidden onChange={onAvatar} data-testid="avatar-upload" />
           </label>
           <div>
@@ -253,14 +254,14 @@ export default function ProfilePage({ data, go, me }: PageProps) {
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
         {me?.role === 'admin' && (
           <button className="btn btn-primary btn-block" onClick={() => go('admin')}>
-            🛠 Admin-Bereich
+            <Wrench size={16} aria-hidden /> Admin-Bereich
           </button>
         )}
         <button className="btn btn-ghost border-base-300 btn-block" onClick={() => go('feedback')}>
-          💬 Feedback zur Beta geben
+          <MessageSquare size={16} aria-hidden /> Feedback zur Beta geben
         </button>
         <details className="[&[open]>summary]:mb-3">
-          <summary className="btn btn-ghost border-base-300 btn-block list-none [&::-webkit-details-marker]:hidden">🔒 Passwort ändern</summary>
+          <summary className="btn btn-ghost border-base-300 btn-block list-none [&::-webkit-details-marker]:hidden"><Lock size={16} aria-hidden /> Passwort ändern</summary>
           <PasswordForm />
         </details>
         <button className="btn btn-ghost border-base-300 btn-block" onClick={() => supabase?.auth.signOut()}>
@@ -285,8 +286,8 @@ export default function ProfilePage({ data, go, me }: PageProps) {
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Freunde finden</h3>
-        <input className="input w-full" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Username suchen …" autoCapitalize="none" />
+        <h3 className="lbl">Freunde finden</h3>
+        <input className="input w-full" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Username suchen …" autoCapitalize="none" />
         {hits.length > 0 && (
           <ul className="items">
             {hits.map((h) => {
@@ -310,7 +311,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
 
       {rel.incoming.length > 0 && (
         <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-          <h3 className="text-xs uppercase tracking-widest text-muted">Anfragen an dich ({rel.incoming.length})</h3>
+          <h3 className="lbl">Anfragen an dich ({rel.incoming.length})</h3>
           <ul className="items">
             {rel.incoming.map(({ friendship, profile: p }) => (
               <PersonRow key={friendship.id} profile={p} onOpen={open}>
@@ -327,7 +328,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
       )}
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Freunde ({rel.friends.length})</h3>
+        <h3 className="lbl">Freunde ({rel.friends.length})</h3>
         {rel.friends.length ? (
           <ul className="items">
             {rel.friends.map(({ friendship, profile: p }) => (
@@ -338,7 +339,7 @@ export default function ProfilePage({ data, go, me }: PageProps) {
                   onConfirm={act(() => removeFriendship(friendship.id))}
                   ariaLabel={`Freundschaft mit @${p.username} beenden`}
                 >
-                  ✕
+                  <X size={18} aria-hidden />
                 </ConfirmButton>
               </PersonRow>
             ))}

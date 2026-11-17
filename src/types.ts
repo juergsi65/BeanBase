@@ -136,16 +136,18 @@ export interface AppUser {
 }
 
 // --- Navigation / Seiten-Props ------------------------------------------------------
-export type Tab = 'dashboard' | 'beans' | 'brew' | 'history' | 'community' | 'equipment' | 'profile' | 'user' | 'feedback' | 'admin'
+export type Tab = 'dashboard' | 'beans' | 'brew' | 'dialin' | 'history' | 'community' | 'equipment' | 'profile' | 'user' | 'feedback' | 'admin'
 /** Bezug vorbefüllen (Rezept übernehmen) oder bearbeiten (editId) */
 export interface BrewPreset {
   key?: string | number
   brew?: Partial<Brew>
   editId?: string
+  /** Zielfenster der Brühzeit in s (für die Dial-In-Auswertung nach dem Speichern) */
+  target?: [number, number] | null
 }
 export interface Go {
   (tab: 'user', preset: { userId: string }): void
-  (tab: 'brew', preset?: BrewPreset | null): void
+  (tab: 'brew' | 'dialin', preset?: BrewPreset | null): void
   (tab: Exclude<Tab, 'user'>): void
 }
 export interface PageProps {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, useLookup } from '../components/ui'
+import { Field, NumberInput, Stars, ExtractionSlider, Stopwatch, RecipeCard, RatioRuler, useLookup } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import DialInGuide, { CorrectionHint } from '../components/DialInGuide'
 import { availableSources, buildPlan } from '../lib/dialin'
@@ -161,8 +161,10 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       if (editing) await data.update('brews', editing, row)
       else await data.add('brews', row)
       if (savedMedia?.url && (media.pending || media.removed)) deleteMedia(savedMedia.url).catch(() => {})
-      toast(editing ? 'Bezug aktualisiert' : 'Bezug gespeichert ☕')
-      go(editing ? 'history' : 'dashboard')
+      toast(editing ? 'Bezug aktualisiert' : 'Bezug gespeichert')
+      if (editing) go('history')
+      else if (row.extraction != null) go('dialin', { key: Date.now(), brew: row, target: plan?.time ?? null })
+      else go('dashboard')
     } catch (err) {
       data.setError(errMsg(err))
     } finally {
@@ -266,7 +268,7 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       )}
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-recipe">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Rezept</h3>
+        <h3 className="lbl">Rezept</h3>
         <div className="grid grid-cols-1 gap-3 min-[561px]:grid-cols-2 desk:max-[1199px]:grid-cols-1">
           <Field label="Dosis (Mehl)">
             <NumberInput value={form.dose} onChange={set('dose')} step={0.1} decimals={1} min={0} unit="g" />
@@ -275,10 +277,14 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
             <NumberInput value={form.yield} onChange={set('yield')} step={0.5} decimals={1} min={0} unit="g" />
           </Field>
         </div>
-        <div className="rounded-xl bg-base-200 p-2.5 text-center text-muted">
-          Brew-Ratio <strong className="ml-2 text-[1.6rem] text-accent-strong">{fmtRatio(r)}</strong>
+        <div className="flex flex-col gap-2 rounded-xl border border-base-300 bg-base-200 px-3.5 pt-3 pb-2.5">
+          <div className="flex items-baseline justify-between">
+            <span className="lbl">Verhältnis</span>
+            <strong className="num text-[1.4rem] font-semibold text-accent-strong">{fmtRatio(r)}</strong>
+          </div>
+          <RatioRuler value={r} />
           {cost && (
-            <span className="mt-1 block text-sm text-muted">
+            <span className="num block text-xs text-muted">
               ≈ {fmtMoney(cost.value, cost.currency)}
               {usage && ` · Rest danach ${fmtGrams(Math.max(0, usage.remaining - (editing ? 0 : Number(form.dose) || 0)))}`}
             </span>
@@ -309,15 +315,15 @@ export default function BrewPage({ data, go, preset }: PageProps & { preset: Bre
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-timer">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Durchlaufzeit</h3>
-        <Stopwatch onStop={set('brew_time')} />
+        <h3 className="lbl">Durchlaufzeit</h3>
+        <Stopwatch onStop={set('brew_time')} target={plan?.time ?? undefined} />
         <Field label="Brühzeit">
           <NumberInput value={form.brew_time} onChange={set('brew_time')} step={1} min={0} unit="s" placeholder="–" />
         </Field>
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5 brew-rating">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Bewertung</h3>
+        <h3 className="lbl">Bewertung</h3>
         <Stars value={form.rating} onChange={set('rating')} />
         <Field label="Extraktion">
           <ExtractionSlider value={form.extraction} onChange={set('extraction')} />

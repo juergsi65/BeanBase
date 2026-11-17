@@ -1,6 +1,7 @@
+import { Camera, Image, PackageOpen, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn, ConfirmButton, pressable } from '../components/ui'
+import { Field, TagInput, Segmented, Chip, Empty, Stars, segBtn, segWrap, ConfirmButton, pressable, FreshnessScale } from '../components/ui'
 import CommunityTip from '../components/CommunityTip'
 import BarcodeScanner from '../components/BarcodeScanner'
 import { lookupBarcode } from '../lib/barcode'
@@ -136,6 +137,7 @@ export default function BeansPage({ data, go }: PageProps) {
                     </div>
                   )}
                 </div>
+                {days != null && days >= 0 && <FreshnessScale days={days} />}
                 <div className="flex flex-wrap gap-1.5">
                   {b.process && <Chip>{PROCESSES[b.process]}</Chip>}
                   {b.roast_level && <Chip>{ROAST_LEVELS[b.roast_level]}</Chip>}
@@ -326,7 +328,7 @@ function BeanForm({
       else if (existingStock)
         await data.update('bean_stock', existingStock.id, { ...stockRow, ...(stock.newBag ? { opened_at: new Date().toISOString() } : {}) })
       else if (hasStock) await data.add('bean_stock', { ...stockRow, bean_id: saved.id, opened_at: new Date().toISOString() })
-      toast(bean ? 'Bohne gespeichert' : 'Bohne angelegt ☕')
+      toast(bean ? 'Bohne gespeichert' : 'Bohne angelegt')
       onDone()
     } catch (err) {
       data.setError(errMsg(err))
@@ -346,7 +348,7 @@ function BeanForm({
       <h2>{bean ? 'Bohne bearbeiten' : 'Neue Bohne'}</h2>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Schnell erfassen</h3>
+        <h3 className="lbl">Schnell erfassen</h3>
         <button type="button" className="btn btn-primary btn-lg btn-block" onClick={() => setScanning(true)}>
           ▦ Barcode scannen
         </button>
@@ -363,10 +365,10 @@ function BeanForm({
             </Chip>
           </div>
         )}
-        {scan.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Suche Bohne zum Barcode …</div>}
+        {scan.status === 'loading' && <div className="alert alert-soft block alert-info">Suche Bohne zum Barcode …</div>}
         {scan.status === 'found' && (
           <div className="alert alert-soft block alert-info">
-            ✨ {scan.text}
+            {scan.text}
           </div>
         )}
         {scan.status === 'notcoffee' && (
@@ -395,7 +397,7 @@ function BeanForm({
           <div className="photo">
             <img src={preview} alt="Kaffeetüte" />
             <button type="button" className="btn btn-ghost btn-sm absolute top-2 right-2 border-base-300 bg-page/75" onClick={removePhoto} aria-label="Foto entfernen">
-              ✕
+              <X size={18} aria-hidden />
             </button>
           </div>
         ) : (
@@ -407,10 +409,10 @@ function BeanForm({
         )}
         <div className="grid grid-cols-2 gap-3">
           <button type="button" className="btn btn-primary btn-lg" onClick={() => cameraRef.current?.click()}>
-            📷 Foto
+            <Camera size={16} aria-hidden /> Foto
           </button>
           <button type="button" className="btn btn-ghost border-base-300 btn-lg" onClick={() => uploadRef.current?.click()}>
-            🖼 Hochladen
+            <Image size={16} aria-hidden /> Hochladen
           </button>
         </div>
         {!canAnalyze && (
@@ -422,11 +424,11 @@ function BeanForm({
         <input ref={uploadRef} type="file" accept="image/*" hidden onChange={onFile} data-testid="bean-upload" />
         {canAnalyze && (
           <p className="text-muted text-sm">
-            💡 Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
+            Tipp: Das Röstdatum steht oft auf der Rückseite oder dem Boden der Tüte – falls es nicht erkannt wird, kannst du es unten schnell ergänzen.
           </p>
         )}
-        {ai.status === 'loading' && <div className="alert alert-soft block alert-info">🔍 Etikett wird erkannt …</div>}
-        {ai.status === 'done' && <div className="alert alert-soft block alert-info">✨ {ai.text}</div>}
+        {ai.status === 'loading' && <div className="alert alert-soft block alert-info">Etikett wird erkannt …</div>}
+        {ai.status === 'done' && <div className="alert alert-soft block alert-info">{ai.text}</div>}
         {ai.status === 'error' && (
           <div className="alert alert-soft block alert-error">
             {ai.text}{' '}
@@ -470,10 +472,10 @@ function BeanForm({
       </section>
 
       <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-        <h3 className="text-xs uppercase tracking-widest text-muted">Packung & Preis</h3>
+        <h3 className="lbl">Packung & Preis</h3>
         <p className="text-muted text-sm">Nur für dich sichtbar – auch Freunde sehen keine Preise.</p>
         <Field label="Packungsgröße">
-          <div className="flex flex-wrap gap-1.5">
+          <div className={segWrap}>
             {BAG_SIZES.map((g) => (
               <button type="button" key={g} className={segBtn(Number(stock.bag) === g)} onClick={() => setStock((s) => ({ ...s, bag: g }))}>
                 {fmtGrams(g)}
@@ -518,7 +520,7 @@ function BeanForm({
           <div className="flex flex-col gap-2.5">
             <StockBar usage={usage} />
             <button type="button" className="btn btn-ghost border-base-300 btn-sm" onClick={() => setStock((s) => ({ ...s, newBag: true }))}>
-              🔄 Neue Packung angebrochen
+              <PackageOpen size={16} aria-hidden /> Neue Packung angebrochen
             </button>
           </div>
         )}
@@ -538,7 +540,7 @@ function BeanForm({
           confirmLabel="Bohne löschen"
           onConfirm={del}
         >
-          🗑 Bohne löschen
+          <Trash2 size={16} aria-hidden /> Bohne löschen
         </ConfirmButton>
       )}
       <div className="sticky-actions">

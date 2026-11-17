@@ -1,5 +1,5 @@
-/* BeanBase – Coffee-Shop-Theme auf Tailwind CSS 4 + daisyUI 5.
-   Themes heißen "light"/"dark" (passend zu data-theme aus lib/theme.ts); ohne Attribut folgt die App dem System. */
+/* BeanBase – „Espresso-Instrument“ auf Tailwind CSS 4 + daisyUI 5: dunkel zuerst, ein Kupfer-Akzent,
+   Zahlen in Geist Mono. Themes heißen "light"/"dark" (passend zu data-theme aus lib/theme.ts); ohne Attribut folgt die App dem System. */
 @import 'tailwindcss';
 @plugin 'daisyui' {
   themes: false;
@@ -9,20 +9,20 @@
   name: 'dark';
   prefersdark: true;
   color-scheme: dark;
-  --color-base-100: #221a15;
-  --color-base-200: #2d231c;
-  --color-base-300: #3d3027;
-  --color-base-content: #f3e9dc;
-  --color-primary: #c8915a;
-  --color-primary-content: #1c1310;
-  --color-success: #8fbf7f;
-  --color-success-content: #1c1310;
-  --color-info: #7fb0d0;
-  --color-info-content: #1c1310;
-  --color-warning: #e3b55b;
-  --color-warning-content: #1c1310;
-  --color-error: #e0776a;
-  --color-error-content: #1c1310;
+  --color-base-100: #171412;
+  --color-base-200: #1f1b18;
+  --color-base-300: #2a2522;
+  --color-base-content: #f2ece6;
+  --color-primary: #d98a4e;
+  --color-primary-content: #1a0f08;
+  --color-success: #7cc4ae;
+  --color-success-content: #0e1a16;
+  --color-info: #86b8de;
+  --color-info-content: #0d1720;
+  --color-warning: #e8c547;
+  --color-warning-content: #1a1504;
+  --color-error: #e8826b;
+  --color-error-content: #1f0c08;
   --radius-selector: 0.5rem;
   --radius-field: 0.75rem;
   --radius-box: 1.125rem;
@@ -32,31 +32,35 @@
   --depth: 0;
   --noise: 0;
   /* App-eigene Token */
-  --bg: #16110e;
-  --muted: #b5a493;
-  --accent-strong: #e0a96d;
-  --sour: #e3c75b;
-  --bitter: #9b6a4a;
+  --bg: #0e0c0b;
+  --muted: #a39a92;
+  --accent-strong: #e3a270;
+  --line-strong: #3a322c;
+  --sour: #e8c547;
+  --bitter: #b5652e;
+  --scale-rest: #4a3f16;
+  --scale-good: #2f5a4f;
+  --scale-fade: #3a322c;
 }
 
 @plugin 'daisyui/theme' {
   name: 'light';
   default: true;
   color-scheme: light;
-  --color-base-100: #fffaf3;
-  --color-base-200: #efe4d6;
-  --color-base-300: #dccbb6;
-  --color-base-content: #2b1f18;
-  --color-primary: #6f4e37;
-  --color-primary-content: #fff8ef;
-  --color-success: #8fbf7f;
-  --color-success-content: #1c1310;
-  --color-info: #7fb0d0;
-  --color-info-content: #1c1310;
-  --color-warning: #e3b55b;
-  --color-warning-content: #1c1310;
-  --color-error: #e0776a;
-  --color-error-content: #1c1310;
+  --color-base-100: #ffffff;
+  --color-base-200: #f3eee8;
+  --color-base-300: #e2dad1;
+  --color-base-content: #1c1714;
+  --color-primary: #c9773a;
+  --color-primary-content: #1a0f08;
+  --color-success: #1f7a63;
+  --color-success-content: #ffffff;
+  --color-info: #2f6a96;
+  --color-info-content: #ffffff;
+  --color-warning: #8a6a00;
+  --color-warning-content: #ffffff;
+  --color-error: #b4432f;
+  --color-error-content: #ffffff;
   --radius-selector: 0.5rem;
   --radius-field: 0.75rem;
   --radius-box: 1.125rem;
@@ -65,11 +69,15 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
-  --bg: #f6efe6;
-  --muted: #7a6656;
-  --accent-strong: #5a3d2a;
-  --sour: #e3c75b;
-  --bitter: #6f4e37;
+  --bg: #f7f3ee;
+  --muted: #6b625b;
+  --accent-strong: #9a4f17;
+  --line-strong: #d6ccc2;
+  --sour: #a67c00;
+  --bitter: #a4501c;
+  --scale-rest: #e8d9a0;
+  --scale-good: #8cc5b4;
+  --scale-fade: #d6ccc2;
 }
 
 @theme inline {
@@ -77,6 +85,8 @@
   --color-muted: var(--muted);
   --color-accent-strong: var(--accent-strong);
   --color-page: var(--bg);
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 /* Kurz-Aliase für das restliche App-CSS */
@@ -94,7 +104,7 @@
   --root-bg: var(--bg);
   --bb-ease: cubic-bezier(.2, .8, .2, 1);
   --tap: 52px;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
@@ -108,7 +118,7 @@
 @layer base {
   body { min-height: 100dvh; background: var(--bg); color: var(--text); overscroll-behavior-y: none; }
   html, body { max-width: 100%; }
-  h1, h2, h3 { letter-spacing: -0.01em; font-weight: 700; }
+  h1, h2, h3 { letter-spacing: -0.02em; font-weight: 650; }
   h2 { font-size: 1.45rem; }
   @media (min-width: 960px) { h2 { font-size: 1.7rem; } }
   code { background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
@@ -124,14 +134,30 @@
   .content { padding: 16px; animation: page-in .22s var(--bb-ease); }
   .app > .alert { margin: 12px 16px 0; }
   .fab-circle {
-    display: grid; place-items: center; width: 58px; height: 58px; margin-top: -26px; border-radius: 50%;
-    background: linear-gradient(145deg, var(--accent-strong), var(--accent)); color: var(--accent-text);
-    font-size: 2rem; font-weight: 300; line-height: 1; box-shadow: 0 6px 18px rgb(0 0 0 / .35), 0 0 0 4px var(--surface);
-    transition: transform .15s var(--bb-ease);
+    display: grid; place-items: center; width: 58px; height: 58px; margin-top: -22px; border-radius: 18px;
+    background: var(--accent); color: var(--accent-text);
+    box-shadow: 0 0 0 4px var(--surface); transition: transform .15s var(--bb-ease);
   }
   .dock-fab:active .fab-circle { transform: scale(0.92); }
-  .tab-icon { font-size: 1.35rem; filter: grayscale(0.6); transition: transform .2s var(--bb-ease); }
-  .dock-active .tab-icon { filter: none; transform: translateY(-1px) scale(1.08); }
+  .tab-icon { transition: transform .2s var(--bb-ease); }
+  .dock-active .tab-icon { transform: translateY(-1px); }
+
+  /* Instrument-Bausteine ------------------------------------------------- */
+  /* Kleine Mono-Beschriftung über Werten und Abschnitten */
+  .lbl { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  /* Messwerte immer in Mono mit festen Ziffernbreiten */
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  /* Skala mit Zonen und Zeiger (Frische, Ratio) */
+  .scale { position: relative; display: flex; gap: 2px; height: 8px; }
+  .scale > span { border-radius: 2px; }
+  .scale > .needle { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--text); }
+  .ruler {
+    position: relative; height: 12px;
+    background: repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 33.333%),
+      repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 6.6667%);
+    box-shadow: inset -1px 0 var(--line-strong);
+  }
+  .ruler > .needle { position: absolute; top: -3px; width: 3px; height: 18px; margin-left: -1px; border-radius: 2px; background: var(--accent); }
   @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
   @media (min-width: 700px) {
@@ -166,26 +192,28 @@
 
 
   /* Stoppuhr ------------------------------------------------------------- */
-  .sw-time {
-    text-align: center; font-size: 4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
-    padding: 12px 0; border-radius: 16px; background: var(--surface-2);
-  }
-  .sw-time small { font-size: 1.4rem; color: var(--muted); }
-  .running .sw-time { color: var(--accent-strong); box-shadow: inset 0 0 0 2px var(--accent); }
+  .sw-ring { position: relative; width: min(240px, 72vw); aspect-ratio: 1; margin: 0 auto; }
+  .sw-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sw-ring .arc { transition: stroke .2s; }
+  .sw-face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sw-time { font-size: 3.6rem; font-weight: 600; line-height: 1.05; letter-spacing: -0.03em; }
+  .sw-time.in-win { color: var(--good); }
+  .sw-time.over { color: var(--warn); }
 
   /* Rezept ----------------------------------------------------------------- */
   .recipe-grind {
     display: flex; flex-direction: column; align-items: center; padding: 10px; border-radius: 12px;
-    background: var(--bg); border: 1px dashed var(--accent);
+    background: var(--bg); border: 1px solid var(--line);
   }
   .age {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-width: 60px; padding: 6px 8px; border-radius: 12px; background: var(--surface-2); line-height: 1.1;
+    display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+    min-width: 56px; padding: 6px 10px; border-radius: 12px; line-height: 1;
   }
-  .age strong { font-size: 1.5rem; }
-  .age span { font-size: 0.7rem; color: var(--muted); }
-  .age.sm { min-width: 48px; padding: 4px 6px; }
-  .age.sm strong { font-size: 1.1rem; }
+  .age strong { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.65rem; font-weight: 600; }
+  .age span { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .age.good { background: color-mix(in srgb, var(--good) 12%, transparent); border: 1px solid color-mix(in srgb, var(--good) 30%, transparent); }
+  .age.sm { min-width: 44px; padding: 0; background: none; border: 0; }
+  .age.sm strong { font-size: 1.35rem; }
   .age.good strong { color: var(--good); } .age.info strong { color: var(--info); }
   .age.warn strong { color: var(--warn); } .age.bad strong { color: var(--bad); }
 
@@ -243,9 +271,14 @@
   /* Dial-In-Assistent ---------------------------------------------------- */
   .guide-step.done .guide-body > strong { text-decoration: line-through; color: var(--muted); }
   .correction { border-left: 4px solid var(--line); }
-  .correction.sour { border-left-color: var(--sour); }
-  .correction.bitter { border-left-color: var(--bitter); }
-  .correction.good { border-left-color: var(--good); }
+  .correction.sour { border-left-color: var(--sour); background: color-mix(in srgb, var(--sour) 8%, var(--surface)); }
+  .correction.bitter { border-left-color: var(--bitter); background: color-mix(in srgb, var(--bitter) 9%, var(--surface)); }
+  .correction.good { border-left-color: var(--good); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+  /* Zielwert im Fließtext (Dial-In-Assistent) */
+  .val {
+    display: inline-block; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--accent-strong);
+  }
 
   /* Barcode-Scanner (immer dunkel, unabhängig vom Theme) ------------------- */
   .scanner {

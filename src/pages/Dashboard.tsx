@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { RecipeCard, Empty, Chip, Stars, Stat, useLookup, pressable } from '../components/ui'
+import { RecipeCard, Empty, Chip, Stars, Stat, FreshnessScale, useLookup, pressable } from '../components/ui'
 import { daysSince, freshness, recipesForBean, ROAST_LEVELS, fmtRatio, ratio, fmtDate, plural } from '../lib/coffee'
 import { beanUsage, spending, fmtMoney } from '../lib/cost'
 import StockBar from '../components/StockBar'
@@ -25,7 +25,7 @@ export default function Dashboard({ data, go }: PageProps) {
   if (!data.beans.length)
     return (
       <div className="flex flex-col gap-4">
-        <h2>Willkommen bei BeanBase ☕</h2>
+        <h2>Willkommen bei BeanBase</h2>
         <Empty action={<button className="btn btn-primary btn-lg" onClick={() => go('beans')}>Erste Bohne anlegen</button>}>
           Leg zuerst eine Bohne an. Danach (optional) Maschine und Mühle unter „Setup“, und schon kannst du deinen ersten Bezug loggen.
         </Empty>
@@ -39,13 +39,19 @@ export default function Dashboard({ data, go }: PageProps) {
     <div className="flex flex-col gap-4 desk:grid desk:grid-cols-[minmax(0,1.55fr)_minmax(300px,1fr)] desk:items-start desk:gap-7">
      <div className="flex flex-col gap-4">
       <section>
-        <h3 className="text-xs uppercase tracking-widest text-muted">Aktive Bohnen</h3>
+        <h3 className="lbl">Aktive Bohnen</h3>
         {active.length ? (
           <div className="bean-picker">
             {active.map((b) => (
-              <button key={b.id} className={`btn h-auto flex-none flex-col items-start gap-0.5 rounded-[14px] bg-base-100 px-3.5 py-3 text-left font-normal ${selected?.id === b.id ? 'border-primary ring-1 ring-inset ring-primary' : 'border-base-300'}`} onClick={() => setBeanId(b.id)}>
-                <strong>{b.name}</strong>
-                {b.roaster && <span className="text-xs text-muted">{b.roaster}</span>}
+              <button key={b.id} className={`btn h-auto flex-none flex-col items-stretch gap-1 rounded-[14px] bg-base-100 px-3.5 py-3 text-left font-normal ${selected?.id === b.id ? 'border-primary ring-1 ring-inset ring-primary' : 'border-base-300'}`} onClick={() => setBeanId(b.id)} aria-pressed={selected?.id === b.id}>
+                <strong className="font-semibold">{b.name}</strong>
+                <span className="flex justify-between gap-2 text-xs text-muted">
+                  <span className="truncate">{b.roaster}</span>
+                  {(() => {
+                    const d = daysSince(b.roast_date)
+                    return d != null && <span className={`num ${freshness(d)?.tone === 'good' ? 'text-success' : ''}`}>{d} T</span>
+                  })()}
+                </span>
               </button>
             ))}
           </div>
@@ -59,8 +65,8 @@ export default function Dashboard({ data, go }: PageProps) {
           <div className="flex items-start justify-between gap-3">
             {selected.image_url && <img className="thumb lg" src={selected.image_url} alt="" />}
             <div className="grow">
-              <h2>{selected.name}</h2>
-              <p className="text-muted">{[selected.roaster, selected.origin].filter(Boolean).join(' · ')}</p>
+              <h2 className="text-2xl desk:text-[1.7rem]">{selected.name}</h2>
+              <p className="text-muted text-sm">{[selected.roaster, selected.origin].filter(Boolean).join(' · ')}</p>
             </div>
             {days != null && (
               <div className={`age ${fresh?.tone}`}>
@@ -69,6 +75,7 @@ export default function Dashboard({ data, go }: PageProps) {
               </div>
             )}
           </div>
+          {days != null && days >= 0 && <FreshnessScale days={days} />}
           <div className="flex flex-wrap gap-1.5">
             {selected.roast_level && <Chip>{ROAST_LEVELS[selected.roast_level]}</Chip>}
             {fresh && <Chip tone={fresh.tone}>{fresh.label}</Chip>}
@@ -115,7 +122,7 @@ export default function Dashboard({ data, go }: PageProps) {
         if (!sp.count) return null
         return (
           <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-            <h3 className="text-xs uppercase tracking-widest text-muted">Letzte 30 Tage</h3>
+            <h3 className="lbl">Letzte 30 Tage</h3>
             <div className="grid grid-cols-3 gap-2">
               <Stat className="bg-base-200" label="Bezüge" value={sp.count} />
               <Stat className="bg-base-200" label="Kaffee-Kosten" value={sp.priced ? fmtMoney(sp.total, sp.currency) : '–'} />
@@ -132,14 +139,14 @@ export default function Dashboard({ data, go }: PageProps) {
 
       {data.brews.length > 0 && (
         <section>
-          <h3 className="text-xs uppercase tracking-widest text-muted">Zuletzt</h3>
+          <h3 className="lbl">Zuletzt</h3>
           <ul className="items">
             {data.brews.slice(0, 5).map((b) => (
               <li key={b.id} className="item cursor-pointer" {...pressable(() => go('history'))}>
                 <div>
                   <strong>{lookup.beans(b.bean_id)?.name ?? 'Unbekannte Bohne'}</strong>
-                  <span className="text-muted text-sm">
-                    {fmtDate(b.created_at)} · {b.dose ?? '–'}g → {b.yield ?? '–'}g ({fmtRatio(ratio(b.dose, b.yield))}) · {b.brew_time ?? '–'}s
+                  <span className="num text-muted text-xs">
+                    {fmtDate(b.created_at)} · {b.dose ?? '–'}→{b.yield ?? '–'} g · {fmtRatio(ratio(b.dose, b.yield))} · {b.brew_time ?? '–'} s
                   </span>
                 </div>
                 <Stars value={b.rating} size="sm" />

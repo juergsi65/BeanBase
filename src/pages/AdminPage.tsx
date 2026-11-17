@@ -1,3 +1,4 @@
+import { Share, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
@@ -89,7 +90,7 @@ function Users({ me }: { me: MyProfile }) {
         const list = users.filter((u) => !q || `${u.username} ${u.display_name ?? ''} ${u.email ?? ''}`.toLowerCase().includes(q.toLowerCase()))
         return (
           <>
-            <input className="input w-full" type="search" placeholder="🔍 Nutzer suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="input w-full" type="search" placeholder="Nutzer suchen …" value={q} onChange={(e) => setQ(e.target.value)} />
             <p className="text-muted text-sm">{plural(users.length, 'Konto', 'Konten')} · alle außer Admins sind Beta-Tester</p>
             <ul className="items">
               {list.map((u) => (
@@ -98,7 +99,7 @@ function Users({ me }: { me: MyProfile }) {
                     <Avatar profile={u} size={36} />
                     <div className="grow">
                       <strong>
-                        @{u.username} {u.role === 'admin' ? <Chip tone="good">Admin</Chip> : <Chip>Tester</Chip>}
+                        @{u.username} <span className={`num rounded-full border px-2 text-[11px] tracking-wider uppercase ${u.role === 'admin' ? 'border-primary/45 bg-primary/12 text-accent-strong' : 'border-info/40 bg-info/10 text-info'}`}>{u.role === 'admin' ? 'Admin' : 'Tester'}</span>
                         {u.blocked && <Chip tone="bad">gesperrt</Chip>}
                       </strong>
                       <span className="text-muted text-sm">{u.email}</span>
@@ -112,7 +113,7 @@ function Users({ me }: { me: MyProfile }) {
                   {u.role !== 'admin' && u.id !== me?.id && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => adminSetBlocked(u.id, !u.blocked), reload, u.blocked ? 'Entsperrt' : 'Gesperrt')}>
-                        {u.blocked ? '🔓 Entsperren' : '🔒 Sperren'}
+                        {u.blocked ? 'Entsperren' : 'Sperren'}
                       </button>
                       <ConfirmButton
                         question={`Konto @${u.username} mit allen Daten endgültig löschen? Zum Bestätigen den Username eintippen.`}
@@ -120,7 +121,7 @@ function Users({ me }: { me: MyProfile }) {
                         typeToConfirm={u.username}
                         onConfirm={act(() => adminDeleteUser(u.id), reload, 'Konto gelöscht')}
                       >
-                        🗑 Löschen
+                        <Trash2 size={16} aria-hidden /> Löschen
                       </ConfirmButton>
                     </div>
                   )}
@@ -140,7 +141,7 @@ function Invites() {
   const [created, setCreated] = useState<string | null>(null)
   const link = (code: string) => `${window.location.origin}/?invite=${encodeURIComponent(code)}`
   const share = async (code: string) => {
-    const text = `Du bist zum Beta-Test von BeanBase eingeladen ☕\nCode: ${code}\n${link(code)}`
+    const text = `Du bist zum Beta-Test von BeanBase eingeladen\nCode: ${code}\n${link(code)}`
     try {
       if (navigator.share) await navigator.share({ title: 'BeanBase Beta', text })
       else {
@@ -169,7 +170,7 @@ function Invites() {
           create()
         }}
       >
-        <h3 className="text-xs uppercase tracking-widest text-muted">Neue Einladung</h3>
+        <h3 className="lbl">Neue Einladung</h3>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Nutzungen">
             <input className="input w-full" type="number" min="1" max="200" value={form.uses} onChange={(e) => setForm({ ...form, uses: e.target.value })} />
@@ -206,10 +207,10 @@ function Invites() {
                   {c.note && <span className="text-muted text-sm">{c.note}</span>}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button className="btn btn-ghost border-base-300 btn-sm" onClick={() => share(c.code)}>
-                      📤 Teilen
+                      <Share size={16} aria-hidden /> Teilen
                     </button>
-                    <button className="btn btn-outline btn-error btn-sm" onClick={act(() => adminDeleteInvite(c.code), reload, 'Code gelöscht')}>
-                      🗑
+                    <button className="btn btn-outline btn-error btn-sm" onClick={act(() => adminDeleteInvite(c.code), reload, 'Code gelöscht')} aria-label="Code löschen">
+                      <Trash2 size={16} aria-hidden />
                     </button>
                   </div>
                 </li>
@@ -245,10 +246,10 @@ function FeedbackInbox() {
                   <span className="text-muted text-[0.68rem]">{f.user_agent}</span>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button className="btn btn-ghost border-base-300 btn-sm" onClick={act(() => setFeedbackStatus(f.id, f.status === 'neu' ? 'erledigt' : 'neu'), reload)}>
-                      {f.status === 'neu' ? '✅ Erledigt' : '↩︎ Wieder öffnen'}
+                      {f.status === 'neu' ? 'Erledigt' : 'Wieder öffnen'}
                     </button>
                     <ConfirmButton question="Dieses Feedback löschen?" confirmLabel="Feedback löschen" onConfirm={act(() => deleteFeedback(f.id), reload, 'Feedback gelöscht')} ariaLabel="Feedback löschen">
-                      🗑
+                      <Trash2 size={16} aria-hidden />
                     </ConfirmButton>
                   </div>
                 </li>
@@ -270,7 +271,7 @@ function Moderation() {
         const media = Array.isArray(content?.media) ? content.media : []
         return (
         <>
-          <h3 className="text-xs uppercase tracking-widest text-muted">Neueste Kommentare</h3>
+          <h3 className="lbl">Neueste Kommentare</h3>
           {!comments.length && <p className="text-muted text-sm">Keine Kommentare.</p>}
           <ul className="items">
             {comments.map((c) => (
@@ -282,12 +283,12 @@ function Moderation() {
                   <span>{c.body}</span>
                 </div>
                 <button className="btn btn-outline btn-error btn-sm" onClick={act(() => adminDeleteComment(c.id), reload, 'Kommentar gelöscht')} aria-label="Kommentar löschen">
-                  🗑
+                  <Trash2 size={16} aria-hidden />
                 </button>
               </li>
             ))}
           </ul>
-          <h3 className="text-xs uppercase tracking-widest text-muted">Neueste Fotos/Videos</h3>
+          <h3 className="lbl">Neueste Fotos/Videos</h3>
           {!media.length && <p className="text-muted text-sm">Keine Medien.</p>}
           <div className="grid grid-cols-2 desk:grid-cols-4 gap-2">
             {media.map((m) => (
@@ -341,10 +342,16 @@ export default function AdminPage({ me }: Pick<PageProps, 'me'>) {
   if (!me || me.role !== 'admin') return <Empty>Kein Zugriff – dieser Bereich ist nur für Admins.</Empty>
   return (
     <div className="flex flex-col gap-4">
-      <h2>🛠 Admin-Bereich</h2>
-      <div role="tablist" className="tabs tabs-box flex-wrap bg-base-100 border border-base-300">
+      <h2>Admin-Bereich</h2>
+      <div role="tablist" aria-label="Admin-Bereiche" className="flex flex-wrap gap-1.5">
         {(Object.entries(SECTIONS) as [Section, string][]).map(([k, label]) => (
-          <button key={k} role="tab" className={`tab grow ${section === k ? 'tab-active' : ''}`} aria-selected={section === k} onClick={() => setSection(k)}>
+          <button
+            key={k}
+            role="tab"
+            className={`btn btn-sm h-9 rounded-full px-3.5 ${section === k ? 'border-primary bg-primary/12 text-accent-strong font-semibold' : 'btn-ghost border-base-300 font-normal'}`}
+            aria-selected={section === k}
+            onClick={() => setSection(k)}
+          >
             {label}
           </button>
         ))}

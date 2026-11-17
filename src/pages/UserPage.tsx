@@ -73,12 +73,12 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
       </section>
 
       {!visible ? (
-        <Empty>🔒 Dieses Profil ist privat. Sobald ihr befreundet seid, siehst du Bohnen, Setup und Bezüge.</Empty>
+        <Empty>Dieses Profil ist privat. Sobald ihr befreundet seid, siehst du Bohnen, Setup und Bezüge.</Empty>
       ) : (
         <>
           <SetupCard machines={view.machines} grinders={view.grinders} beansCount={view.beans.length} setupPhoto={p.setup_photo_url} />
           <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-            <h3 className="text-xs uppercase tracking-widest text-muted">Aktuelle Bohnen</h3>
+            <h3 className="lbl">Aktuelle Bohnen</h3>
             {view.beans.length ? (
               <ul className="items">
                 {view.beans.map((b) => (
@@ -105,7 +105,7 @@ export default function UserPage({ data, go, userId }: PageProps & { userId: str
               <p className="text-muted text-sm">Keine aktiven Bohnen.</p>
             )}
           </section>
-          <h3 className="text-xs uppercase tracking-widest text-muted">Letzte Bezüge</h3>
+          <h3 className="lbl">Letzte Bezüge</h3>
           {view.brews.length ? (
             <div className="feed">
               {view.brews.map((b) => (

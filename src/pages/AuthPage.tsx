@@ -1,3 +1,4 @@
+import Logo from '../components/Logo'
 import { useEffect, useState } from 'react'
 import { requireSupabase } from '../lib/supabase'
 import { Field } from '../components/ui'
@@ -70,7 +71,7 @@ export default function AuthPage() {
   return (
     <div className="grid min-h-dvh place-items-center p-5">
       <div className="card w-full max-w-[380px] desk:max-w-[420px] gap-3.5 rounded-[20px] border border-base-300 bg-base-100 px-5.5 py-7 text-center desk:px-8 desk:py-9">
-        <div className="text-5xl">🫘</div>
+        <Logo size={56} />
         <h1>BeanBase</h1>
         <p className="text-muted">Dein digitales Barista-Notizbuch. Nie wieder Dial-In auf Zetteln.</p>
         <form className="flex flex-col gap-3 text-left" onSubmit={submit}>

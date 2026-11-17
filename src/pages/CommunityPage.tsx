@@ -1,3 +1,4 @@
+import { UserPlus } from 'lucide-react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useSessionStorage } from 'use-storage-hook'
 import { Empty } from '../components/ui'
@@ -45,7 +46,7 @@ export default function CommunityPage({ data, go, me: myProfile }: PageProps) {
           </button>
         ))}
         <button className="btn btn-ghost h-12 px-4 text-lg" onClick={() => go('profile')} aria-label="Freunde finden">
-          👥
+          <UserPlus size={20} aria-hidden />
         </button>
       </div>
 

@@ -1,3 +1,4 @@
+import { Check, Compass } from 'lucide-react'
 import { useState } from 'react'
 import { Segmented } from './ui'
 import { SOURCE_LABELS, correction, fmtRange, prepText } from '../lib/dialin'
@@ -12,8 +13,8 @@ const ROAST_TEXT: Record<RoastLevel, string> = { light: 'helle Röstung', medium
 function Step({ n, title, done, onToggle, children }: { n: number; title: ReactNode; done?: boolean; onToggle: () => void; children: ReactNode }) {
   return (
     <li className={`guide-step grid grid-cols-[40px_1fr] items-start gap-3 ${done ? 'done' : ''}`}>
-      <button type="button" className={`btn btn-circle size-10 text-base font-extrabold ${done ? 'btn-success' : 'btn-outline btn-primary border-2 text-accent-strong'}`} onClick={onToggle} aria-pressed={done} aria-label={`Schritt ${n} erledigt`}>
-        {done ? '✓' : n}
+      <button type="button" className={`btn btn-square size-10 rounded-[12px] num text-[15px] font-semibold ${done ? 'btn-success' : 'btn-ghost border-[1.5px] border-primary text-accent-strong'}`} onClick={onToggle} aria-pressed={done} aria-label={`Schritt ${n} erledigt`}>
+        {done ? <Check size={18} aria-hidden /> : n}
       </button>
       <div className="guide-body flex flex-col gap-1.5 pt-2">
         <strong>{title}</strong>
@@ -100,7 +101,7 @@ export default function DialInGuide({
   return (
     <details className="guide collapse collapse-arrow bg-base-100 border border-base-300" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="collapse-title flex flex-col gap-0.5 text-[1.05rem] font-bold">
-        <span>🧭 Dial-In-Assistent</span>
+        <span className="flex items-center gap-2"><Compass size={18} aria-hidden /> Dial-In-Assistent</span>
         <span className="text-muted text-sm font-normal">Schritt für Schritt zum Shot</span>
       </summary>
       <div className="collapse-content flex flex-col gap-3.5">
@@ -113,8 +114,23 @@ export default function DialInGuide({
         />
       )}
       {plan.note && <p className="text-muted text-sm">{plan.note}</p>}
+      <div className="grid grid-cols-4 gap-px overflow-hidden rounded-[14px] border border-base-300 bg-base-300">
+        {(
+          [
+            ['Mahlgrad', plan.grind ?? '–', true],
+            ['Dosis', plan.dose != null ? `${plan.dose} g` : '–'],
+            ['Output', plan.yield != null ? `${plan.yield} g` : '–'],
+            ['Temp.', plan.temp != null ? `${plan.temp} °C` : '–'],
+          ] as const
+        ).map(([k, v, accent]) => (
+          <div key={k} className="bg-base-100 p-2.5 min-w-0">
+            <div className="lbl">{k}</div>
+            <div className={`num text-lg font-semibold ${accent ? 'text-accent-strong' : ''}`}>{v}</div>
+          </div>
+        ))}
+      </div>
       <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
-        <span className="badge badge-dash badge-info badge-sm font-bold whitespace-nowrap">KI-Coach · TBA</span> Persönliche KI-Empfehlungen auf Basis deiner Bezüge folgen in einem kommenden Update.
+        <span className="num rounded-md border border-dashed border-info px-1.5 text-[11px] text-info whitespace-nowrap">KI-COACH · TBA</span> Persönliche KI-Empfehlungen auf Basis deiner Bezüge folgen in einem kommenden Update.
       </p>
 
       <ol className="flex flex-col gap-3">
@@ -123,7 +139,7 @@ export default function DialInGuide({
             <p>Wähle oben eine Mühle aus.</p>
           ) : plan.grind != null ? (
             <p>
-              Stelle deine <strong>{grinderName}</strong> auf <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.grind}</span>
+              Stelle deine <strong>{grinderName}</strong> auf <span className="val">{plan.grind}</span>
               <span className="text-muted text-sm"> (kleinere Zahl = feiner bei den meisten Mühlen)</span>
             </p>
           ) : (
@@ -137,14 +153,14 @@ export default function DialInGuide({
         <Step n={2} title={espresso ? 'Maschine vorbereiten' : 'Vorbereiten'} done={done.prep} onToggle={() => toggle('prep')}>
           {plan.temp != null && (
             <p>
-              Zieltemperatur <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.temp} °C</span>
+              Zieltemperatur <span className="val">{plan.temp} °C</span>
               {plan.source === 'base' && <span className="text-muted text-sm"> für {ROAST_TEXT[plan.roast]}</span>}
             </p>
           )}
           <p>{prepText(machine)}</p>
           {plan.dose != null && (
             <p>
-              <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
+              <span className="val">{plan.dose} g</span> Kaffeemehl abwiegen{espresso ? ', verteilen (WDT) und gleichmäßig tampen.' : '.'}
             </p>
           )}
         </Step>
@@ -153,14 +169,14 @@ export default function DialInGuide({
           <p>
             {plan.yield != null && (
               <>
-                Output <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{plan.yield} g</span>
+                Output <span className="val">{plan.yield} g</span>
                 {plan.ratio && <span className="text-muted text-sm"> (Ratio {fmtRatio(plan.ratio)})</span>}
               </>
             )}
             {plan.time && (
               <>
                 {plan.yield != null ? ' in ' : 'Zeit '}
-                <span className="inline-block rounded-lg bg-base-200 px-2 font-extrabold text-accent-strong tabular-nums">{fmtRange(plan.time)}</span>
+                <span className="val">{fmtRange(plan.time)}</span>
               </>
             )}
           </p>

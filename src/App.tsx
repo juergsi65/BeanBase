@@ -9,11 +9,14 @@ import { useLocalStorage } from 'use-storage-hook'
 import Dashboard from './pages/Dashboard'
 import { getMyProfile } from './lib/social'
 import { useTheme } from './lib/theme'
+import { Bean, House, MessageSquare, Moon, Plus, ScrollText, SlidersHorizontal, Sun, User, Users, Wrench, X, type LucideIcon } from 'lucide-react'
+import Logo from './components/Logo'
 import type { BrewPreset, Go, Tab } from './types'
 
 // Start-Seite sofort, alle anderen Seiten erst beim ersten Öffnen laden (kleinerer Start-Chunk)
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const BrewPage = lazy(() => import('./pages/BrewPage'))
+const DialInPage = lazy(() => import('./pages/DialInPage'))
 const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const BeansPage = lazy(() => import('./pages/BeansPage'))
 const EquipmentPage = lazy(() => import('./pages/EquipmentPage'))
@@ -27,17 +30,18 @@ const SetPasswordPage = lazy(() => import('./pages/SetPasswordPage'))
 const pageLoading = <div className="flex justify-center p-8"><span className="loading loading-dots loading-lg text-primary" aria-label="Seite lädt" /></div>
 
 // Untere Leiste: Daumen-freundlich, mittig der wichtigste Knopf ("+ Bezug")
-const TABS: { id: Exclude<Tab, 'user'>; label: string; icon: string; fab?: boolean }[] = [
-  { id: 'dashboard', label: 'Start', icon: '☕' },
-  { id: 'beans', label: 'Bohnen', icon: '🫘' },
-  { id: 'brew', label: 'Bezug', icon: '+', fab: true },
-  { id: 'history', label: 'Log', icon: '📋' },
-  { id: 'community', label: 'Community', icon: '🌍' },
+const TABS: { id: Exclude<Tab, 'user'>; label: string; icon: LucideIcon; fab?: boolean }[] = [
+  { id: 'dashboard', label: 'Start', icon: House },
+  { id: 'beans', label: 'Bohnen', icon: Bean },
+  { id: 'brew', label: 'Bezug', icon: Plus, fab: true },
+  { id: 'history', label: 'Log', icon: ScrollText },
+  { id: 'community', label: 'Community', icon: Users },
 ]
 const iconBtn = (on: boolean) =>
-  `btn btn-square size-10 min-[401px]:size-11 rounded-[11px] text-lg bg-base-100 ${on ? 'border-primary ring-1 ring-inset ring-primary' : 'border-base-300'}`
+  `btn btn-square size-10 min-[401px]:size-11 rounded-[12px] bg-base-100 ${on ? 'border-primary text-accent-strong ring-1 ring-inset ring-primary' : 'border-base-300 text-base-content/80'}`
+const ICON = { size: 20, strokeWidth: 1.75, 'aria-hidden': true } as const
 
-const TAB_GROUP: Partial<Record<Tab, Tab | null>> = { user: 'community', profile: 'community', admin: 'community', feedback: null }
+const TAB_GROUP: Partial<Record<Tab, Tab | null>> = { user: 'community', profile: 'community', admin: 'community', feedback: null, dialin: 'brew' }
 const START_TABS: Tab[] = ['brew', 'beans', 'history', 'community']
 const isStartTab = (t: string | null): t is Tab => START_TABS.includes(t as Tab)
 
@@ -102,9 +106,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar navbar sticky top-0 z-10 gap-2 px-3 min-h-0 pb-2 pt-[calc(8px+env(safe-area-inset-top))] desk:fixed desk:inset-x-0 desk:z-30 desk:h-16 desk:px-6 desk:py-0 bg-page/88 backdrop-blur-md border-b border-base-300">
-        <button className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-lg font-extrabold cursor-pointer desk:text-xl" onClick={() => go('dashboard')}>
-          <span>🫘</span> <span className="hidden min-[420px]:inline">BeanBase</span>
-          {!isLocalMode && <span className="badge badge-primary badge-xs font-extrabold tracking-wider shrink-0">BETA</span>}
+        <button className="flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap text-[17px] font-semibold tracking-tight cursor-pointer desk:text-lg" onClick={() => go('dashboard')}>
+          <Logo /> <span className="hidden min-[420px]:inline">BeanBase</span>
+          {!isLocalMode && <span className="num shrink-0 rounded-md border border-primary/45 px-1.5 py-px text-[10px] font-semibold tracking-widest text-accent-strong">BETA</span>}
         </button>
         <div className="ml-auto flex shrink-0 gap-1.5">
           <button
@@ -113,24 +117,24 @@ export default function App() {
             aria-label={theme.isDark ? 'Helles Design' : 'Dunkles Design'}
             title={`${theme.isDark ? 'Zu hell wechseln' : 'Zu dunkel wechseln'} („Automatisch“ unter Setup)`}
           >
-            {theme.isDark ? '☀️' : '🌙'}
+            {theme.isDark ? <Sun {...ICON} /> : <Moon {...ICON} />}
           </button>
           {!isLocalMode && (
             <button className={iconBtn(tab === 'feedback')} onClick={() => go('feedback')} aria-label="Feedback geben" title="Feedback geben">
-              💬
+              <MessageSquare {...ICON} />
             </button>
           )}
           {me?.role === 'admin' && (
             <button className={iconBtn(tab === 'admin')} onClick={() => go('admin')} aria-label="Admin-Bereich" title="Admin-Bereich">
-              🛠
+              <Wrench {...ICON} />
             </button>
           )}
           <button className={iconBtn(tab === 'equipment')} onClick={() => go('equipment')} aria-label="Setup & Einstellungen" title="Setup & Einstellungen">
-            ⚙️
+            <SlidersHorizontal {...ICON} />
           </button>
           {!isLocalMode && (
             <button className={iconBtn(tab === 'profile')} onClick={() => go('profile')} aria-label="Mein Profil" title="Mein Profil">
-              👤
+              <User {...ICON} />
             </button>
           )}
         </div>
@@ -140,7 +144,7 @@ export default function App() {
         <div className="alert alert-soft flex items-start justify-between gap-2">
           <span>Demo-Modus: Daten werden nur in diesem Browser gespeichert. Für Login & Cloud-Sync Supabase in <code>.env</code> konfigurieren.</span>
           <button className="btn btn-ghost btn-sm btn-square -my-1" onClick={() => setDemoHint(false)} aria-label="Hinweis ausblenden" title="Hinweis ausblenden">
-            ✕
+            <X size={18} aria-hidden />
           </button>
         </div>
       )}
@@ -151,7 +155,7 @@ export default function App() {
         <div className="alert alert-soft alert-error flex items-start justify-between gap-2" role="alert">
           <span>Das hat nicht geklappt: {data.error}</span>
           <button className="btn btn-ghost btn-sm btn-square -my-1" onClick={() => data.setError(null)} aria-label="Fehlermeldung schließen">
-            ✕
+            <X size={18} aria-hidden />
           </button>
         </div>
       )}
@@ -160,6 +164,7 @@ export default function App() {
         <Suspense fallback={pageLoading}>
         {tab === 'dashboard' && <Dashboard {...props} />}
         {tab === 'brew' && <BrewPage {...props} preset={brewPreset} key={brewPreset?.key ?? 'new'} />}
+        {tab === 'dialin' && <DialInPage {...props} preset={brewPreset} />}
         {tab === 'history' && <HistoryPage {...props} />}
         {tab === 'beans' && <BeansPage {...props} />}
         {tab === 'equipment' && <EquipmentPage {...props} />}
@@ -178,11 +183,13 @@ export default function App() {
         {TABS.map((t) => (
           <button
             key={t.id}
-            className={`${t.fab ? 'dock-fab' : ''} ${activeTab === t.id ? 'dock-active text-accent-strong' : 'text-muted'} ${t.fab ? 'after:hidden' : ''}`}
+            className={`${t.fab ? 'dock-fab' : ''} ${activeTab === t.id ? 'dock-active text-accent-strong' : 'text-muted'} ${t.fab || activeTab !== t.id ? 'after:hidden' : ''}`}
             onClick={() => go(t.id)}
             aria-label={t.fab ? 'Neuer Bezug' : undefined}
           >
-            <span className={t.fab ? 'fab-circle' : 'tab-icon'}>{t.icon}</span>
+            <span className={t.fab ? 'fab-circle' : 'tab-icon'}>
+              <t.icon size={t.fab ? 28 : 22} strokeWidth={t.fab ? 2.2 : 1.75} aria-hidden />
+            </span>
             <span className="dock-label max-w-full truncate px-0.5">{t.label}</span>
           </button>
         ))}
@@ -190,14 +197,14 @@ export default function App() {
 
       {/* Desktop: Seitenleiste, "+ Neuer Bezug" als prominenter Knopf oben */}
       <aside className="sidebar hidden desk:block z-20 bg-base-100 border-r border-base-300 px-3.5 py-5">
-        <button className="btn btn-primary btn-block justify-start gap-3 mb-3 shadow-md" onClick={() => go('brew')}>
-          <span className="w-6 text-center text-2xl font-light leading-none">+</span> Neuer Bezug
+        <button className="btn btn-primary btn-block h-12 justify-start gap-3 mb-4 rounded-[12px]" onClick={() => go('brew')}>
+          <Plus size={22} strokeWidth={2.2} aria-hidden /> Neuer Bezug
         </button>
         <ul className="menu w-full gap-1 p-0 text-[0.95rem] font-semibold">
           {TABS.filter((t) => !t.fab).map((t) => (
             <li key={t.id}>
-              <button className={`gap-3 py-2.5 ${activeTab === t.id ? 'menu-active bg-primary/16! text-accent-strong!' : ''}`} onClick={() => go(t.id)}>
-                <span className="w-6 text-center text-xl">{t.icon}</span>
+              <button className={`gap-3 py-2.5 rounded-[10px] ${activeTab === t.id ? 'menu-active bg-primary/14! text-accent-strong!' : 'text-base-content/80'}`} onClick={() => go(t.id)}>
+                <t.icon size={20} strokeWidth={1.75} aria-hidden />
                 {t.label}
               </button>
             </li>

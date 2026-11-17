@@ -1,7 +1,7 @@
+import { Heart, MessageCircle, Repeat2, X } from 'lucide-react'
 import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import Avatar from './Avatar'
-import { Stars } from './ui'
 import { MediaView } from './MediaPicker'
 import { fmtDate, fmtRelative, fmtRatio, ratio, extractionLabel, MACHINE_TYPES, ROAST_LEVELS } from '../lib/coffee'
 import { toggleLike, listComments, addComment, deleteComment, type Comment, type FeedBrew } from '../lib/social'
@@ -100,12 +100,17 @@ export default function FeedCard({
     setCommentCount(list.length)
   }
 
-  const recipe = [
-    has(brew.dose) && has(brew.yield) ? `${brew.dose} g → ${brew.yield} g` : has(brew.dose) ? `${brew.dose} g` : null,
-    r ? fmtRatio(r) : null,
-    has(brew.brew_time) ? `${brew.brew_time} s` : null,
-    has(brew.temperature) ? `${brew.temperature} °C` : null,
+  // Rezept-Leiste: Messwerte als Mono-Zellen, Akzentfarbe für Ratio und Bewertung
+  const cells: { k: string; v: string; accent?: boolean }[] = [
+    has(brew.dose) ? { k: 'dose', v: `${brew.dose} g` } : null,
+    has(brew.yield) ? { k: 'yield', v: `${brew.yield} g` } : null,
+    r ? { k: 'ratio', v: fmtRatio(r), accent: true } : null,
+    has(brew.brew_time) ? { k: 'time', v: `${brew.brew_time} s` } : null,
+    brew.rating ? { k: 'rating', v: `${Number(brew.rating).toFixed(1)}★`, accent: true } : null,
+  ].filter(isDefined)
+  const extra = [
     has(brew.grind_setting) ? `Mahlgrad ${brew.grind_setting}` : null,
+    has(brew.temperature) ? `${brew.temperature} °C` : null,
     has(brew.preinfusion) && Number(brew.preinfusion) > 0 ? `Pre-Inf. ${brew.preinfusion} s` : null,
   ].filter(Boolean)
   const gear = [brew.machine?.name || (brew.machine && MACHINE_TYPES[brew.machine.type]), brew.grinder?.name].filter(Boolean).join(' · ')
@@ -129,28 +134,20 @@ export default function FeedCard({
 
         {brew.notes && <p className="text-[1.02rem] leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere]">{brew.notes}</p>}
 
-        <div className="flex items-start gap-2 text-[0.92rem]">
-          <span className="leading-[1.35]">☕</span>
-          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-            <strong>{brew.bean?.name ?? 'Unbekannte Bohne'}</strong>
-            {brew.bean?.roaster && <span className="text-muted"> · {brew.bean.roaster}</span>}
-            {brew.bean?.roast_level && <span className="text-muted"> · {ROAST_LEVELS[brew.bean.roast_level]}</span>}
+        <div className="flex flex-wrap gap-px overflow-hidden rounded-xl border border-base-300 bg-base-300">
+          <span className="min-w-0 flex-[2_1_150px] bg-base-100 px-3 py-2 text-sm font-semibold [overflow-wrap:anywhere]">
+            {brew.bean?.name ?? 'Unbekannte Bohne'}
+            {brew.bean?.roast_level && <span className="block text-xs font-normal text-muted">{ROAST_LEVELS[brew.bean.roast_level]}{brew.bean?.roaster && ` · ${brew.bean.roaster}`}</span>}
           </span>
-          {brew.rating ? <Stars value={brew.rating} size="sm" /> : null}
+          {cells.map((c) => (
+            <span key={c.k} className={`num flex flex-[1_1_56px] items-center bg-base-200 px-3 py-2 text-[13px] ${c.accent ? 'text-accent-strong' : ''}`}>
+              {c.v}
+            </span>
+          ))}
         </div>
-
-        {recipe.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {recipe.map((x) => (
-              <span key={x} className="badge bg-base-200 border-base-300 text-[0.82rem] font-semibold tabular-nums">{x}</span>
-            ))}
-          </div>
-        )}
-        {(gear || brew.extraction != null) && (
+        {(gear || extra.length > 0 || brew.extraction != null) && (
           <p className="text-xs text-muted [overflow-wrap:anywhere]">
-            {gear}
-            {gear && brew.extraction != null && ' · '}
-            {brew.extraction != null && extractionLabel(brew.extraction)}
+            {[gear, ...extra, brew.extraction != null ? extractionLabel(brew.extraction) : null].filter(Boolean).join(' · ')}
           </p>
         )}
 
@@ -158,7 +155,7 @@ export default function FeedCard({
 
         <footer className="-mx-2 mt-0.5 flex items-center gap-1">
           <button type="button" className={`post-action ${comments ? 'on' : ''}`} onClick={openComments} aria-expanded={!!comments} aria-label="Kommentare">
-            <span className="post-icon text-[1.05rem] leading-none">💬</span>
+            <MessageCircle size={18} className="post-icon" aria-hidden />
             <span>{commentCount}</span>
           </button>
           <button
@@ -168,12 +165,12 @@ export default function FeedCard({
             aria-pressed={liked}
             aria-label="Gefällt mir"
           >
-            <span className="post-icon text-[1.05rem] leading-none">☕</span>
+            <Heart size={18} className="post-icon" fill={liked ? "currentColor" : "none"} aria-hidden />
             <span>{likes}</span>
           </button>
           {!own && onReuse && (
             <button type="button" className="post-action reuse ml-auto" onClick={() => onReuse(brew)} title="Werte in einen neuen Bezug übernehmen">
-              <span className="post-icon text-[1.05rem] leading-none">↻</span>
+              <Repeat2 size={18} className="post-icon" aria-hidden />
               <span>Rezept übernehmen</span>
             </button>
           )}
@@ -197,7 +194,7 @@ export default function FeedCard({
                 </div>
                 {(c.user_id === me || own) && (
                   <button type="button" className="link link-primary p-2 no-underline text-sm" onClick={() => remove(c.id)} aria-label="Kommentar löschen">
-                    ✕
+                    <X size={18} aria-hidden />
                   </button>
                 )}
               </div>

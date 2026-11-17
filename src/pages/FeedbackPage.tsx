@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { errMsg } from '../lib/errors'
 import { useQuery } from '@tanstack/react-query'
 import { useSessionStorage } from 'use-storage-hook'
-import { Field, segBtn } from '../components/ui'
+import { Field, segBtn, segWrap } from '../components/ui'
 import { sendFeedback, listFeedback } from '../lib/admin'
 import { toast } from '../lib/toast'
 import { fmtDate } from '../lib/coffee'
 import type { PageProps, Tab } from '../types'
 
 type Topic = 'bug' | 'idea' | 'ux' | 'other'
-const TOPICS: Record<Topic, string> = { bug: '🐞 Fehler', idea: '💡 Idee', ux: '👆 Bedienung', other: '💬 Sonstiges' }
+const TOPICS: Record<Topic, string> = { bug: 'Fehler', idea: 'Idee', ux: 'Bedienung', other: 'Sonstiges' }
 
 export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { fromTab: Exclude<Tab, 'user'> }) {
   const [topic, setTopic] = useState<Topic>('bug')
@@ -23,7 +23,7 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
     try {
       await sendFeedback(`[${TOPICS[topic]}] ${text}`, `Seite: ${fromTab ?? '–'} · ${window.innerWidth}×${window.innerHeight}`)
       setText('')
-      toast('Danke für dein Feedback! ☕')
+      toast('Danke für dein Feedback!')
       refetch()
     } catch (err) {
       toast(errMsg(err), { tone: 'error' })
@@ -39,14 +39,14 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
         Danke, dass du BeanBase testest! Was klemmt, was fehlt, was gefällt dir? Jede Rückmeldung landet direkt beim Entwickler.
       </p>
       <form className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5" onSubmit={submit}>
-        <div className="flex flex-wrap gap-1.5">
+        <div className={segWrap}>
           {(Object.entries(TOPICS) as [Topic, string][]).map(([k, v]) => (
-            <button type="button" key={k} className={segBtn(topic === k)} onClick={() => setTopic(k)}>
+            <button type="button" key={k} aria-pressed={topic === k} className={segBtn(topic === k)} onClick={() => setTopic(k)}>
               {v}
             </button>
           ))}
         </div>
-        <Field label="Deine Nachricht" hint={`${text.length}/1900`}>
+        <Field label="Deine Nachricht" hint={<span className="num">{text.length}/1900</span>}>
           <textarea className="textarea w-full"
             rows={5}
             required
@@ -63,12 +63,15 @@ export default function FeedbackPage({ go, fromTab }: Pick<PageProps, 'go'> & { 
       </form>
       {mine.length > 0 && (
         <section className="card bg-base-100 border border-base-300 p-4 desk:p-5 gap-3.5">
-          <h3 className="text-xs uppercase tracking-widest text-muted">Dein bisheriges Feedback</h3>
+          <h3 className="lbl">Dein bisheriges Feedback</h3>
           <ul className="items">
             {mine.map((f) => (
               <li key={f.id} className="item col">
-                <span className="text-muted text-sm">
-                  {fmtDate(f.created_at)} · {f.status === 'erledigt' ? '✅ erledigt' : '🕒 offen'}
+                <span className="flex items-center justify-between gap-2">
+                  <span className="num text-xs text-muted">{fmtDate(f.created_at)}</span>
+                  <span className={`num rounded-full border px-2 text-[11px] tracking-wider uppercase ${f.status === 'erledigt' ? 'border-success/40 bg-success/10 text-success' : 'border-base-300 text-muted'}`}>
+                    {f.status === 'erledigt' ? 'erledigt' : 'offen'}
+                  </span>
                 </span>
                 <span>{f.message}</span>
               </li>
