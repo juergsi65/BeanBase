@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { errMsg } from '../lib/errors'
-import { communityAvailable, fetchCommunity, bestScope, communityValues, type Community, type CommunityValues } from '../lib/community'
+import { communityAvailable, fetchCommunity, bestScope, communityValues, roundGrind, type Community, type CommunityValues } from '../lib/community'
 import type { Grinder, Machine, MachineType } from '../types'
 
 type TipState =
@@ -8,7 +8,7 @@ type TipState =
   | { status: 'done'; result: Community | null }
   | { status: 'error'; error: string }
 import { MACHINE_TYPES } from '../lib/coffee'
-import { findGrinderPreset, findMachinePreset } from '../data/presets'
+import { findGrinderPreset, findMachinePreset, grinderScale } from '../data/presets'
 
 /**
  * "Sofort-Check": zeigt anonymisierte Werte anderer Nutzer für diese Bohne.
@@ -77,8 +77,9 @@ export default function CommunityTip({
 
   const grinderName = findGrinderPreset(grinderPreset)?.name ?? grinder?.name
   const machineName = findMachinePreset(machinePreset)?.name ?? machine?.name
-  const avg = communityValues(row, 'avg', grinder?.scale_type)!
-  const best = communityValues(row, 'best', grinder?.scale_type)!
+  const scale = grinderScale(grinder)
+  const avg = communityValues(row, 'avg', scale)!
+  const best = communityValues(row, 'best', scale)!
   const head =
     row.scope === 'setup' ? (
       <>
@@ -116,7 +117,7 @@ export default function CommunityTip({
       </div>
       {row.min_grind != null && row.min_grind !== row.max_grind && (
         <p className="text-muted text-sm">
-          Mahlgrad-Spanne {Number(row.min_grind)}–{Number(row.max_grind)}
+          Mahlgrad-Spanne {roundGrind(row.min_grind, scale)} – {roundGrind(row.max_grind, scale)}
         </p>
       )}
       <p className="text-muted text-sm">

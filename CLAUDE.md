@@ -30,7 +30,7 @@ No test runner. Checks: `npm run typecheck` + `npm run lint` (oxlint, not ESLint
 
 **Navigation:** no router. `src/App.tsx` holds a `tab` state and a `go(tab, params)` helper; pages in `src/pages/` receive shared props. Initial tab can come from `?tab=` (PWA shortcuts); `?invite=CODE` and `?recovery=1` drive registration / password reset.
 
-**Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
+**Domain logic** is kept out of components: `lib/coffee.ts` (ratio, roast age, recipe selection), `lib/dialin.ts` (dial-in targets & grind corrections), `lib/cost.ts` (stock/cost per cup), `lib/grind.ts` (grinder scales per manual: notation parse/format, corrections in real grinder units, canonical `brews.grind_pos` for community averages; scale definitions live on `GRINDER_PRESETS`), `lib/barcode.ts` (cascade: own bean → community RPC → Open Food Facts → `/api/upc` → coffee filter).
 
 **Presets:** `src/data/presets.ts` — curated machines/grinders. `preset_id` values are stored in the DB and used for community matching — **never change existing ids**.
 
